@@ -106,7 +106,9 @@ fun LoginScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Button(
-                        onClick = { /* Handle login logic */ },
+                        onClick = {
+                                  onLoginClick()
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -131,7 +133,7 @@ fun LoginScreen(
                         Text("Don't have an account?")
                         TextButton(
                             onClick = {
-
+                                onSignupClick()
                             }
                         ) {
                             Text(

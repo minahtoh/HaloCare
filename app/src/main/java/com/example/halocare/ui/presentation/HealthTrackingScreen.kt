@@ -37,21 +37,21 @@ fun HealthTrackingScreen(onCategoryClick: (String) -> Unit) {
                 subtitle = "Streak: 5 days",
                 color = Color(0xFFFFCC80),
                 imageRes = R.drawable.dumbell_icon,
-                onClick = { onCategoryClick("Daily Habits") }
+                onClick = { onCategoryClick(DailyHabitsScreen.route) }
             )
             CategoryCard(
                 title = "Mood Tracker",
                 subtitle = "Last Entry: Happy",
                 color = Color(0xFF90CAF9),
                 imageRes = R.drawable.depressed_icon,
-                onClick = { onCategoryClick("Mood Tracker") }
+                onClick = { onCategoryClick(MoodScreen.route) }
             )
             CategoryCard(
                 title = "Medication Reminder",
                 subtitle = "Next: 8:00 AM",
                 color = Color(0xFFA5D6A7),
                 imageRes = R.drawable.baseline_medication_24,
-                onClick = { onCategoryClick("Medication Reminder") }
+                onClick = { onCategoryClick(MedicationScreen.route) }
             )
         }
     }

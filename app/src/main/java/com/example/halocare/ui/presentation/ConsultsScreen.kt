@@ -1,6 +1,8 @@
 package com.example.halocare.ui.presentation
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,10 +48,13 @@ import androidx.compose.ui.unit.dp
 import com.example.halocare.R
 import com.example.halocare.ui.models.Appointment
 
-@Preview(widthDp = 320, heightDp = 720)
+//@Preview(widthDp = 320, heightDp = 720)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ConsultsScreen(){
+fun ConsultsScreen(
+    onBackPressed: () -> Unit = {},
+    scrollState: ScrollState
+){
     Surface(
         //modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.surfaceVariant
@@ -90,7 +95,9 @@ fun ConsultsScreen(){
 
         Scaffold(
             topBar = {
-                ConsultationsTopBar()
+                ConsultationsTopBar(
+                    onBackPressed
+                )
             },
             floatingActionButton = {
                 FloatingActionButton(
@@ -104,8 +111,8 @@ fun ConsultsScreen(){
         ) { paddingValues ->
             Column(
                 modifier = Modifier
-//                    .verticalScroll(rememberScrollState())
                     .padding(paddingValues)
+                    .verticalScroll(scrollState)
 
             ) {
                 Row(
@@ -153,7 +160,9 @@ fun ConsultsScreen(){
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
-                LazyColumn {
+                LazyColumn(
+                    modifier = Modifier.height(200.dp)
+                ) {
                     items(pastAppointments.size) { appointment ->
                         AppointmentCard(appointment = pastAppointments[appointment])
                     }
@@ -318,7 +327,9 @@ fun UpcomingAppointmentCard(appointment: Appointment){
 }
 
 @Composable
-fun ConsultationsTopBar(){
+fun ConsultationsTopBar(
+    onBackPressed : () -> Unit
+){
     Surface(
         color = MaterialTheme.colorScheme.tertiaryContainer,
         modifier = Modifier,
@@ -335,7 +346,9 @@ fun ConsultationsTopBar(){
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 shape = RoundedCornerShape(50),
                 shadowElevation = 5.dp,
-                modifier = Modifier.size(30.dp)
+                modifier = Modifier.size(30.dp).clickable {
+                    onBackPressed()
+                }
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.baseline_keyboard_double_arrow_right_24),

@@ -44,13 +44,7 @@ fun HaloCareHomeIcon(
             .size(size)
             .clickable { onClick() },
     ){
-        if (isSelected) {
-            // Draw a filled background shape
-            drawCircle(
-                color = contentColor,
-                radius = (size+10.dp).toPx() / 2
-            )
-        }
+
         // Use contrasting color if selected
         val iconColor = if (isSelected) backgroundColor else contentColor
 

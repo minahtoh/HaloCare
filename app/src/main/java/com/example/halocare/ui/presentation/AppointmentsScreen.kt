@@ -71,8 +71,8 @@ import java.util.Calendar
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppointmentsScreen(
-    availableSpecialties: List<String> = emptyList(),  // List of specialties
-    availableProfessionals: List<Professional> = emptyList(), // List of doctors/specialists
+    availableSpecialties: List<String> = dummySpecialties,  // List of specialties
+    availableProfessionals: List<Professional> = dummyProfessionals, // List of doctors/specialists
     //onConfirmAppointment: (Professional, LocalDate) -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -469,3 +469,44 @@ fun AppointmentsTopBar(){
         }
     }
 }
+
+val dummySpecialties = listOf(
+    "Neurology",
+    "Pediatrics",
+    "Cardiology",
+    "Dermatology",
+    "Orthopedics"
+)
+
+val dummyProfessionals = listOf(
+    Professional(
+        name = "Dr. Alice Smith",
+        specialty = "Neurology",
+        availableDates = listOf(LocalDate.now().plusDays(1), LocalDate.now().plusDays(3))
+    ),
+    Professional(
+        name = "Dr. John Doe",
+        specialty = "Pediatrics",
+        availableDates = listOf(LocalDate.now().plusDays(2), LocalDate.now().plusDays(4))
+    ),
+    Professional(
+        name = "Dr. Sarah Johnson",
+        specialty = "Cardiology",
+        availableDates = listOf(LocalDate.now().plusDays(1), LocalDate.now().plusDays(5))
+    ),
+    Professional(
+        name = "Dr. Michael Brown",
+        specialty = "Cardiology",
+        availableDates = listOf(LocalDate.now().plusDays(2), LocalDate.now().plusDays(3))
+    ),
+    Professional(
+        name = "Dr. Emily Wilson",
+        specialty = "Dermatology",
+        availableDates = listOf(LocalDate.now().plusDays(3), LocalDate.now().plusDays(5))
+    ),
+    Professional(
+        name = "Dr. David Anderson",
+        specialty = "Orthopedics",
+        availableDates = listOf(LocalDate.now().plusDays(1), LocalDate.now().plusDays(4))
+    )
+)
