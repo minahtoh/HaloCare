@@ -94,7 +94,8 @@ import kotlin.math.absoluteValue
 @Composable
 fun HomeScreen(
     navController: NavController = rememberNavController(),
-    onProfileClick : () -> Unit = {}
+    onProfileClick : () -> Unit = {},
+    userWelcomeName : String = ""
 ) {
     val features = listOf(
         "Development Tracker", "Medication Reminder", "Health Insights",
@@ -113,7 +114,7 @@ fun HomeScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Welcome, User") },
+                title = { Text("Welcome, $userWelcomeName") },
                 colors = TopAppBarDefaults.smallTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                     scrolledContainerColor = Color.Transparent

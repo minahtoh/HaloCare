@@ -8,6 +8,8 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 
 interface HaloCareDestinations{
     val route : String
@@ -31,10 +33,13 @@ object ProfileScreen : HaloCareDestinations{
     override val icon: ImageVector = Icons.Default.AccountCircle
 }
 object HomeScreen : HaloCareDestinations{
-    override val icon: ImageVector
-        get() = Icons.Default.Create
-    override val route: String
-        get() = "home_screen"
+    override val icon: ImageVector = Icons.Default.Create
+    override val route: String = "home_screen"
+    const val userDescriptionArg = "user_welcome_name"
+    val arguments = listOf(
+        navArgument(userDescriptionArg){type = NavType.StringType}
+    )
+    val routeWithArgs = "${route}/{${userDescriptionArg}}"
 }
 object ConsultsScreen : HaloCareDestinations{
     override val route: String = "consults_screen"
