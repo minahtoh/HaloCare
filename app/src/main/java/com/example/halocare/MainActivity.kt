@@ -60,7 +60,7 @@ class MainActivity : ComponentActivity() {
                 val currentRoute = navHostController.currentBackStackEntryAsState().value?.destination?.route
 
                 val showBottomBar = currentRoute in listOf(
-                    HomeScreen.routeWithArgs,
+                    HomeScreen.route,
                     ConsultsScreen.route,
                     HealthTrackingScreen.route,
                     SettingsScreen.route
@@ -128,25 +128,30 @@ fun HaloCareNavHost(
             LoginScreen(
                 onSignupClick = {navHostController.navigateSingleTopTo(RegisterScreen.route)},
                 onSuccessfulLogin = {
-                              navHostController.navigateToHomeScreen(it)
+                    navHostController.navigateSingleTopTo(HomeScreen.route, true)
                 },
                 viewModel = authViewModel
             )
         }
         composable(route = RegisterScreen.route){
             RegisterScreen(
-                onSignUpSuccess = {navHostController.navigateSingleTopTo(LoginScreen.route)},
-                authViewModel = authViewModel
+                onSignUpSuccess = {navHostController.navigateSingleTopTo(LoginScreen.route, true)},
+                authViewModel = authViewModel,
+                onLoginClick = {navHostController.navigateSingleTopTo(LoginScreen.route)}
             )
         }
         composable(route = ProfileScreen.route){
-            ProfileScreen()
+            ProfileScreen(
+                onSkip = {navHostController.navigateSingleTopTo(HomeScreen.route, true)},
+                onContinue = {navHostController.navigateSingleTopTo(HomeScreen.route)},
+                authViewModel = authViewModel
+            )
         }
-        composable(route = HomeScreen.routeWithArgs, arguments = HomeScreen.arguments){
-            val argument = it.arguments?.getString(HomeScreen.userDescriptionArg)
+        composable(route = HomeScreen.route){
             HomeScreen(
                 onProfileClick = {navHostController.navigateSingleTopTo(ProfileScreen.route)},
-                userWelcomeName = argument ?: "emptyUser"
+                authViewModel = authViewModel,
+                scrollState = scrollState
             )
         }
         composable(route = ConsultsScreen.route){
@@ -192,6 +197,6 @@ fun NavHostController.navigateSingleTopTo(route: String, popBackStack : Boolean 
 
 fun NavHostController.navigateToHomeScreen(userName:String) =
     this.navigateSingleTopTo(
-        route = "${HomeScreen.route}/{${userName}}",
+        route = "${HomeScreen.route}/${userName}",
         popBackStack = true
     )

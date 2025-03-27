@@ -53,6 +53,7 @@ import com.example.halocare.ui.models.Appointment
 @Composable
 fun ConsultsScreen(
     onBackPressed: () -> Unit = {},
+    onAppointmentsClick : () -> Unit = {},
     scrollState: ScrollState
 ){
     Surface(
@@ -101,7 +102,9 @@ fun ConsultsScreen(
             },
             floatingActionButton = {
                 FloatingActionButton(
-                    onClick = {},
+                    onClick = {
+                              onAppointmentsClick()
+                    },
                     containerColor = MaterialTheme.colorScheme.primary
                 ) {
                     Icon(Icons.Default.Add, contentDescription = "New Appointment")

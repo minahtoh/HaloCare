@@ -4,6 +4,7 @@ plugins {
     id 'com.google.gms.google-services'
     id 'com.google.dagger.hilt.android'
     id 'kotlin-kapt'
+    id 'org.jetbrains.kotlin.plugin.serialization' version '1.8.22'
 }
 
 dependencies {
@@ -88,7 +89,10 @@ dependencies {
     implementation "com.patrykandpatrick.vico:core:1.7.0"
     implementation "com.patrykandpatrick.vico:compose:1.7.0"
 
-    //hilt
+    //room
+    implementation "androidx.room:room-runtime:2.5.1"
+    kapt "androidx.room:room-compiler:2.5.1"
+    implementation "androidx.room:room-ktx:2.5.1"
 
 
     testImplementation 'junit:junit:4.13.2'

@@ -35,11 +35,6 @@ object ProfileScreen : HaloCareDestinations{
 object HomeScreen : HaloCareDestinations{
     override val icon: ImageVector = Icons.Default.Create
     override val route: String = "home_screen"
-    const val userDescriptionArg = "user_welcome_name"
-    val arguments = listOf(
-        navArgument(userDescriptionArg){type = NavType.StringType}
-    )
-    val routeWithArgs = "${route}/{${userDescriptionArg}}"
 }
 object ConsultsScreen : HaloCareDestinations{
     override val route: String = "consults_screen"

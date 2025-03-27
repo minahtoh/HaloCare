@@ -66,13 +66,13 @@ import kotlinx.coroutines.delay
 @Composable
 fun LoginScreen(
     modifier: Modifier = Modifier,
-    onSuccessfulLogin : (String)-> Unit = {},
+    onSuccessfulLogin : ()-> Unit = {},
     onSignupClick : ()-> Unit = {},
     viewModel: AuthViewModel
 ){
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    val loginState by viewModel.haloCareUserState.collectAsState()
+    val loginState by viewModel.authState.collectAsState()
     val context = LocalContext.current
 
     Surface(
@@ -82,15 +82,15 @@ fun LoginScreen(
         Box(
             modifier = Modifier.fillMaxWidth()
         ) {
-            HaloCareLoginDialog(uiState = loginState) {
-                if (loginState is UiState.Success){
-                    viewModel.resetLoginState()
-                    val loggedUser = (loginState as UiState.Success<User>).data
-                    onSuccessfulLogin(loggedUser.name)
+            AnimatedLoadingDialog(uiState = loginState) {
+                if (loginState is AuthUiState.Success){
+                    viewModel.resetAuthState()
+                   // val loggedUser = (loginState as AuthUiState.Success<User>).data
+                    onSuccessfulLogin()
                 }
-                if (loginState is UiState.Error){
-                    viewModel.resetLoginState()
-                    val errorMessage = (loginState as UiState.Error).message
+                if (loginState is AuthUiState.Error){
+                    viewModel.resetAuthState()
+                    val errorMessage = (loginState as AuthUiState.Error).message
                     Toast.makeText(
                         context,
                         "Error $errorMessage",
@@ -201,7 +201,7 @@ fun LoginScreen(
 
 @Composable
 fun HaloCareLoginDialog(
-    uiState: UiState<User>,
+    uiState: UiState<FirebaseUser>,
     onDismiss: () -> Unit
 ) {
     if (uiState is UiState.Idle) return  // Hide when idle

@@ -7,6 +7,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.scrollable
@@ -60,6 +61,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -84,18 +86,20 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.halocare.R
+import com.example.halocare.viewmodel.AuthViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.absoluteValue
 
 
-@Preview(widthDp = 320, heightDp = 720)
+//@Preview(widthDp = 320, heightDp = 720)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     navController: NavController = rememberNavController(),
     onProfileClick : () -> Unit = {},
-    userWelcomeName : String = ""
+    authViewModel: AuthViewModel,
+    scrollState: ScrollState
 ) {
     val features = listOf(
         "Development Tracker", "Medication Reminder", "Health Insights",
@@ -110,11 +114,12 @@ fun HomeScreen(
         R.drawable.screenshot_2025_03_07_071855,
         R.drawable.screenshot_2025_03_07_071929,
     )
+    val loggedUser by authViewModel.haloCareUser.collectAsState()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Welcome, $userWelcomeName") },
+                title = { Text("Welcome, ${loggedUser.name}") },
                 colors = TopAppBarDefaults.smallTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                     scrolledContainerColor = Color.Transparent
@@ -135,7 +140,6 @@ fun HomeScreen(
         var lastUserInteraction by remember { mutableStateOf(System.currentTimeMillis()) }
 
 
-
         LaunchedEffect(Unit) {
             while (true) {
                 delay(3000) // Wait for 3 seconds
@@ -145,6 +149,7 @@ fun HomeScreen(
                     pagerState.animateScrollToPage(nextPage)
                 }
             }
+
         }
 
         Box(
@@ -152,71 +157,66 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            LazyColumn(
+            Column(
                 modifier = Modifier
-                    .fillMaxSize()
                     .padding(10.dp)
+                  .verticalScroll(scrollState)
             ) {
-                item {
-                    Column {
-                        HorizontalPager(
-                            state = pagerState,
+                Column {
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp),
+                        contentPadding = PaddingValues(32.dp),
+                        //     beyondViewportPageCount = 1,
+                        pageSpacing = 3.dp
+                    ) { page ->
+                        UserDashboardCard(
+                            imageRes = images[page],
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .height(200.dp),
-                            contentPadding = PaddingValues(32.dp),
-                            pageSpacing = 3.dp
-                        ) { page ->
-                            UserDashboardCard(
-                                imageRes = images[page],
-                                modifier = Modifier
-                                    .graphicsLayer {
-                                        val pageOffset =
-                                            calculateCurrentOffsetForPage(
-                                                page,
-                                                pagerState
-                                            ).absoluteValue
-                                        scaleX = 1f - (pageOffset * 0.1f)
-                                        scaleY = 1f - (pageOffset * 0.1f)
-                                    }
-                            )
-
-                            // Detect user swipe & reset timer
-                            LaunchedEffect(pagerState.currentPageOffsetFraction) {
-                                if (pagerState.currentPageOffsetFraction != 0f) {
-                                    lastUserInteraction = System.currentTimeMillis()
+                                .graphicsLayer {
+                                    val pageOffset =
+                                        calculateCurrentOffsetForPage(page, pagerState).absoluteValue
+                                    scaleX = 1f - (pageOffset * 0.1f) // Slight zoom-out effect
+                                    scaleY = 1f - (pageOffset * 0.1f)
                                 }
+                        )
+
+                        // Detect user swipe & reset timer
+                        LaunchedEffect(pagerState.currentPageOffsetFraction) {
+                            if (pagerState.currentPageOffsetFraction != 0f) {
+                                lastUserInteraction = System.currentTimeMillis()
                             }
                         }
-
-                        // Indicator Dots
-                        Row(
-                            horizontalArrangement = Arrangement.Center,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 3.dp)
-                        ) {
-                            repeat(pagerState.pageCount) { index ->
-                                val selected = pagerState.currentPage == index
-                                Box(
-                                    modifier = Modifier
-                                        .size(if (selected) 12.dp else 8.dp)
-                                        .padding(4.dp)
-                                        .background(
-                                            if (selected) MaterialTheme.colorScheme.primary
-                                            else Color.Gray,
-                                            shape = CircleShape
-                                        )
-                                )
-                            }
+                    }
+                    // Indicator Dots
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 3.dp)
+                    ) {
+                        repeat(pagerState.pageCount) { index ->
+                            val selected = pagerState.currentPage == index
+                            Box(
+                                modifier = Modifier
+                                    .size(if (selected) 12.dp else 8.dp)
+                                    .padding(4.dp)
+                                    .background(
+                                        if (selected) MaterialTheme.colorScheme.primary
+                                        else Color.Gray,
+                                        shape = CircleShape
+                                    )
+                            )
                         }
                     }
                 }
 
-                item {
+                Column {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(2),
-                        modifier = Modifier.height(400.dp).padding(10.dp)
+                        modifier = Modifier.height(300.dp).padding(10.dp)
                     ) {
                         items(features.size) { index ->
                             Card(
@@ -242,7 +242,7 @@ fun HomeScreen(
                         }
                     }
                 }
-                item { WeatherCard() }
+                WeatherCard()
             }
         }
     }

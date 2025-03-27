@@ -3,6 +3,7 @@ package com.example.halocare.viewmodel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.halocare.database.UserDao
 import com.example.halocare.ui.models.User
 import com.example.halocare.ui.presentation.UiState
 import com.google.firebase.auth.AuthResult
@@ -11,11 +12,13 @@ import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -26,6 +29,8 @@ class AuthViewModel @Inject constructor(private val authRepository: AuthReposito
     val authState: StateFlow<AuthUiState> = _authState
     private var _haloCareUserState = MutableStateFlow<UiState<User>>(UiState.Idle)
     val haloCareUserState = _haloCareUserState.asStateFlow()
+    private var _haloCareUser = MutableStateFlow(User())
+    val haloCareUser = _haloCareUser.asStateFlow()
 
     fun registerUser(
         name: String,
@@ -58,19 +63,21 @@ class AuthViewModel @Inject constructor(private val authRepository: AuthReposito
 
     fun loginUser(email: String, password: String) {
         viewModelScope.launch {
-            _haloCareUserState.value = UiState.Loading
+            _authState.value = AuthUiState.Loading
             try {
                 val result = authRepository.loginWithEmail(email, password)
                 result?.user?.let { firebaseUser ->
                     val user = authRepository.getUserFromFireStore(firebaseUser.uid)
                     user?.let {
-                        _haloCareUserState.value = UiState.Success(it)
+                        authRepository.saveUserLocally(it)
                     }
+                    fetchUser(firebaseUser.uid)
+                    _authState.value = AuthUiState.Success(firebaseUser)
                 } ?: run {
-                    _haloCareUserState.value = UiState.Error("Login failed. Check your credentials.")
+                    _authState.value = AuthUiState.Error("Login failed. Check your credentials.")
                 }
             } catch (e: Exception) {
-                _haloCareUserState.value = UiState.Error(e.message ?: "An error occurred.")
+                _authState.value = AuthUiState.Error(e.message ?: "An error occurred.")
             }
         }
     }
@@ -91,6 +98,38 @@ class AuthViewModel @Inject constructor(private val authRepository: AuthReposito
         }
     }
 
+    private fun fetchUser(userId: String) {
+        viewModelScope.launch {
+            val localUser = authRepository.getUserLocally(userId)
+            _haloCareUser.value = localUser ?: kotlin.run {
+                val remoteUser = authRepository.getUserFromFireStore(userId)
+                remoteUser?.let { authRepository.saveUserLocally(it) }
+                remoteUser ?: User()
+            }
+        }
+    }
+
+    fun updateUser(user: User){
+        viewModelScope.launch {
+            _authState.value = AuthUiState.Loading
+            val result = authRepository.updateUserInFireStore(user)
+            if (result.isSuccess){
+                _authState.value = AuthUiState.Success(null)
+            } else{
+                _authState.value = AuthUiState.Error("Error updating profile, please try again!")
+            }
+        }
+    }
+
+    fun refreshUserStatus(userId: String){
+        viewModelScope.launch {
+            val currentUser = authRepository.getCurrentUser()
+            val refreshedUser = currentUser?.let { authRepository.getUserFromFireStore(it.uid) }
+            refreshedUser?.let { authRepository.saveUserLocally(it) }
+            _haloCareUser.value = refreshedUser ?: authRepository.getUserLocally(userId)!!
+        }
+    }
+
     fun logout() {
         authRepository.logout()
         _authState.value = AuthUiState.Idle
@@ -108,7 +147,8 @@ class AuthViewModel @Inject constructor(private val authRepository: AuthReposito
 @Singleton
 class AuthRepository @Inject constructor(
     private val auth: FirebaseAuth,
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val userDao: UserDao
 ) {
     suspend fun registerWithEmail(email: String, password: String): AuthResult? {
         return  auth.createUserWithEmailAndPassword(email, password).await()
@@ -147,11 +187,33 @@ class AuthRepository @Inject constructor(
             null
         }
     }
+
+    suspend fun updateUserInFireStore(user: User) : Result<Boolean>{
+        return try {
+            firestore.collection("users").document(user.uid).set(user).await()
+            saveUserLocally(user) // Update local cache
+            Result.success(true)
+        } catch (e:Exception){
+            Log.d("UPDATEUSER", "updateUserInFireStore: ${e.message}")
+            Result.failure(e)
+        }
+    }
+    suspend fun saveUserLocally(user: User) {
+        withContext(Dispatchers.IO) {
+            userDao.insertUser(user)
+        }
+    }
+
+    suspend fun getUserLocally(userId: String): User? {
+        return withContext(Dispatchers.IO) {
+            userDao.getUser(userId)
+        }
+    }
 }
 
 sealed class AuthUiState {
     object Idle : AuthUiState()
     object Loading : AuthUiState()
-    data class Success(val user: FirebaseUser) : AuthUiState()
+    data class Success(val user: FirebaseUser?) : AuthUiState()
     data class Error(val message: String) : AuthUiState()
 }

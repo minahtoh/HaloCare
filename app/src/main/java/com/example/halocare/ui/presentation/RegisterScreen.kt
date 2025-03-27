@@ -63,6 +63,7 @@ import kotlinx.coroutines.delay
 fun RegisterScreen(
     modifier: Modifier = Modifier,
     onSignUpSuccess : () -> Unit = {},
+    onLoginClick : () -> Unit = {},
     authViewModel: AuthViewModel
 ){
     var firstName by remember { mutableStateOf("") }
@@ -171,7 +172,9 @@ fun RegisterScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     TextButton(
-                        onClick = { /* Navigate to login */ }
+                        onClick = {
+                            onLoginClick()
+                        }
                     ) {
                         Text("Already have an account? Log in")
                     }
