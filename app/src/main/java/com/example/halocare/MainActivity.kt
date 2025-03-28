@@ -44,6 +44,7 @@ import com.example.halocare.ui.presentation.RegisterScreen
 import com.example.halocare.ui.presentation.SettingsScreen
 import com.example.halocare.ui.presentation.TelehealthScreen
 import com.example.halocare.viewmodel.AuthViewModel
+import com.example.halocare.viewmodel.MainViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -56,6 +57,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             HaloCareTheme {
                 val authViewModel: AuthViewModel by viewModels()
+                val mainViewModel: MainViewModel by viewModels()
                 val navHostController = rememberNavController()
                 val currentRoute = navHostController.currentBackStackEntryAsState().value?.destination?.route
 
@@ -90,7 +92,8 @@ class MainActivity : ComponentActivity() {
                             .fillMaxSize()
                             .padding(it),
                         scrollState = scrollState,
-                        authViewModel = authViewModel
+                        authViewModel = authViewModel,
+                        mainViewModel = mainViewModel
                     )
                 }
             }
@@ -120,7 +123,8 @@ fun HaloCareNavHost(
     navHostController: NavHostController,
     modifier: Modifier,
     scrollState: ScrollState,
-    authViewModel: AuthViewModel
+    authViewModel: AuthViewModel,
+    mainViewModel : MainViewModel
 ){
 
     NavHost(navController = navHostController, startDestination = LoginScreen.route ){
@@ -151,7 +155,8 @@ fun HaloCareNavHost(
             HomeScreen(
                 onProfileClick = {navHostController.navigateSingleTopTo(ProfileScreen.route)},
                 authViewModel = authViewModel,
-                scrollState = scrollState
+                scrollState = scrollState,
+                mainViewModel = mainViewModel
             )
         }
         composable(route = ConsultsScreen.route){

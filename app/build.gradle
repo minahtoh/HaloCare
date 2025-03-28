@@ -72,28 +72,25 @@ dependencies {
     implementation 'com.google.firebase:firebase-analytics'
     implementation 'com.google.firebase:firebase-auth'
     implementation 'com.google.firebase:firebase-firestore'
-
     //splashScreen
     implementation 'androidx.core:core-splashscreen:1.0.1'
-
     //navigation
     implementation "androidx.navigation:navigation-compose:2.6.0"
-
     //coil
     implementation("io.coil-kt:coil-compose:2.2.2")
-
     //viewpager
     implementation "com.google.accompanist:accompanist-pager:0.28.0"
-
     //charts
     implementation "com.patrykandpatrick.vico:core:1.7.0"
     implementation "com.patrykandpatrick.vico:compose:1.7.0"
-
     //room
     implementation "androidx.room:room-runtime:2.5.1"
     kapt "androidx.room:room-compiler:2.5.1"
     implementation "androidx.room:room-ktx:2.5.1"
-
+    //retrofit
+    implementation "com.squareup.retrofit2:retrofit:2.9.0"
+    implementation "com.squareup.retrofit2:converter-gson:2.9.0"
+    implementation "com.squareup.okhttp3:logging-interceptor:4.10.0"
 
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.2.1'

@@ -1,6 +1,14 @@
 package com.example.halocare.ui.presentation
 
+import androidx.collection.emptyLongSet
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -18,17 +26,22 @@ import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
@@ -54,6 +67,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -70,23 +84,33 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import coil.compose.AsyncImage
+import coil.compose.rememberAsyncImagePainter
 import com.example.halocare.R
+import com.example.halocare.network.models.WeatherResponse
+import com.example.halocare.network.models.WeatherResponseHourly
 import com.example.halocare.viewmodel.AuthViewModel
+import com.example.halocare.viewmodel.LoadingState
+import com.example.halocare.viewmodel.MainViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.absoluteValue
@@ -99,6 +123,7 @@ fun HomeScreen(
     navController: NavController = rememberNavController(),
     onProfileClick : () -> Unit = {},
     authViewModel: AuthViewModel,
+    mainViewModel: MainViewModel,
     scrollState: ScrollState
 ) {
     val features = listOf(
@@ -115,13 +140,17 @@ fun HomeScreen(
         R.drawable.screenshot_2025_03_07_071929,
     )
     val loggedUser by authViewModel.haloCareUser.collectAsState()
+    val weatherData by mainViewModel.weatherData.collectAsState()
+    var showBottomSheet by remember { mutableStateOf(false) }
+    val hourlyWeatherData by mainViewModel.hourlyWeatherData.collectAsState()
+    val hourlyWeatherLoadingState by mainViewModel.hourlyWeatherLoadingState.collectAsState()
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Welcome, ${loggedUser.name}") },
                 colors = TopAppBarDefaults.smallTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
                     scrolledContainerColor = Color.Transparent
                 ),
                 actions = {
@@ -132,26 +161,24 @@ fun HomeScreen(
                     }
                 }
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.inversePrimary
     ) { paddingValues ->
 
         val pagerState = rememberPagerState {images.size }
         val coroutineScope = rememberCoroutineScope()
         var lastUserInteraction by remember { mutableStateOf(System.currentTimeMillis()) }
 
-
         LaunchedEffect(Unit) {
             while (true) {
-                delay(3000) // Wait for 3 seconds
+                delay(3000)
                 val now = System.currentTimeMillis()
                 if (now - lastUserInteraction >= 3000) { // Only scroll if no interaction
                     val nextPage = (pagerState.currentPage + 1) % pagerState.pageCount
                     pagerState.animateScrollToPage(nextPage)
                 }
             }
-
         }
-
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -159,8 +186,8 @@ fun HomeScreen(
         ) {
             Column(
                 modifier = Modifier
-                    .padding(10.dp)
-                  .verticalScroll(scrollState)
+                    .padding(5.dp)
+                    .verticalScroll(scrollState)
             ) {
                 Column {
                     HorizontalPager(
@@ -216,7 +243,9 @@ fun HomeScreen(
                 Column {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(2),
-                        modifier = Modifier.height(300.dp).padding(10.dp)
+                        modifier = Modifier
+                            .height(300.dp)
+                            .padding(10.dp)
                     ) {
                         items(features.size) { index ->
                             Card(
@@ -242,7 +271,24 @@ fun HomeScreen(
                         }
                     }
                 }
-                WeatherCard()
+                if (weatherData != null){
+                    HomeWeatherCard(
+                        weatherData = weatherData!!,
+                        onClick = {
+                            mainViewModel.getHourlyWeather("Lagos")
+                            showBottomSheet = true
+                        }
+                    )
+                } else{
+                    WeatherCard()
+                }
+                if (showBottomSheet){
+                    HourlyWeatherBottomSheet(
+                        hourlyWeatherList = hourlyWeatherData?.forecast?.days?.get(0)?.hourly,
+                        loadingState = hourlyWeatherLoadingState,
+                        onDismiss = {showBottomSheet = false}
+                    )
+                }
             }
         }
     }
@@ -308,47 +354,6 @@ fun UserDashboardCard(
 
 
 @Composable
-fun HaloCareBottomBar(){
-    Surface(
-        color = MaterialTheme.colorScheme.secondaryContainer
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            IconButton(onClick = { /*TODO*/ }) {
-                HaloCareHomeIcon(
-                    size = 30.dp,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                )
-            }
-            IconButton(onClick = { /*TODO*/ }) {
-                Image(
-                    painter = painterResource(id = R.drawable.baseline_healing_24),
-                    contentDescription = null,
-                    Modifier.size(30.dp)
-                )
-            }
-            IconButton(onClick = { /*TODO*/ }) {
-                Image(
-                    painter = painterResource(id = R.drawable.baseline_monitor_heart_24),
-                    contentDescription = null,
-                    Modifier.size(30.dp)
-                )
-            }
-            IconButton(onClick = { /*TODO*/ }) {
-                Image(
-                    painter = painterResource(id = R.drawable.baseline_settings_24),
-                    contentDescription = null,
-                    Modifier.size(30.dp)
-                )
-            }
-        }
-    }
-}
-@Composable
 fun HaloCareBottomBarCurved(
     navController: NavController,
     isVisible: Boolean
@@ -368,7 +373,7 @@ fun HaloCareBottomBarCurved(
                 .height(70.dp),
             contentAlignment = Alignment.BottomCenter
         ) {
-            val outlineColor = MaterialTheme.colorScheme.secondaryContainer
+            val outlineColor = MaterialTheme.colorScheme.tertiaryContainer
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -549,7 +554,8 @@ fun WeatherCard(){
     ){
         Box(modifier = Modifier
             .fillMaxSize()
-            .padding(10.dp)){
+            .padding(10.dp)
+            ){
             Row(
                 modifier = Modifier.align(Alignment.TopStart),
                 verticalAlignment = Alignment.CenterVertically
@@ -584,4 +590,471 @@ fun WeatherCard(){
 
 fun calculateCurrentOffsetForPage(page: Int, pagerState: PagerState): Float {
     return (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
+}
+
+@Composable
+fun HomeWeatherCard(
+    weatherData: WeatherResponse,
+    onClick: () -> Unit
+) {
+    val current = weatherData.current
+    val isDaytime = current.isDay
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth().clickable { onClick() }
+           ,
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDaytime)
+                MaterialTheme.colorScheme.surfaceVariant
+            else
+                MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            // Location and Time Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = weatherData.location.name,
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = if (isDaytime)
+                            MaterialTheme.colorScheme.onSurface
+                        else MaterialTheme.colorScheme.surface
+                    )
+                    Text(
+                        text = "${weatherData.location.country} | ${weatherData.location.localtime}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (isDaytime)
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        else MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
+                    )
+                }
+
+                // Day/Night Icon
+                Icon(
+                    painter = if (isDaytime) painterResource(id = R.drawable.baseline_wb_sunny_24)
+                    else painterResource(id = R.drawable.baseline_nights_stay_24),
+                    contentDescription = if (isDaytime) "Daytime" else "Nighttime",
+                    tint = if (isDaytime) Color.Yellow else Color.Blue
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Weather Details Grid
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Temperature
+                WeatherDetailItem(
+                    icon = painterResource(id = R.drawable.baseline_thermostat_24),
+                    primaryText = "${current.tempCelsius}°C",
+                    secondaryText = "Feels like ${current.feelsLikeCelsius}°C",
+                    isDaytime = isDaytime
+                )
+
+                // Wind
+                WeatherDetailItem(
+                    icon = painterResource(id = R.drawable.baseline_air_24),
+                    primaryText = "${current.windSpeed} km/h",
+                    secondaryText = current.windDirection,
+                    isDaytime = isDaytime
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Cloud Coverage
+                WeatherDetailItem(
+                    icon = painterResource(id = R.drawable.baseline_cloud_24),
+                    primaryText = "${current.cloudCoverage}%",
+                    secondaryText = "Cloud Cover",
+                    isDaytime = isDaytime
+                )
+
+                // Precipitation
+                WeatherDetailItem(
+                    icon = painterResource(id = R.drawable.baseline_water_drop_24),
+                    primaryText = "${current.precipitationMm} mm",
+                    secondaryText = "Precipitation",
+                    isDaytime = isDaytime
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Weather Condition
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Image(
+                    painter = rememberAsyncImagePainter(model =current.condition.icon),
+                    contentDescription = current.condition.text,
+                    modifier = Modifier.size(30.dp)
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Text(
+                    text = current.condition.text,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = if (isDaytime)
+                        MaterialTheme.colorScheme.onSurface
+                    else MaterialTheme.colorScheme.surface
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun WeatherDetailItem(
+    icon: Painter,
+    primaryText: String,
+    secondaryText: String,
+    isDaytime: Boolean
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Icon(
+            painter = icon,
+            contentDescription = null,
+            tint = if (isDaytime) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.inversePrimary
+        )
+
+        Column {
+            Text(
+                text = primaryText,
+                style = MaterialTheme.typography.titleMedium,
+                color = if (isDaytime)
+                    MaterialTheme.colorScheme.onSurface
+                else MaterialTheme.colorScheme.surface
+            )
+            Text(
+                text = secondaryText,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (isDaytime)
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                else MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HourlyWeatherBottomSheet(
+    hourlyWeatherList: List<WeatherResponseHourly.HourlyForecast>?,
+    modifier: Modifier = Modifier,
+    loadingState: LoadingState,
+    onDismiss: () -> Unit
+) {
+    val isLoading = loadingState == LoadingState.LOADING
+    ModalBottomSheet(
+        onDismissRequest = { onDismiss() },
+        windowInsets = WindowInsets.navigationBars
+    ) {
+        Column(
+            modifier = modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.6f)
+                .padding(16.dp)
+                .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
+
+        ) {
+            Text(
+                text = "Hourly Forecast",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(if (isLoading) 5 else hourlyWeatherList?.size ?: 0) { hourlyData ->
+                    VerticalWeatherCard(if (isLoading) null else hourlyWeatherList?.get(hourlyData))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun VerticalWeatherCard(
+    hourlyData: WeatherResponseHourly.HourlyForecast?,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        if (hourlyData == null) {
+            VerticalShimmerWeatherCard()
+        } else {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                // Time Row
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.baseline_schedule_24),
+                        contentDescription = "Time",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = hourlyData.time.substring(11, 16),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Weather Details Row
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Weather Icon
+                    AsyncImage(
+                        model = hourlyData.condition.iconUrl,
+                        contentDescription = hourlyData.condition.text,
+                        modifier = Modifier.size(48.dp)
+                    )
+
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    // Temperature Column
+                    Column {
+                        Text(
+                            text = "${hourlyData.tempCelsius}°C",
+                            style = MaterialTheme.typography.displaySmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "${hourlyData.tempFahrenheit}°F",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    // Stats Column
+                    Column(
+                        horizontalAlignment = Alignment.End
+                    ) {
+                        WeatherStatItem(
+                            icon = painterResource(id = R.drawable.baseline_air_24),
+                            value = "${hourlyData.windSpeed} kph",
+                            label = hourlyData.windDirection
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        WeatherStatItem(
+                            icon = painterResource(id = R.drawable.baseline_water_drop_24),
+                            value = "${hourlyData.chanceOfRain}%",
+                            label = "Chance",
+                            tint = if (hourlyData.chanceOfRain > 50) Color(0xFF2196F3) else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WeatherStatItem(
+    icon: Painter,
+    value: String,
+    label: String,
+    tint: Color = MaterialTheme.colorScheme.onSurfaceVariant
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            painter = icon,
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier.size(16.dp)
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Column(horizontalAlignment = Alignment.Start) {
+            Text(
+                text = value,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = tint.copy(alpha = 0.7f)
+            )
+        }
+    }
+}
+@Preview
+@Composable
+private fun VerticalShimmerWeatherCard() {
+    val colorList = listOf(
+        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+    )
+    val shimmerColors = remember {
+        colorList
+    }
+
+    val transition = rememberInfiniteTransition()
+    val translateAnim by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Restart
+        )
+    )
+
+    val brush = Brush.linearGradient(
+        colors = shimmerColors,
+        start = Offset(translateAnim, translateAnim),
+        end = Offset(translateAnim + 500f, translateAnim + 500f)
+    )
+
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(4.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(16.dp)
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(brush)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .width(80.dp)
+                        .height(24.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(brush)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(brush)
+                )
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Column {
+                    Box(
+                        modifier = Modifier
+                            .width(80.dp)
+                            .height(32.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(brush)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Box(
+                        modifier = Modifier
+                            .width(60.dp)
+                            .height(16.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(brush)
+                    )
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                Column {
+                    repeat(2) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .clip(CircleShape)
+                                    .background(brush)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Column {
+                                Box(
+                                    modifier = Modifier
+                                        .width(40.dp)
+                                        .height(12.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(brush)
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .width(30.dp)
+                                        .height(10.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(brush)
+                                )
+                            }
+                        }
+                        if (it == 0) Spacer(modifier = Modifier.height(4.dp))
+                    }
+                }
+            }
+        }
+    }
 }
