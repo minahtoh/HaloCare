@@ -10,6 +10,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -20,7 +24,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -30,6 +37,7 @@ import com.example.compose.HaloCareTheme
 import com.example.halocare.ui.presentation.AppointmentsScreen
 import com.example.halocare.ui.presentation.ConsultsScreen
 import com.example.halocare.ui.presentation.DailyHabitsScreen
+import com.example.halocare.ui.presentation.FeatureGridPopup
 import com.example.halocare.ui.presentation.HaloCareBottomBarCurved
 import com.example.halocare.ui.presentation.HealthTrackingScreen
 import com.example.halocare.ui.presentation.HomeScreen
@@ -70,6 +78,7 @@ class MainActivity : ComponentActivity() {
                 var isBottomBarVisible by remember { mutableStateOf(true) }
                 val scrollState = rememberScrollState()
                 var previousScrollOffset by remember { mutableStateOf(0) }
+                var showFeatureGrid by remember { mutableStateOf(false) }
                 // Detect scroll direction
                 LaunchedEffect(scrollState.value) {
                     isBottomBarVisible = scrollState.value <= previousScrollOffset
@@ -81,20 +90,42 @@ class MainActivity : ComponentActivity() {
                         if (showBottomBar){
                             HaloCareBottomBarCurved(
                                 navHostController,
-                                isBottomBarVisible
+                                isBottomBarVisible,
+                                onFabClick = {showFeatureGrid = !showFeatureGrid}
                             )
                         }
                     }
                 ) {
-                    HaloCareNavHost(
-                        navHostController = navHostController,
+                    Box(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .padding(it),
-                        scrollState = scrollState,
-                        authViewModel = authViewModel,
-                        mainViewModel = mainViewModel
-                    )
+                        .fillMaxSize()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = {showFeatureGrid = false}
+                        )
+                        .pointerInput(Unit) { detectTapGestures(onTap = { showFeatureGrid = false }) },) {
+                        HaloCareNavHost(
+                            navHostController = navHostController,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(it),
+                            scrollState = scrollState,
+                            authViewModel = authViewModel,
+                            mainViewModel = mainViewModel
+                        )
+                        // Feature Grid Popup
+                        FeatureGridPopup(
+                            isVisible = showFeatureGrid,
+                            onFeatureClick = { route ->
+                                showFeatureGrid = false
+                                navHostController.navigate(route)
+                            },
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = 120.dp)
+                        )
+                    }
                 }
             }
         }
@@ -127,7 +158,7 @@ fun HaloCareNavHost(
     mainViewModel : MainViewModel
 ){
 
-    NavHost(navController = navHostController, startDestination = LoginScreen.route ){
+    NavHost(navController = navHostController, startDestination = HomeScreen.route ){
         composable(route = LoginScreen.route){
             LoginScreen(
                 onSignupClick = {navHostController.navigateSingleTopTo(RegisterScreen.route)},
@@ -162,11 +193,22 @@ fun HaloCareNavHost(
         composable(route = ConsultsScreen.route){
             ConsultsScreen(
                 onBackPressed = {navHostController.navigateUp()},
-                scrollState = scrollState
+                scrollState = scrollState,
+                onAppointmentsClick = {navHostController.navigateSingleTopTo(AppointmentsScreen.route)},
+                mainViewModel = mainViewModel
             )
         }
         composable(route = AppointmentsScreen.route){
-            AppointmentsScreen()
+            AppointmentsScreen(
+                mainViewModel = mainViewModel,
+                navigateToConsultsScreen = {
+                    navHostController.navigate(ConsultsScreen.route){
+                    popUpTo(AppointmentsScreen.route){
+                        inclusive = true
+                        }
+                    }
+                }
+            )
         }
         composable(route = HealthTrackingScreen.route){
             HealthTrackingScreen(onCategoryClick = {

@@ -6,8 +6,11 @@ import com.example.halocare.database.HaloCareDatabase
 import com.example.halocare.database.UserDao
 import com.example.halocare.network.NetworkConstants
 import com.example.halocare.viewmodel.AuthRepository
+import com.google.firebase.FirebaseApp
+import com.google.firebase.FirebaseOptions
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -46,6 +49,13 @@ object AppModule {
     @Provides
     @Singleton
     fun provideFirestore(): FirebaseFirestore = FirebaseFirestore.getInstance()
+
+    @Provides
+    @Singleton
+    fun provideFirebaseStorage(): FirebaseStorage {
+        return FirebaseStorage.getInstance("gs://your-target-bucket.appspot.com") // 👈 Use the correct bucket name
+    }
+
 
 
     @Provides

@@ -9,8 +9,10 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
@@ -37,10 +39,13 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
@@ -54,10 +59,20 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -83,12 +98,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -120,7 +137,6 @@ import kotlin.math.absoluteValue
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    navController: NavController = rememberNavController(),
     onProfileClick : () -> Unit = {},
     authViewModel: AuthViewModel,
     mainViewModel: MainViewModel,
@@ -352,11 +368,11 @@ fun UserDashboardCard(
     }
 }
 
-
 @Composable
 fun HaloCareBottomBarCurved(
     navController: NavController,
-    isVisible: Boolean
+    isVisible: Boolean,
+    onFabClick: () -> Unit
 ) {
 
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
@@ -426,7 +442,7 @@ fun HaloCareBottomBarCurved(
                     icon = {
                         HaloCareHomeIcon(
                             size = 25.dp,
-                           // isSelected = true,
+                            // isSelected = true,
                             contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                             backgroundColor = MaterialTheme.colorScheme.secondaryContainer
                         )
@@ -486,7 +502,7 @@ fun HaloCareBottomBarCurved(
             }
 
             FloatingActionButton(
-                onClick = { /*TODO*/ },
+                onClick = { onFabClick() },
                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
                 shape = CircleShape,
                 modifier = Modifier
@@ -502,6 +518,7 @@ fun HaloCareBottomBarCurved(
         }
     }
 }
+
 
 private fun NavController.navigateSingleTopTo(route: String,popBackStack: Boolean = false) {
     this.navigate(route) {
@@ -602,7 +619,8 @@ fun HomeWeatherCard(
 
     Card(
         modifier = Modifier
-            .fillMaxWidth().clickable { onClick() }
+            .fillMaxWidth()
+            .clickable { onClick() }
            ,
         colors = CardDefaults.cardColors(
             containerColor = if (isDaytime)
@@ -777,7 +795,11 @@ fun HourlyWeatherBottomSheet(
                 .fillMaxWidth()
                 .fillMaxHeight(0.6f)
                 .padding(16.dp)
-                .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
+                .padding(
+                    bottom = WindowInsets.navigationBars
+                        .asPaddingValues()
+                        .calculateBottomPadding()
+                )
 
         ) {
             Text(
@@ -1057,4 +1079,154 @@ private fun VerticalShimmerWeatherCard() {
             }
         }
     }
+}
+
+@Composable
+fun FeatureGridPopup(
+    isVisible: Boolean,
+    features: List<Feature> = featureList,
+    onFeatureClick: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    AnimatedVisibility(
+        visible = isVisible,
+        enter = fadeIn() + expandVertically(expandFrom = Alignment.Top),
+        exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top),
+        modifier = modifier
+    ) {
+        Box {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                elevation = CardDefaults.cardElevation(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .wrapContentHeight()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .padding(bottom = 8.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        text = "Quick Actions",
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(3),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(features) { feature ->
+                            FeatureGridItem(feature, onFeatureClick)
+                        }
+                    }
+                }
+            }
+            // Pointer triangle
+            PointerTriangle(
+                modifier = Modifier
+                    .graphicsLayer {
+                        rotationZ = 180f
+                        alpha = 0.5f
+                    }
+                    .offset(y = (-1).dp) // Slight overlap
+                    .align(Alignment.BottomCenter)
+            )
+        }
+    }
+}
+
+@Composable
+fun FeatureGridItem(
+    feature: Feature,
+    onClick: (String) -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier
+            .clickable { onClick(feature.route) }
+            .padding(8.dp)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(56.dp)
+                .background(
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    shape = CircleShape
+                )
+        ) {
+            Icon(
+                imageVector = feature.icon,
+                contentDescription = feature.name,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = feature.name,
+            style = MaterialTheme.typography.labelMedium,
+            textAlign = TextAlign.Center,
+            maxLines = 1
+        )
+    }
+}
+@Composable
+fun PointerTriangle(modifier: Modifier = Modifier) {
+    val triangleColor = MaterialTheme.colorScheme.surface
+    Canvas(modifier = modifier.size(32.dp)) {
+        val path = Path().apply {
+            moveTo(size.width / 2, 0f)
+            lineTo(size.width, size.height)
+            lineTo(0f, size.height)
+            close()
+        }
+        drawPath(
+            path = path,
+            color = triangleColor,
+            style = Fill
+        )
+    }
+}
+
+// Sample feature list
+val featureList = listOf(
+    Feature("Health", Icons.Filled.Favorite),
+    Feature("Weather", Icons.Filled.Warning),
+    Feature("News", Icons.Filled.List),
+    Feature("Schedule", Icons.Filled.DateRange),
+    Feature("Community", Icons.Filled.Place),
+    Feature("Pediatrics", Icons.Filled.Person),
+    Feature("Mood", Icons.Filled.ThumbUp),
+    Feature("Daily Habits", Icons.Filled.CheckCircle),
+    Feature("Settings", Icons.Filled.Settings)
+)
+
+data class Feature(val name: String, val icon: ImageVector, val route: String = AppointmentsScreen.route)
+
+// ---- Shimmer Effect Helper ---- //
+@Composable
+fun Modifier.shimmerEffect(): Modifier = composed {
+    val transition = rememberInfiniteTransition()
+    val alpha by transition.animateFloat(
+        initialValue = 0.2f,
+        targetValue = 0.8f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+
+    this.background(
+        color = Color.Gray.copy(alpha = alpha),
+        shape = RoundedCornerShape(4.dp)
+    )
 }

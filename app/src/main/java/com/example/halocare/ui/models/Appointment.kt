@@ -1,14 +1,18 @@
 package com.example.halocare.ui.models
 
+import com.google.errorprone.annotations.Keep
 import kotlin.random.Random
 
+@Keep
 data class Appointment(
-    val tag : Int = Random.nextInt(),
-    val doctorName: String,
-    val doctorPicture: Int = 1,
-    val occupation : String ="",
-    val date: String,
-    val time: String,
+    val professionalId: String = "",
+    val professionalName: String = "",
+    val profilePicture: String = "",
+    val occupation : String = "",
+    val date: String = "",
+    val time: String = "",
+    val note: String? = null,
     val price: Double = 0.00,
-    val status: String
+    val bookedAt : Long = System.currentTimeMillis(),
+    val status: String = ""
 )
