@@ -1,26 +1,33 @@
 package com.example.halocare.viewmodel
 
 import android.util.Log
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.halocare.database.MoodEntryDao
 import com.example.halocare.network.NetworkRepository
 import com.example.halocare.network.models.WeatherResponse
 import com.example.halocare.network.models.WeatherResponseHourly
 import com.example.halocare.ui.models.Appointment
+import com.example.halocare.ui.models.HaloMoodEntry
 import com.example.halocare.ui.models.Professional
 import com.example.halocare.ui.models.ProfessionalSpecialty
 import com.example.halocare.ui.models.User
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -52,7 +59,10 @@ class MainViewModel @Inject constructor(
     val currentUserId = _currentUserId.asStateFlow()
     private val _availableSpecialties = MutableStateFlow<List<ProfessionalSpecialty>?>(null)
     val availableSpecialties = _availableSpecialties.asStateFlow()
-
+    private val _dailyMoods = MutableStateFlow<List<HaloMoodEntry>?>(null)
+    val dailyMoods = _dailyMoods.asStateFlow()
+    private val _todayAdvice = MutableStateFlow<String?>(null)
+    val todayAdvice = _todayAdvice.asStateFlow()
     init {
         getTodayWeather("Lagos")
         updateCurrentUser()
@@ -145,10 +155,45 @@ class MainViewModel @Inject constructor(
             _appointmentBookingLoadingState.value = LoadingState.IDLE
         }
     }
+
+    fun getTodaysMood(startTime: Long, endTime: Long){
+        viewModelScope.launch {
+       mainRepository
+             .getDailyMoodEntry(startTime, endTime)
+                    .catch {
+                            exception ->
+                        // Handle errors from the flow
+                        Log.e("VIEWMODEL", "Error collecting mood flow", exception)
+                        _dailyMoods.value = emptyList()
+                 }.collect{
+                        _dailyMoods.value = it
+             }
+
+        }
+    }
+
+    fun logMoodEntry(moodEntry: HaloMoodEntry){
+        viewModelScope.launch {
+            mainRepository.logMoodEntry(moodEntry)
+        }
+    }
+
+    fun getTodayAdvice(){
+        viewModelScope.launch {
+           val advice = networkRepository.getRandomAdvice()
+            if (advice.isSuccess){
+                _todayAdvice.value = advice.getOrNull()?.slip?.advice
+            }
+            if (advice.isFailure){
+                _toastMessage.tryEmit(advice.exceptionOrNull()?.message ?: "Network error!")
+            }
+        }
+    }
 }
 @Singleton
 class MainRepository @Inject constructor(
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val moodEntryDao: MoodEntryDao
 ){
     suspend fun bookUserAppointment(userId: String, appointment: Appointment): Result<Boolean>{
         return try {
@@ -209,6 +254,16 @@ class MainRepository @Inject constructor(
 
         }catch (e:Exception){
             Result.failure(e)
+        }
+    }
+
+    fun getDailyMoodEntry(startTime:Long, endTime:Long)
+    : Flow<List<HaloMoodEntry>> {
+       return moodEntryDao.getEntriesForDay(startTime, endTime)
+    }
+    suspend fun logMoodEntry(moodEntry: HaloMoodEntry){
+        withContext(Dispatchers.IO){
+            moodEntryDao.insertMoodEntry(moodEntry)
         }
     }
 

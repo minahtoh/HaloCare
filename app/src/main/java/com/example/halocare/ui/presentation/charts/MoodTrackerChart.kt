@@ -1,27 +1,58 @@
 package com.example.halocare.ui.presentation.charts
 
+import android.util.Log
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.EaseInOut
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.absoluteOffset
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextMeasurer
@@ -30,21 +61,25 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.halocare.R
+import com.example.halocare.ui.models.HaloMoodEntry
+import kotlinx.coroutines.delay
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
+import kotlin.math.roundToInt
 
 /**
  * MoodChartBackground composable handles the sky gradient, landscape, and hour markings
  */
-
-// ty claude
+// ty claude, ty gemini
 @Composable
 fun MoodChartBackground(
     hour: Int,
-    hourWidthPx: Float,
+    hourWidthPx: Dp,
     skyColors: List<Pair<Int, Color>>,
     vegetationBaseColors: List<Pair<Int, Color>>,
     vegetationHighlightColors: List<Pair<Int, Color>>,
@@ -66,18 +101,16 @@ fun MoodChartBackground(
         return lerp(beforeStop.second, afterStop.second, position)
     }
 
-    // Get colors for this hour
     val skyColor = getInterpolatedColor(skyColors, hour)
     val nextSkyColor = getInterpolatedColor(skyColors, (hour + 1) % 24)
     val vegetationBase = getInterpolatedColor(vegetationBaseColors, hour)
     val vegetationHighlight = getInterpolatedColor(vegetationHighlightColors, hour)
 
-    // Create gradient for this hour
     val skyGradient = Brush.horizontalGradient(listOf(skyColor, nextSkyColor))
 
     Box(
         modifier = Modifier
-            .width(hourWidthPx.dp)
+            .width(hourWidthPx)
             .height(400.dp)
             .background(skyGradient)
     ) {
@@ -106,23 +139,27 @@ fun MoodChartBackground(
                 brush = vegetationGradient
             )
 
-            // Draw landscape silhouette
+            // Draw subtle vegetation silhouette
             val silhouettePath = Path().apply {
                 val baseY = height - vegetationHeight
-                moveTo(0f, baseY + landscapePoints.first())
+                moveTo(0f, baseY)
 
-                landscapePoints.forEachIndexed { index, yOffset ->
-                    if (index > 0) {
-                        val x = (index - 1) * (width / (landscapePoints.size - 1))
-                        lineTo(x, baseY + yOffset)
-                    }
+                // Create a subtle undulating landscape
+                for (i in 0..10) {
+                    val x = i * (width / 10)
+                    val yOffset = (10 * Math.sin(i * 0.8)).toFloat() // Subtle hills
+                    cubicTo(
+                        x - 20f, baseY + yOffset - 10f,
+                        x - 10f, baseY + yOffset - 20f,
+                        x, baseY + yOffset
+                    )
                 }
 
-                lineTo(width, height)
-                lineTo(0f, height)
+                lineTo(width, baseY)
                 close()
             }
 
+            // Draw the silhouette in a slightly darker color
             drawPath(
                 path = silhouettePath,
                 color = vegetationBase.copy(alpha = 0.7f)
@@ -158,253 +195,324 @@ fun MoodChartBackground(
 }
 
 /**
- * MoodTimeline composable handles the mood entries and interactions
+ * MoodTimeline composable handles the mood entries and interactions for a specific hour
  */
 @Composable
 fun MoodTimeline(
     hour: Int,
-    hourWidthPx: Float,
+    hourWidth: Dp,
     skyColors: List<Pair<Int, Color>>,
     vegetationBaseColors: List<Pair<Int, Color>>,
     vegetationHighlightColors: List<Pair<Int, Color>>,
     landscapePoints: List<Float>,
-    moodEntries: List<MoodEntry>,
+    hourEntries: List<HaloMoodEntry>,
     allMoodPositions: List<Pair<Float, Float>>,
     textMeasurer: TextMeasurer,
-    entryContent: @Composable (MoodEntry, Offset, Boolean) -> Unit,
-    markerContent: @Composable (MoodEntry, Offset) -> Unit
+    entryContent: @Composable (List<HaloMoodEntry>, Offset, HaloMoodEntry?, (HaloMoodEntry) -> Unit) -> Unit,
+    markerContent: @Composable (HaloMoodEntry, Offset) -> Unit,
+    fixedEntryYPositionPx: Float,
 ) {
-    // State to track selected emoji
-    var selectedMoodEntry by remember { mutableStateOf<MoodEntry?>(null) }
+    var selectedMoodEntry by remember { mutableStateOf<HaloMoodEntry?>(null) }
+    val density = LocalDensity.current
+    val hourWidthPx = remember(hourWidth, density) {
+        with(density) { hourWidth.toPx() }
+    }
+    // --- Add Internal Padding ---
+    val horizontalPaddingDp = 4.dp
+    val horizontalPaddingPx = remember(horizontalPaddingDp, density) {
+        with(density) { horizontalPaddingDp.toPx() }
+    }
+    val effectiveWidthPx = (hourWidthPx - 2 * horizontalPaddingPx).coerceAtLeast(0f)
+    val bucketWidthPx = effectiveWidthPx / 6f
+    val bucketData = remember(hourEntries) { mutableMapOf<Int, Pair<Offset, List<HaloMoodEntry>>>() }
 
-    // Create a map of entry positions for click detection
-    val entryPositions = remember(moodEntries) { mutableMapOf<MoodEntry, Offset>() }
+    val entriesByBucket = remember(hourEntries) {
+        groupEntriesByMinuteBucket(hourEntries)
+            .also { Log.d("MoodBucket", "Hour $hour buckets: ${it.mapValues { entry -> entry.value.size }}") }
+    }
+    val iconSizeDp = 30.dp
+    val iconSpacingDp = 4.dp
+    val iconHeightPx = remember(iconSizeDp, density) { with(density) { iconSizeDp.toPx() } }
+    val iconSpacingPx = remember(iconSpacingDp, density) { with(density) { iconSpacingDp.toPx() } }
 
-    // Fixed Y position for all entries
-    val entryYPosition = 300 * 0.5f
 
-    val entryYPositionDp = with(LocalDensity.current) { entryYPosition.toDp() }
+    val onEntryClickHandler: (HaloMoodEntry) -> Unit = { clickedEntry ->
+        selectedMoodEntry = if (selectedMoodEntry == clickedEntry) null else clickedEntry }
 
     MoodChartBackground(
         hour = hour,
-        hourWidthPx = hourWidthPx,
+        hourWidthPx = hourWidth,
         skyColors = skyColors,
         vegetationBaseColors = vegetationBaseColors,
         vegetationHighlightColors = vegetationHighlightColors,
         landscapePoints = landscapePoints,
         textMeasurer = textMeasurer
     ) {
-        // Draw connecting lines between entries
+        // Draw connecting lines between entries (uses the fixed Y position)
         Canvas(modifier = Modifier.matchParentSize()) {
-            // Calculate global positions for drawing the mood connection line
             val globalStartX = hour * hourWidthPx
             val globalEndX = globalStartX + size.width
 
-            // Draw the dashed line
             if (allMoodPositions.size > 1) {
                 val path = Path()
                 var pathStarted = false
 
-                // Find all line segments that pass through this hour segment
                 for (i in 0 until allMoodPositions.size - 1) {
                     val start = allMoodPositions[i]
                     val end = allMoodPositions[i + 1]
 
-                    val startX = start.first
-                    val endX = end.first
+                    val startXGlobal = start.first
+                    val endXGlobal = end.first
+                    val yPos = start.second
+                    if ((startXGlobal <= globalEndX && endXGlobal >= globalStartX)) {
+                        val visibleStartX = (startXGlobal - globalStartX).coerceIn(0f, size.width)
+                         val visibleEndX = (endXGlobal - globalStartX).coerceIn(0f, size.width)
 
-                    // Check if this line segment intersects with our hour segment
-                    if ((startX <= globalEndX && endX >= globalStartX)) {
-                        // Calculate visible portion within this hour segment
-                        val visibleStartX = (startX - globalStartX).coerceIn(0f, size.width)
-                        val visibleEndX = (endX - globalStartX).coerceIn(0f, size.width)
-
-                        if (!pathStarted) {
-                            path.moveTo(visibleStartX, entryYPosition)
-                            pathStarted = true
+                          if (visibleEndX > visibleStartX) {
+                            if (!pathStarted) {
+                                path.moveTo(visibleStartX, yPos)
+                                pathStarted = true
+                            }
+                            path.lineTo(visibleEndX, yPos)
                         }
-
-                        path.lineTo(visibleEndX, entryYPosition)
                     }
                 }
 
-                // Draw the path with dash effect
-                drawPath(
-                    path = path,
-                    color = Color.White,
-                    style = Stroke(
-                        width = 3f,
-                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 5f))
+                // Draw the path if it contains segments
+                if (pathStarted) {
+                    drawPath(
+                        path = path,
+                        color = Color.White.copy(alpha = 0.7f),
+                        style = Stroke(
+                            width = 4f, // Thinner line?
+                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 4f))
+                        )
                     )
-                )
+                }
             }
         }
 
         // Draw entries and handle clicks
         Box(modifier = Modifier
             .fillMaxSize()
-            .pointerInput(Unit) {
-                detectTapGestures { offset ->
-                    // Find the closest entry to the tap position
-                    var closestEntry: MoodEntry? = null
-                    var minDistance = Float.MAX_VALUE
-
-                    entryPositions.forEach { (entry, position) ->
-                        val distance = (offset - position).getDistance()
-                        if (distance < minDistance && distance < 30f) { // 30f is tap radius
-                            minDistance = distance
-                            closestEntry = entry
-                        }
-                    }
-
-                    // Toggle selection
-                    selectedMoodEntry =
-                        if (selectedMoodEntry == closestEntry) null else closestEntry
-                }
-            }
         ) {
-            // Draw each mood entry
-            // For each mood entry, wrap it in its own clickable Box
-            for (entry in moodEntries) {
-                val minutePosition = (entry.time - hour.toFloat()) * hourWidthPx
-                val entryPosition = Offset(minutePosition, entryYPosition)
+            for ((bucketIndex, entriesInBucket) in entriesByBucket) {
+                val bucketCenterXPx = horizontalPaddingPx + (bucketIndex * bucketWidthPx) + (bucketWidthPx / 2f)
+                val bucketPosition = Offset(bucketCenterXPx, fixedEntryYPositionPx)
 
-                // Store entry position for click detection
-                entryPositions[entry] = entryPosition
+                bucketData[bucketIndex] = Pair(bucketPosition, entriesInBucket)
 
-                // Draw the entry content with its own clickable area
-                Box(
-                    modifier = Modifier
-                        .offset(x = minutePosition.dp, y = entryYPositionDp)
-                        .clickable {
-                            // Direct toggle on click
-                            selectedMoodEntry = if (selectedMoodEntry == entry) null else entry
-                        }
-                ) {
-                    entryContent(entry, entryPosition, entry == selectedMoodEntry)
-                }
+                entryContent(
+                    entriesInBucket,
+                    bucketPosition,
+                    selectedMoodEntry,
+                    onEntryClickHandler
+                )
             }
 
-            // Draw marker for selected entry
-            selectedMoodEntry?.let { entry ->
-                val position = entryPositions[entry] ?: return@let
+            // --- Draw Marker ---
+            selectedMoodEntry?.let { selectedEntry ->
+                // Find the bucket this selected entry belongs to
+                var bucketPosition: Offset? = null
+                var entriesInBucket: List<HaloMoodEntry>? = null
+                var foundBucketIndex = -1
 
-                // Call the custom marker content composable
-                markerContent(entry, position)
+                for ((index, data) in bucketData) {
+                    if (data.second.contains(selectedEntry)) {
+                        bucketPosition = data.first
+                        entriesInBucket = data.second
+                        foundBucketIndex = index
+                        break
+                    }
+                }
+
+                // If found, calculate the specific Y position of the selected icon within its column
+                if (bucketPosition != null && entriesInBucket != null) {
+                    val entryIndex = entriesInBucket.indexOf(selectedEntry)
+
+                    if (entryIndex != -1) {
+                        val columnTopY = bucketPosition.y - (iconHeightPx / 2f)
+                        val verticalOffsetToIconTop = entryIndex * (iconHeightPx + iconSpacingPx)
+                        val iconCenterY = columnTopY + verticalOffsetToIconTop + (iconHeightPx / 2f)
+
+                        val markerTargetPosition = Offset(bucketPosition.x, iconCenterY)
+
+                        markerContent(selectedEntry, markerTargetPosition)
+                    } else {
+                        Log.e("MarkerPos", "Selected entry not found in its supposed bucket list!")
+                    }
+                }
             }
         }
     }
 }
 
-
 /**
- * DefaultMoodEntry composable provides the default emoji representation
+ * Groups entries into 10-minute buckets for a given hour.
+ * Returns a Map where the key is the bucket index (0-5) and the value is the list of entries in that bucket.
  */
-@Composable
-fun DefaultMoodEntry(
-    entry: MoodEntry,
-    position: Offset ,
-    isSelected: Boolean,
-    textMeasurer: TextMeasurer
-) {
-    Canvas(modifier = Modifier
-        .size(36.dp)) {
-        // Draw emoji
-        drawText(
-            textMeasurer = textMeasurer,
-            text = entry.emoji,
-            topLeft = Offset(-12f, -12f),
-            style = TextStyle(fontSize = 24.sp)
-        )
+private fun groupEntriesByMinuteBucket(
+    hourEntries: List<HaloMoodEntry>
+): Map<Int, List<HaloMoodEntry>> {
+    val buckets = List(6) { mutableListOf<HaloMoodEntry>() }
 
-        // Draw circle around the emoji
-        drawCircle(
-            color = if (isSelected) Color.Yellow else Color.White,
-            radius = 18f,
-            center = Offset(0f, 0f),
-            style = if (isSelected)
-                Stroke(width = 3f)
-            else
-                Stroke(width = 2f)
-        )
+    val calendar = Calendar.getInstance()
+
+    for (entry in hourEntries) {
+        calendar.timeInMillis = entry.timeLogged
+        val minute = calendar.get(Calendar.MINUTE)
+        val bucketIndex = (minute / 10).coerceIn(0, 5)
+        buckets[bucketIndex].add(entry)
     }
+
+    buckets.forEach { it.sortBy { entry -> entry.timeLogged } }
+
+    // Convert to Map, removing empty buckets
+    return buckets.withIndex()
+        .filter { it.value.isNotEmpty() }
+        .associate { it.index to it.value.toList() }
 }
 
 /**
- * CustomMoodEntry composable provides a version that uses an icon/image instead of text emoji
+ * Displays a group of mood entries, typically as a row of icons.
  */
 @Composable
-fun CustomMoodEntry(
+fun GroupedMoodEntry(
+    entriesInGroup: List<HaloMoodEntry>,
     position: Offset,
     isSelected: Boolean,
-    iconContent: @Composable () -> Unit
+    iconSize : Dp = 30.dp,
+    iconSpacing : Dp = 4.dp,
+    selectedEntry: HaloMoodEntry?,
+    onEntryClick: (HaloMoodEntry) -> Unit
 ) {
-    Box(
-        modifier = Modifier.size(36.dp),
-        contentAlignment = Alignment.Center
+
+    val density = LocalDensity.current
+
+    val iconWidthPx = with(density) { iconSize.toPx() }
+
+
+    val startOffsetXDp = with(density) { (position.x - iconWidthPx / 2).toDp() }
+    val startOffsetYDp = with(density) { (position.y - iconWidthPx / 2f).toDp() }
+
+
+    val selectionShape = RoundedCornerShape(8.dp)
+    val selectionColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+
+    AnimatedVisibility(
+        visible = true,
+        enter = fadeIn(animationSpec = tween(durationMillis = 1000, easing = LinearOutSlowInEasing)) +
+                scaleIn(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMedium
+                    ),
+                    initialScale = 0.3f
+                ),
     ) {
-        // Place the icon content in the center
         Box(
-            modifier = Modifier.size(24.dp),
-            contentAlignment = Alignment.Center
+            contentAlignment = Alignment.TopStart,
+            modifier = Modifier
+                .offset(x = startOffsetXDp, y = startOffsetYDp)
+                .then(
+                    if (isSelected) Modifier.background(
+                        selectionColor,
+                        selectionShape
+                    ) else Modifier
+                )
+
+                .padding(horizontal = 4.dp, vertical = 8.dp)
+
         ) {
-            iconContent()
+            Column(
+                modifier = Modifier
+                    .width(iconSize)
+                    .wrapContentHeight(),
+                verticalArrangement = Arrangement.spacedBy(iconSpacing),
+                horizontalAlignment = Alignment.CenterHorizontally
+            )
+            {
+                entriesInGroup.forEach { entry ->
+                    Box(
+                        modifier = Modifier
+                            .size(iconSize)
+                            .clickable(
+                                onClick = { onEntryClick(entry) },
+                                indication = rememberRipple(
+                                    bounded = false,
+                                    radius = iconSize / 2 + 4.dp
+                                ),
+                                interactionSource = remember { MutableInteractionSource() }
+                            ),
+                        contentAlignment = Alignment.Center
+
+                    ) {
+                        Icon(
+                            painter = painterResource(id = entry.iconRes),
+                            contentDescription = entry.gist,
+                            tint = Color.Unspecified
+                        )
+                    }
+                }
+            }
         }
     }
 }
 
 /**
- * DefaultMoodMarker composable provides the default text bubble
+ * DefaultMoodMarker composable provides the default text bubble for HaloMoodEntry
  */
 @Composable
 fun DefaultMoodMarker(
-    entry: MoodEntry,
+    entry: HaloMoodEntry,
     position: Offset,
-    hourWidthPx: Float
 ) {
-    val hour = (position.x / hourWidthPx).toInt()
-    val minutes = ((entry.time - hour) * 60).toInt()
-    val timeString = "${hour}:${minutes.toString().padStart(2, '0')}"
+    val timeString = formatTimestampToHHmm(entry.timeLogged)
 
-    // Use BoxWithConstraints to get available screen width
     BoxWithConstraints(
         modifier = Modifier.fillMaxWidth(),
     ) {
-        val bubbleWidth = 100.dp
+        val bubbleWidth = 120.dp
         val bubbleWidthPx = with(LocalDensity.current) { bubbleWidth.toPx() }
         val maxWidthPx = with(LocalDensity.current) { maxWidth.toPx() }
 
-        // Calculate adjusted X position to keep marker entirely visible
-        val adjustedX = position.x.coerceIn(
-            bubbleWidthPx / 2,
-            maxWidthPx - bubbleWidthPx / 2
-        )
+        val desiredX = position.x - bubbleWidthPx / 2
+        val adjustedX = desiredX.coerceIn(0f, maxWidthPx - bubbleWidthPx)
 
-        // Position the bubble
+        val markerOffsetY = 30.dp
+        val density = LocalDensity.current
+
+        val markerYPx = position.y + with(density) { markerOffsetY.toPx() }
+        val markerYDp = with(density) { markerYPx.toDp() }
+        val triangleColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.95f)
+
         Box(
             modifier = Modifier
                 .width(bubbleWidth)
                 .wrapContentHeight()
                 .absoluteOffset(
-                    x = with(LocalDensity.current) { (adjustedX - bubbleWidthPx / 2).toDp() },
-                    y = with(LocalDensity.current) { (position.y + 100).toDp() }
+                    x = with(density) { adjustedX.toDp() },
+                    y = markerYDp
                 )
-                .align(Alignment.Center)
         ) {
-            // Triangle pointer
-            val emojiPosition = position.x
-            val triangleColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.8f)
+            val pointerSize = 12.dp
+            val pointerSizePx = with(density) { pointerSize.toPx() }
 
+            val pointerShiftPx = position.x - (adjustedX + bubbleWidthPx / 2)
+
+            val pointerOffsetX = with(density) { pointerShiftPx.toDp() }
+
+            // Triangle pointer Canvas (pointing upwards)
             Canvas(
                 modifier = Modifier
-                    .size(16.dp)
+                    .size(pointerSize)
                     .align(Alignment.TopCenter)
-                    .offset(y = (-8).dp)
+                    .offset(x = pointerOffsetX, y = -(pointerSize / 2))
             ) {
                 val path = Path().apply {
-                    moveTo(emojiPosition / 2, 0f)
+                    moveTo(size.width / 2, 0f)
                     lineTo(0f, size.height)
-                    lineTo(emojiPosition, size.height)
+                    lineTo(size.width, size.height)
                     close()
                 }
                 drawPath(
@@ -413,13 +521,12 @@ fun DefaultMoodMarker(
                 )
             }
 
-            // Content bubble
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
                     .fillMaxWidth()
                     .shadow(
-                        elevation = 7.dp,
+                        elevation = 6.dp,
                         shape = RoundedCornerShape(8.dp),
                         clip = false
                     )
@@ -427,24 +534,21 @@ fun DefaultMoodMarker(
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.95f),
                         shape = RoundedCornerShape(8.dp)
                     )
-                    .padding(8.dp)
+                    .padding(horizontal = 8.dp, vertical = 6.dp)
             ) {
-                // Draw text content bubble
                 Text(
-                    text = entry.text,
-                    color = Color.Black,
-                    fontSize = 11.sp,
-                    maxLines = 3,
+                    text = entry.gist,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    fontSize = 12.sp,
+                    maxLines = 4,
                     overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    lineHeight = 14.sp
                 )
-
                 Spacer(modifier = Modifier.height(4.dp))
-
-                // Draw timestamp
                 Text(
                     text = timeString,
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
                     fontSize = 10.sp,
                     textAlign = TextAlign.Center
                 )
@@ -452,61 +556,128 @@ fun DefaultMoodMarker(
         }
     }
 }
+
 /**
- * Complete MoodChart composable that puts everything together
+ * Complete MoodChart composable that puts everything together using HaloMoodEntry
  */
 @Composable
 fun MoodChart(
-    moodEntries: List<MoodEntry>,
+    moodEntries: List<HaloMoodEntry>, // Changed data type
     hourRange: IntRange = 0..23,
-    hourWidthPx: Float = 50f,
+    hourWidth: Dp = 150.dp,
+    iconSize: Dp = 30.dp,
+    iconSpacing: Dp = 4.dp,
     skyColors: List<Pair<Int, Color>> = defaultSkyColors,
     vegetationBaseColors: List<Pair<Int, Color>> = defaultVegetationBaseColors,
     vegetationHighlightColors: List<Pair<Int, Color>> = defaultVegetationHighlightColors,
     landscapePoints: List<Float> = defaultLandscapePoints,
-    entryContent: @Composable (MoodEntry, Offset, Boolean) -> Unit = { entry, position, isSelected ->
-        //DefaultMoodEntry(entry, position, isSelected, rememberTextMeasurer())
-        CustomMoodEntry(position, isSelected){
-            Icon(
-                painter = painterResource(id = R.drawable.baseline_medication_24),
-                modifier = Modifier.size(30.dp),
-                tint = MaterialTheme.colorScheme.inversePrimary,
-                contentDescription = null )
-        }
+    fixedEntryYPositionPx: Float = 250f,
+    entryContent: @Composable (List<HaloMoodEntry>, Offset, HaloMoodEntry?, (HaloMoodEntry) -> Unit) -> Unit = { entries, position, currentSelectedEntry, clickHandler ->
+        GroupedMoodEntry(
+            entriesInGroup = entries,
+            position = position,
+            iconSize = iconSize,
+            iconSpacing = iconSpacing,
+            isSelected = false,
+            selectedEntry = currentSelectedEntry,
+            onEntryClick = clickHandler
+        )
     },
-    markerContent: @Composable (MoodEntry, Offset) -> Unit = { entry, position ->
-        DefaultMoodMarker(entry, position, hourWidthPx)
+    markerContent: @Composable (HaloMoodEntry, Offset) -> Unit = { entry, position ->
+        DefaultMoodMarker(entry, position)
     }
 ) {
     val textMeasurer = rememberTextMeasurer()
-
-    // Calculate all mood positions for the connecting line
-    val allMoodPositions = moodEntries.map { entry ->
-        Pair(entry.time * hourWidthPx, entry.intensity)
+    val scrollState = rememberScrollState()
+    val density = LocalDensity.current
+    val hourWidthPx = remember(hourWidth, density) {
+        with(density){hourWidth.toPx()}
+    }
+    // Calculate all mood positions for the connecting line (sorted by time, fixed Y)
+    val allMoodPositions = remember(moodEntries, hourWidthPx, fixedEntryYPositionPx) {
+        moodEntries
+            .sortedBy { it.timeLogged }
+            .map { entry ->
+                val floatHour = convertTimestampToFloatHour(entry.timeLogged)
+                Pair(floatHour * hourWidthPx, fixedEntryYPositionPx)
+            }
     }
 
-    // Draw timeline
-    Row(Modifier.horizontalScroll(rememberScrollState())) {
+
+    // Draw timeline using horizontal scroll
+    Row(Modifier.horizontalScroll(scrollState)) {
         for (hour in hourRange) {
-            val hourEntries = moodEntries.filter {
-                it.time >= hour && it.time < hour + 1
+            val hourEntries = remember(moodEntries, hour) {
+                moodEntries.filter { entry ->
+                    val floatHour = convertTimestampToFloatHour(entry.timeLogged)
+                    floatHour >= hour && floatHour < hour + 1
+                }
             }
 
             MoodTimeline(
                 hour = hour,
-                hourWidthPx = hourWidthPx,
+                hourWidth = hourWidth,
                 skyColors = skyColors,
                 vegetationBaseColors = vegetationBaseColors,
                 vegetationHighlightColors = vegetationHighlightColors,
                 landscapePoints = landscapePoints,
-                moodEntries = hourEntries,
+                hourEntries = hourEntries,
                 allMoodPositions = allMoodPositions,
                 textMeasurer = textMeasurer,
                 entryContent = entryContent,
-                markerContent = markerContent
+                markerContent = markerContent,
+                fixedEntryYPositionPx = fixedEntryYPositionPx
             )
         }
     }
+    LaunchedEffect(key1 = scrollState, key2 = hourWidthPx, key3 = hourRange) {
+
+        val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+        val targetHour = (currentHour - 1).coerceIn(hourRange.first, hourRange.last)
+        val targetScrollOffsetPx = (targetHour * hourWidthPx).roundToInt()
+
+        delay(150)
+
+        val maxScroll = scrollState.maxValue
+
+        if (targetScrollOffsetPx >= 0) {
+            if (maxScroll > 0) {
+                val coercedTarget = targetScrollOffsetPx.coerceAtMost(maxScroll)
+                scrollState.animateScrollTo(
+                    value = coercedTarget,
+                    animationSpec = tween(
+                        durationMillis = 2000,
+                        easing = EaseInOut
+                    )
+                )
+            } else if (targetScrollOffsetPx == 0) {
+                scrollState.animateScrollTo(0)
+            } else {
+                Log.w("InitialScroll", "Max scroll value is still 0. Cannot scroll to $targetScrollOffsetPx.")
+            }
+        } else {
+            Log.w("InitialScroll", "Target scroll offset negative ($targetScrollOffsetPx), not scrolling.")
+        }
+    }
+}
+
+fun convertTimestampToFloatHour(timestamp: Long): Float {
+    val calendar = Calendar.getInstance().apply {
+        timeInMillis = timestamp
+
+        // timeZone = TimeZone.getDefault()
+    }
+    val hour = calendar.get(Calendar.HOUR_OF_DAY)
+    val minute = calendar.get(Calendar.MINUTE)
+    return hour + (minute / 60.0f)
+}
+
+fun formatTimestampToHHmm(timestamp: Long): String {
+    val date = Date(timestamp)
+    val format = SimpleDateFormat("HH:mm", Locale.getDefault())
+
+    // format.timeZone = TimeZone.getDefault()
+    return format.format(date)
 }
 
 // Default values for colors and landscape
@@ -542,161 +713,3 @@ val defaultVegetationHighlightColors = listOf(
 
 val defaultLandscapePoints = listOf(0f, 5f, 10f, 7f, 15f, 10f, 5f, 0f)
 
-// Data class for mood entries
-data class MoodEntry(
-    val time: Float,         // Time as hour + fraction (e.g., 13.5 for 13:30)
-    val emoji: String,       // Emoji representing the mood
-    val intensity: Float,    // Used for the connecting line height
-    val text: String         // Text message (max 120 chars)
-)
-
-// Sample usage example
-@Preview(widthDp = 320)
-@Composable
-fun MoodChartExample() {
-    val sampleMoodEntries = listOf(
-        MoodEntry(
-            time = 8.25f,         // 8:15 AM
-            emoji = "😊",
-            intensity = 0.8f,
-            text = "Feeling great after morning coffee! Ready to tackle the day ahead with energy and focus."
-        ),
-        MoodEntry(
-            time = 10.5f,         // 10:30 AM
-            emoji = "🤔",
-            intensity = 0.6f,
-            text = "Stuck on a challenging problem at work. Trying to figure out the best approach."
-        ),
-        MoodEntry(
-            time = 12.75f,        // 12:45 PM
-            emoji = "😋",
-            intensity = 0.9f,
-            text = "Lunch break! Enjoying my favorite sandwich from the cafe downstairs."
-        ),
-        MoodEntry(
-            time = 14.0f,         // 2:00 PM
-            emoji = "😴",
-            intensity = 0.4f,
-            text = "Post-lunch energy dip. Could really use another coffee right now."
-        ),
-        MoodEntry(
-            time = 16.5f,         // 4:30 PM
-            emoji = "😅",
-            intensity = 0.7f,
-            text = "Meeting went longer than expected. Rushing to finish my tasks before the end of the day."
-        ),
-        MoodEntry(
-            time = 18.25f,        // 6:15 PM
-            emoji = "🎉",
-            intensity = 0.95f,
-            text = "Wrapped up everything! Heading home with a sense of accomplishment. Weekend starts now!"
-        ),
-        MoodEntry(
-            time = 20.0f,         // 8:00 PM
-            emoji = "😌",
-            intensity = 0.85f,
-            text = "Relaxing with a good book and some tea. Perfect evening to unwind."
-        ),
-        MoodEntry(
-            time = 22.5f,         // 10:30 PM
-            emoji = "😴",
-            intensity = 0.3f,
-            text = "Getting sleepy. Time to wrap up and get ready for bed soon."
-        )
-    )
-
-    // Use default or custom components
-    Column(modifier = Modifier
-        .fillMaxSize()
-        .padding(10.dp)
-    ) {
-        MoodChart(
-            moodEntries = sampleMoodEntries,
-            hourRange = 8..23,
-            hourWidthPx = 120f
-            // Optional: Use custom entry content
-            // entryContent = customEntryContent
-        )
-    }
-}
-
-// Example of completely custom marker content
-@Composable
-fun CustomMoodMarker(entry: MoodEntry, position: Offset) {
-    val hour = position.x.toInt() / 50
-    val minutes = ((entry.time - hour) * 60).toInt()
-    val timeString = "${hour}:${minutes.toString().padStart(2, '0')}"
-
-    Box(
-        modifier = Modifier
-            .width(150.dp)
-            .padding(top = (position.y + 30).dp)
-            .offset(x = (position.x - 75).dp)
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .background(
-                    color = Color(0xFF333333).copy(alpha = 0.9f),
-                    shape = RoundedCornerShape(12.dp)
-                )
-                .border(
-                    width = 2.dp,
-                    color = Color.White.copy(alpha = 0.3f),
-                    shape = RoundedCornerShape(12.dp)
-                )
-                .padding(12.dp)
-        ) {
-            Text(
-                text = entry.emoji,
-                fontSize = 24.sp,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = entry.text,
-                color = Color.White,
-                fontSize = 14.sp,
-                maxLines = 4,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = timeString,
-                color = Color.White.copy(alpha = 0.7f),
-                fontSize = 12.sp,
-                textAlign = TextAlign.Center
-            )
-        }
-
-        // Triangle pointer
-        Canvas(
-            modifier = Modifier
-                .size(20.dp)
-                .align(Alignment.TopCenter)
-                .offset(y = (-10).dp)
-        ) {
-            val path = Path().apply {
-                moveTo(size.width / 2, 0f)
-                lineTo(0f, size.height)
-                lineTo(size.width, size.height)
-                close()
-            }
-            drawPath(
-                path = path,
-                color = Color(0xFF333333).copy(alpha = 0.9f)
-            )
-            drawPath(
-                path = path,
-                color = Color.White.copy(alpha = 0.3f),
-                style = Stroke(width = 2f)
-            )
-        }
-    }
-}
-data class OffsetDp(val x: Dp, val y: Dp)

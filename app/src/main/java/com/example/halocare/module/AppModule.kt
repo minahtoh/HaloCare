@@ -3,6 +3,7 @@ package com.example.halocare.module
 import android.content.Context
 import androidx.room.Room
 import com.example.halocare.database.HaloCareDatabase
+import com.example.halocare.database.MoodEntryDao
 import com.example.halocare.database.UserDao
 import com.example.halocare.network.NetworkConstants
 import com.example.halocare.viewmodel.AuthRepository
@@ -39,6 +40,10 @@ object AppModule {
     @Provides
     fun provideUserDao(database: HaloCareDatabase): UserDao {
         return database.userDao()
+    }
+    @Provides
+    fun provideMoodEntryDao(database: HaloCareDatabase): MoodEntryDao{
+        return database.moodEntryDao()
     }
 
 
@@ -83,6 +88,17 @@ object AppModule {
     fun provideWeatherRetrofit(client: OkHttpClient): Retrofit {
         return Retrofit.Builder()
             .baseUrl(NetworkConstants.WEATHER_BASE_URL)
+            .addConverterFactory(GsonConverterFactory.create())
+            .client(client)
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    @Named("adviceApi")
+    fun provideAdviceRetrofit(client: OkHttpClient): Retrofit{
+        return Retrofit.Builder()
+            .baseUrl(NetworkConstants.ADVICE_BASE_URL)
             .addConverterFactory(GsonConverterFactory.create())
             .client(client)
             .build()

@@ -321,7 +321,7 @@ fun AppointmentConfirmationDialog(
                     if (selectedHour < 12) "AM" else "PM"
                 )
                 customTime = formatted
-                selectedTime = formatted // 💥 this is what you're missing
+                selectedTime = formatted
                 customTimeSelected = true
             },
             hour,

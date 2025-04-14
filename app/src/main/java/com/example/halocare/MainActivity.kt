@@ -219,7 +219,10 @@ fun HaloCareNavHost(
             DailyHabitsScreen()
         }
         composable(route = MoodScreen.route){
-            MoodTrackerScreen()
+            MoodTrackerScreen(
+                mainViewModel = mainViewModel,
+                onBackIconClick = {navHostController.popBackStack() }
+            )
         }
         composable(route = MedicationScreen.route){
             MedicationReminderScreen()

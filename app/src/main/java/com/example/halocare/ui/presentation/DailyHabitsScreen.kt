@@ -41,7 +41,6 @@ import com.example.halocare.ui.models.ExerciseData
 import com.example.halocare.ui.models.JournalEntryData
 import com.example.halocare.ui.presentation.charts.HaloCharts
 import com.example.halocare.ui.presentation.charts.JournalHeatmap
-import com.example.halocare.ui.presentation.charts.MoodChartExample
 import com.example.halocare.ui.presentation.charts.ScreenTimePieChart
 import com.example.halocare.ui.presentation.charts.SleepTrackerChart
 import kotlinx.coroutines.delay
