@@ -216,7 +216,9 @@ fun HaloCareNavHost(
             })
         }
         composable(route = DailyHabitsScreen.route){
-            DailyHabitsScreen()
+            DailyHabitsScreen(
+                mainViewModel = mainViewModel
+            )
         }
         composable(route = MoodScreen.route){
             MoodTrackerScreen(

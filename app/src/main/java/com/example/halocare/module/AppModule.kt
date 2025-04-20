@@ -1,17 +1,25 @@
 package com.example.halocare.module
 
 import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
+import com.example.halocare.database.ExerciseTrackerDao
 import com.example.halocare.database.HaloCareDatabase
 import com.example.halocare.database.MoodEntryDao
 import com.example.halocare.database.UserDao
 import com.example.halocare.network.NetworkConstants
+import com.example.halocare.services.TimerRepository
+import com.example.halocare.services.TimerRepositoryImpl
 import com.example.halocare.viewmodel.AuthRepository
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
+import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -27,6 +35,28 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
+    private const val TIMER_PREFERENCES = "timer_prefs"
+
+    @Provides
+    @Singleton // Provide DataStore as a singleton
+    fun providePreferencesDataStore(@ApplicationContext context: Context): DataStore<Preferences> {
+        // Create the DataStore instance
+        return PreferenceDataStoreFactory.create {
+            context.preferencesDataStoreFile(TIMER_PREFERENCES)
+        }
+    }
+    @Provides
+    @Singleton
+    fun provideTimerRepository(
+        // Hilt knows how to create TimerRepositoryImpl because
+        // we will add @Inject to its constructor (see step below)
+        // So, Hilt provides 'impl' as an argument here.
+        impl: TimerRepositoryImpl
+    ): TimerRepository {
+        // This function just returns the concrete implementation 'impl'
+        // whenever the 'TimerRepository' interface is requested.
+        return impl
+    }
 
     @Provides
     @Singleton
@@ -44,6 +74,10 @@ object AppModule {
     @Provides
     fun provideMoodEntryDao(database: HaloCareDatabase): MoodEntryDao{
         return database.moodEntryDao()
+    }
+    @Provides
+    fun provideExerciseTrackerDao(database: HaloCareDatabase): ExerciseTrackerDao{
+        return database.exerciseDao()
     }
 
 

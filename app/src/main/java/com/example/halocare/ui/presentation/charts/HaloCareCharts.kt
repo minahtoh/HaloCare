@@ -1,8 +1,11 @@
 package com.example.halocare.ui.presentation.charts
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,6 +14,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -33,6 +37,8 @@ import com.patrykandpatrick.vico.core.entry.FloatEntry
 import com.patrykandpatrick.vico.core.entry.entryModelOf
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 @Composable
 fun HaloCharts(
@@ -51,40 +57,39 @@ fun HaloCharts(
 
 
     // Create an Animatable for each column
-    val animatables = remember {
-        List(exerciseDataList.size) { Animatable(0f) }
-    }
+    val animatables = remember { mutableStateListOf<Animatable<Float, AnimationVector1D>>() }
 
-    // Start sequential animation
-    LaunchedEffect(Unit) {
-        animatables.forEachIndexed { index, animatable ->
-            // Start each animation after a delay
+    LaunchedEffect(exerciseDataList) {
+        animatables.clear()
+        animatables.addAll(List(exerciseDataList.size) { Animatable(0f) })
+
+        exerciseDataList.forEachIndexed { index, _ ->
             launch {
-                delay(index * 200L) // 200ms delay between columns
-                animatable.animateTo(
+                delay(index * 100L)
+                animatables[index].animateTo(
                     targetValue = 1f,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessLow
-                    )
+                    animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing)
                 )
             }
         }
     }
 
+    if (animatables.size != exerciseDataList.size) {
+        return
+    }
+
     // Calculate current values based on animation progress
     val currentValues = exerciseDataList.mapIndexed { index, value ->
-        value.timeElapsed * animatables[index].value
+        value.timeElapsed * animatables[index].value.orZero()
     }
 
     // Create the entry model
-    val columnData = remember(currentValues) {
-        entryModelOf(
-            currentValues.mapIndexed { index, value ->
-                FloatEntry(index.toFloat(), value)
-            }
-        )
-    }
+    val columnData = entryModelOf(
+        currentValues.mapIndexed { index, value ->
+            FloatEntry(index.toFloat(), value)
+        }
+    )
+
     val lineColor = MaterialTheme.colorScheme.primary
 
     val maxTime = exerciseDataList.maxOfOrNull { it.timeElapsed }?.toFloat() ?: 0f
@@ -96,7 +101,7 @@ fun HaloCharts(
             .background(MaterialTheme.colorScheme.errorContainer)
     ) {
         Text(
-            text = "$featureName Usage Over Time",
+            text = "$featureName",
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 8.dp, start = 15.dp, top = 8.dp)
@@ -110,11 +115,11 @@ fun HaloCharts(
                 maxLabelCount = 5,
             ),
             bottomAxis = bottomAxis(
-                valueFormatter = { value, _ ->
-                    val index = value.toInt().coerceIn(0, exerciseDataList.size - 1)
-                    exerciseDataList.getOrNull(index)?.exerciseDate ?: ""
-                },
+                valueFormatter = DateAxisValueFormatter(exerciseDataList),
                 guideline = null,
+                labelSpacing = 3,
+                title = "Days",
+                tickLength = 10.dp
 
             ),
             chartScrollSpec = rememberChartScrollSpec(
@@ -133,11 +138,6 @@ fun HaloCharts(
                 .fillMaxWidth()
                 .graphicsLayer { alpha = 1f }
         )
-
-        // Debugging - Show raw data
-        exerciseDataList.forEach {
-            Text(text = "${it.exerciseDate}: ${it.exerciseName}", fontSize = 12.sp, color = Color.White, modifier = Modifier.padding(15.dp))
-        }
     }
 }
 
@@ -152,3 +152,27 @@ class TimeAxisValueFormatter(private val maxTime: Float) : AxisValueFormatter<Ax
         }
     }
 }
+
+class DateAxisValueFormatter(
+    private val exerciseDataList: List<ExerciseData>
+) : AxisValueFormatter<AxisPosition.Horizontal.Bottom> {
+
+    private val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    private val outputFormat = SimpleDateFormat("EEE", Locale.getDefault())
+
+    override fun formatValue(value: Float, chartValues: ChartValues): String {
+        val index = value.toInt().coerceIn(0, exerciseDataList.size - 1)
+        val dateStr = exerciseDataList.getOrNull(index)?.exerciseDate
+
+        return try {
+            dateStr?.let {
+                val date = inputFormat.parse(it)
+                date?.let { d -> outputFormat.format(d) } ?: ""
+            } ?: ""
+        } catch (e: Exception) {
+            ""
+        }
+    }
+}
+
+fun Float?.orZero() = this ?: 0f

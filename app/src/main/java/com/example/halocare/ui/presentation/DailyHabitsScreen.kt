@@ -14,6 +14,13 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -27,7 +34,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -35,6 +49,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.example.halocare.R
 import com.example.halocare.services.ExerciseTimerService
 import com.example.halocare.ui.models.ExerciseData
@@ -43,17 +59,36 @@ import com.example.halocare.ui.presentation.charts.HaloCharts
 import com.example.halocare.ui.presentation.charts.JournalHeatmap
 import com.example.halocare.ui.presentation.charts.ScreenTimePieChart
 import com.example.halocare.ui.presentation.charts.SleepTrackerChart
+import com.example.halocare.viewmodel.MainViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.time.DayOfWeek
 import java.time.LocalDate
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.TimeUnit
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DailyHabitsScreen() {
+fun DailyHabitsScreen(
+    mainViewModel: MainViewModel
+) {
     var selectedTabIndex by remember { mutableStateOf(0) }
     val tabTitles = listOf("Exercise", "Sleep", "Journaling", "Screen Time")
+    var elapsedTime by remember{ mutableStateOf(0f) }
+    val context = LocalContext.current
+    val time by mainViewModel.currentTime.collectAsState()
+    val exerciseName by mainViewModel.exerciseName.collectAsStateWithLifecycle()
+    val timerStatus by mainViewModel.isRunning.collectAsStateWithLifecycle()
+    val exerciseDataList by mainViewModel.exerciseDataList.collectAsState()
 
+    LaunchedEffect(Unit){
+        mainViewModel.getExerciseDataList()
+    }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -86,12 +121,12 @@ fun DailyHabitsScreen() {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(300.dp)
+                    .height(350.dp)
                     .background(Color.LightGray),
                 contentAlignment = Alignment.Center
             ) {
                 if(selectedTabIndex == 0){
-                    ExerciseTrackerChart()
+                    ExerciseTrackerChart(exerciseDataList ?: emptyList())
                 }
                 if(selectedTabIndex == 1){
                     SleepTrackerChart()
@@ -109,15 +144,18 @@ fun DailyHabitsScreen() {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp)
+                    .height(280.dp)
                     .background(MaterialTheme.colorScheme.secondaryContainer),
                 contentAlignment = Alignment.Center
             ) {
                 if (selectedTabIndex == 0){
-                    ExerciseProgressSection()
+                    ExerciseProgressSection(
+                        currentProgress = getTodayExerciseTotal(exerciseDataList ?: emptyList()),
+                        exerciseList = exerciseDataList ?: emptyList()
+                    )
                 }else if(selectedTabIndex == 1 ){
                     SleepProgressIndicator(sleepHours = 7f, sleepQuality = 2 )
-                }else if (selectedTabIndex ==2){
+                }else if (selectedTabIndex == 2){
                     JournalStreakProgress()
                 }
                 else Text("Progress Bar Placeholder")
@@ -128,7 +166,17 @@ fun DailyHabitsScreen() {
             if (selectedTabIndex == 0) { // Exercise Tab
                 Text("Start Today's Exercise", fontSize = 18.sp)
                 Spacer(modifier = Modifier.height(8.dp))
-                ExerciseTimer()
+                ExerciseTimer(
+                    onTimerStopped = {
+                        mainViewModel.saveExerciseData(it)
+                        elapsedTime = it.timeElapsed
+                        },
+                    time = time,
+                    exerciseName = exerciseName,
+                    updateExerciseName = {mainViewModel.onExerciseNameChange(it)},
+                    clearTimerState = {mainViewModel.clearTimerState()},
+                    isTimerRunning = timerStatus
+                )
             }
 
             // Log Sleep Progress
@@ -288,34 +336,10 @@ fun getScreenTimeForApps(context: Context, selectedApps: Set<String>): Map<Strin
     return statsMap
 }
 
-@Preview
 @Composable
 fun ExerciseTrackerChart(
-  //  exerciseDataList: List<ExerciseData>
+    exerciseDataList: List<ExerciseData>
 ) {
-    val dummyList = listOf(
-        ExerciseData(
-            exerciseName = "Burpees",
-            exerciseDate = "Jan 5",
-            timeElapsed = 4500f
-        ),
-        ExerciseData(
-            exerciseName = "Running",
-            exerciseDate = "Jan 6",
-            timeElapsed = 6000f
-        ),
-        ExerciseData(
-            exerciseName = "Push-ups",
-            exerciseDate = "Jan 7",
-            timeElapsed = 25000f
-        ),
-        ExerciseData(
-            exerciseName = "Burpees",
-            exerciseDate = "Jan 8",
-            timeElapsed = 35000f
-        ),
-    )
-
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -327,17 +351,25 @@ fun ExerciseTrackerChart(
         Text(text = "Exercise Progress", color = Color.Black)
         Spacer(modifier = Modifier.height(8.dp))
 
-        HaloCharts(exerciseDataList = dummyList, featureName = "Exercise Tracker")
+        HaloCharts(exerciseDataList = exerciseDataList.takeLast(20), featureName = "Exercise Tracker")
     }
 }
 
-@Preview()
+fun getTodayExerciseTotal(exerciseList: List<ExerciseData>): Int {
+    val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+    return exerciseList
+        .filter { it.exerciseDate == today }
+        .sumOf { (it.timeElapsed / 60f).roundToInt() }
+}
+
+//@Preview()
 @Composable
 fun ExerciseProgressSection(
     dailyGoal: Int = 50, // in minutes
     currentProgress: Int = 35, // in minutes
     weeklyGoal: Int = 5, // days per week
-    daysExercised: Int = 2 // days completed
+    daysExercised: Int = 2, // days completed
+    exerciseList: List<ExerciseData>
 ) {
     Column(
         modifier = Modifier
@@ -398,19 +430,90 @@ fun ExerciseProgressSection(
         }
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            repeat(weeklyGoal) { index ->
-                Box(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clip(CircleShape)
-                        .background(if (index < daysExercised) MaterialTheme.colorScheme.inversePrimary else Color.LightGray)
-                )
-            }
+            WeeklyStreakRow(completedDates = getCompletedExerciseDates(exerciseList,50))
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = "🔥 Longest streak: ${getLongestStreak(getCompletedExerciseDates(exerciseList, 50))} days",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 8.dp)
+            )
         }
     }
 }
+@Composable
+fun WeeklyStreakRow(
+    completedDates: Set<LocalDate>,
+    weeklyGoal: Int = 7,
+    dailyGoal: Int = 50
+) {
+    val today = LocalDate.now()
+    val startOfWeek = today.with(DayOfWeek.MONDAY)
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        for (i in 0 until weeklyGoal) {
+            val day = startOfWeek.plusDays(i.toLong())
+            val isCompleted = completedDates.contains(day)
+
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (isCompleted)
+                            MaterialTheme.colorScheme.inversePrimary
+                        else
+                            Color.LightGray
+                    )
+            )
+        }
+    }
+}
+
+fun getLongestStreak(completedDates: Set<LocalDate>): Int {
+    val sortedDates = completedDates.sorted()
+    var longest = 0
+    var current = 0
+    var prevDate: LocalDate? = null
+
+    for (date in sortedDates) {
+        if (prevDate == null || prevDate.plusDays(1) == date) {
+            current++
+        } else {
+            current = 1
+        }
+        longest = maxOf(longest, current)
+        prevDate = date
+    }
+
+    return longest
+}
+
+fun convertFloatTimeToMinutes(floatTime: Float): Int {
+    val hours = floatTime.toInt()
+    val minutes = ((floatTime - hours) * 60).roundToInt()
+    return (hours * 60) + minutes
+}
+
+fun getCompletedExerciseDates(
+    exerciseList: List<ExerciseData>,
+    dailyGoalInMinutes: Int
+): Set<LocalDate> {
+    return exerciseList
+        .groupBy { LocalDate.parse(it.exerciseDate) }
+        .filter { (_, entries) ->
+            val totalMinutes = entries.sumOf { convertFloatTimeToMinutes(it.timeElapsed) }
+            totalMinutes >= dailyGoalInMinutes
+        }
+        .keys
+}
+
 
 
 
@@ -675,42 +778,51 @@ fun JournalingTracker() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ExerciseTimer() {
-    var time by remember { mutableStateOf(0) }
-    var isRunning by remember { mutableStateOf(false) }
-    var exerciseName by remember { mutableStateOf("") }
+fun ExerciseTimer(
+    onTimerStopped : (ExerciseData) -> Unit,
+    time : Int,
+    exerciseName: String,
+    updateExerciseName : (String) -> Unit,
+    clearTimerState: () -> Unit,
+    isTimerRunning: Boolean
+) {
+
+    var isRunning by remember { mutableStateOf(isTimerRunning) }
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
+
+
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            val serviceIntent = Intent(context, ExerciseTimerService::class.java)
-            context.startForegroundService(serviceIntent)
+            startTimerService(context)
+            isRunning = true
         } else {
-            Toast.makeText(
-                context,
-                "Notification permission required for timer",
-                Toast.LENGTH_SHORT).show()
+            // Permission denied
+            Toast.makeText(context, "Notification permission is required to show timer progress", Toast.LENGTH_LONG).show()
+            isRunning = false
         }
     }
-    // Register a BroadcastReceiver to listen for stop event
-    DisposableEffect(context) {
-        val receiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                isRunning = false
-                time = 0 // Reset Timer
-            }
-        }
-        val intentFilter = IntentFilter("EXERCISE_TIMER_STOPPED")
-        val flags = Context.RECEIVER_NOT_EXPORTED
-        context.registerReceiver(receiver, intentFilter, flags)
 
-        onDispose {
-            context.unregisterReceiver(receiver)
-        }
-    }
+    val infiniteTransition = rememberInfiniteTransition(label = "highlightRotation")
+    val rotationAngle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "rotationAngle"
+    )
+    val highlightAlpha by animateFloatAsState(
+        targetValue = if (isRunning) 1f else 0f, // Target 1f if running, 0f otherwise
+        animationSpec = tween(durationMillis = 300),
+        label = "highlightAlpha"
+    )
+    val highlightColor = MaterialTheme.colorScheme.inversePrimary
+
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -718,7 +830,7 @@ fun ExerciseTimer() {
 
         OutlinedTextField(
             value = exerciseName,
-            onValueChange = { exerciseName = it },
+            onValueChange = { updateExerciseName(it) },
             label = { Text("Enter Exercise Name") },
             singleLine = true,
             readOnly = isRunning,
@@ -728,8 +840,38 @@ fun ExerciseTimer() {
         Box(
             modifier = Modifier
                 .size(150.dp)
+                .drawBehind {
+                    if (highlightAlpha > 0f) {
+                        val strokeWidthPx = 8.dp.toPx()
+                        rotate(rotationAngle) {
+                            drawArc(
+                                brush = Brush.sweepGradient(
+                                    colors = listOf(
+                                        Color.Transparent,
+                                        highlightColor.copy(alpha = 0.1f), // Use base highlight color
+                                        highlightColor,
+                                        highlightColor.copy(alpha = 0.1f),
+                                        Color.Transparent
+                                    ),
+                                    center = center
+                                ),
+                                startAngle = 0f,
+                                sweepAngle = 360f,
+                                useCenter = false,
+                                topLeft = Offset(strokeWidthPx / 2, strokeWidthPx / 2),
+                                size = Size(
+                                    size.width - strokeWidthPx,
+                                    size.height - strokeWidthPx
+                                ),
+                                style = Stroke(width = strokeWidthPx),
+                                alpha = highlightAlpha
+                            )
+                        }
+                    }
+                }
                 .clip(CircleShape)
-                .background(Color.Blue.copy(alpha = 0.2f)),
+                .background(Color.Blue.copy(alpha = 0.2f))
+            ,
             contentAlignment = Alignment.Center
         ) {
             val displayTime = if (time < 60) "$time s" else "${time / 60}m ${time % 60}s"
@@ -737,7 +879,8 @@ fun ExerciseTimer() {
             Text(
                 text = displayTime,
                 fontSize = 24.sp,
-                color = Color.Black
+                color = Color.Black,
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
             )
             Icon(
                 painter = painterResource(id = R.drawable.baseline_directions_run_24),
@@ -750,47 +893,82 @@ fun ExerciseTimer() {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Button(
-            enabled = exerciseName != "",
-            onClick = {
-            isRunning = !isRunning
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU){
-                if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
-                    != PackageManager.PERMISSION_GRANTED
-                ){
-                    permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                }else{
-                    toggleTimer(context, isRunning)
+        Row(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Box(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Button(
+                    modifier = Modifier.align(Alignment.Center),
+                    enabled = exerciseName.isNotBlank(),
+                    onClick = {
+                        if (isRunning) {
+                            stopTimerService(context)
+                            isRunning = false
+                        } else {
+
+                            // Check for Notification Permission on Android 13+
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                if (ContextCompat.checkSelfPermission(
+                                        context,
+                                        Manifest.permission.POST_NOTIFICATIONS
+                                    )
+                                    != PackageManager.PERMISSION_GRANTED
+                                ) {
+                                    permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                } else {
+                                    startTimerService(context)
+                                    isRunning = true
+                                }
+                            } else {
+                                startTimerService(context)
+                                isRunning = true
+                            }
+                        }
+                    }
+                ) {
+                    Text(if (isRunning) "Stop" else "Start")
                 }
-            }else {
-                toggleTimer(context, isRunning)
-            }
-            if (isRunning) {
-                coroutineScope.launch {
-                    while (isRunning) {
-                        delay(1000L)
-                        time++
+                if (!isRunning && time != 0){
+                    Button(
+                        modifier = Modifier.align(Alignment.CenterEnd),
+                        onClick = {
+                            val loggedExercise = ExerciseData(
+                                exerciseName = exerciseName,
+                                timeElapsed = time.toFloat(),
+                                exerciseDate = LocalDate.now().toString()
+                            )
+                            onTimerStopped(loggedExercise)
+                            clearTimerState()
+                        }
+                    ) {
+                        Text(text = "Log Time")
                     }
                 }
             }
-        }) {
-            Text(if (isRunning) "Stop" else "Start")
         }
     }
 }
 
-fun toggleTimer(context: Context, isRunning: Boolean) {
-    if (isRunning) {
-        val serviceIntent = Intent(context, ExerciseTimerService::class.java)
-        context.startForegroundService(serviceIntent)
-    } else {
-        val stopIntent = Intent(context, ExerciseTimerService::class.java)
-        context.stopService(stopIntent)
-    }
+
+
+private fun startTimerService(context: Context) {
+    Log.d("ExerciseTimer", "Requesting Service Start")
+    val serviceIntent = Intent(context, ExerciseTimerService::class.java)
+    ContextCompat.startForegroundService(context, serviceIntent)
 }
+
+private fun stopTimerService(context: Context) {
+    val serviceIntent = Intent(context, ExerciseTimerService::class.java).apply {
+        action = ExerciseTimerService.ACTION_STOP_SERVICE
+    }
+    context.startService(serviceIntent)
+}
+
 
 @Preview(showBackground = true)
 @Composable
 fun PreviewDailyHabitsScreen() {
-    DailyHabitsScreen()
+ //   DailyHabitsScreen()
 }

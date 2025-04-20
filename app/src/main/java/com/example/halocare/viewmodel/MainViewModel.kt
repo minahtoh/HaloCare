@@ -1,30 +1,42 @@
 package com.example.halocare.viewmodel
 
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.util.Log
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import com.example.halocare.database.DailyExerciseSummary
+import com.example.halocare.database.ExerciseTrackerDao
 import com.example.halocare.database.MoodEntryDao
 import com.example.halocare.network.NetworkRepository
 import com.example.halocare.network.models.WeatherResponse
 import com.example.halocare.network.models.WeatherResponseHourly
+import com.example.halocare.services.ExerciseTimerService
+import com.example.halocare.services.TimerRepository
 import com.example.halocare.ui.models.Appointment
+import com.example.halocare.ui.models.ExerciseData
 import com.example.halocare.ui.models.HaloMoodEntry
 import com.example.halocare.ui.models.Professional
 import com.example.halocare.ui.models.ProfessionalSpecialty
-import com.example.halocare.ui.models.User
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import dagger.hilt.android.internal.Contexts.getApplication
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
@@ -37,7 +49,9 @@ enum class LoadingState{LOADING, SUCCESSFUL, ERROR, IDLE}
 class MainViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val networkRepository: NetworkRepository,
-    private val mainRepository: MainRepository
+    private val mainRepository: MainRepository,
+    private val timerRepository: TimerRepository,
+    @ApplicationContext private val context: Context
 ): ViewModel() {
     private val _toastMessage = MutableSharedFlow<String>()
     val toastMessage = _toastMessage.asSharedFlow()
@@ -63,15 +77,62 @@ class MainViewModel @Inject constructor(
     val dailyMoods = _dailyMoods.asStateFlow()
     private val _todayAdvice = MutableStateFlow<String?>(null)
     val todayAdvice = _todayAdvice.asStateFlow()
+    private val _exerciseDataList = MutableStateFlow<List<ExerciseData>?>(null)
+    val exerciseDataList = _exerciseDataList.asStateFlow()
+    private val _isRunning = MutableStateFlow(false)
+    val isRunning: StateFlow<Boolean> = _isRunning
+    val timerReceiver = object : BroadcastReceiver() {
+        override fun onReceive(receivedContext: Context?, intent: Intent?) {
+
+            if (intent?.action == ExerciseTimerService.BROADCAST_ACTION_STOPPED) {
+                val elapsedTimed = intent.getIntExtra(ExerciseTimerService.EXTRA_ELAPSED_TIME, 0)
+
+                _isRunning.value = false
+                Log.d("RunningTimer", "onReceive: isrunnning status $isRunning")
+            }
+        }
+    }
+
+    val currentTime: StateFlow<Int> = timerRepository.currentTimeSeconds
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = timerRepository.currentTimeSeconds.value // Read initial directly
+        )
+
+    val exerciseName: StateFlow<String> = timerRepository.currentExerciseName
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = "" // Start empty, flow will update from repo/DataStore
+        )
+
+    val timerStatus: StateFlow<Boolean?> = timerRepository.isTimerRunning
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = false
+        )
+
     init {
+        registerReceiver()
         getTodayWeather("Lagos")
         updateCurrentUser()
         getAvailableSpecialties()
+    }
+    override fun onCleared() {
+        super.onCleared()
+        LocalBroadcastManager.getInstance(getApplication(context)).unregisterReceiver(timerReceiver)
     }
 
     private fun updateCurrentUser(){
         val currentUser = authRepository.getCurrentUser()
         _currentUserId.value = currentUser?.uid ?: ""
+    }
+    private fun registerReceiver() {
+        val filter = IntentFilter(ExerciseTimerService.BROADCAST_ACTION_STOPPED)
+
+        LocalBroadcastManager.getInstance(getApplication(context)).registerReceiver(timerReceiver, filter)
     }
 
     private fun getAvailableSpecialties(){
@@ -165,10 +226,9 @@ class MainViewModel @Inject constructor(
                         // Handle errors from the flow
                         Log.e("VIEWMODEL", "Error collecting mood flow", exception)
                         _dailyMoods.value = emptyList()
-                 }.collect{
-                        _dailyMoods.value = it
-             }
-
+                 }.collect {
+               _dailyMoods.value = it
+           }
         }
     }
 
@@ -189,11 +249,39 @@ class MainViewModel @Inject constructor(
             }
         }
     }
+
+    fun getExerciseDataList(){
+        viewModelScope.launch {
+            mainRepository.getExerciseDataList().catch {  }.collect{
+                _exerciseDataList.value = it.reversed()
+                Log.d("CHARTSAVER", "saveExerciseData: saved $it")
+
+            }
+        }
+    }
+    fun saveExerciseData(exerciseData: ExerciseData){
+        viewModelScope.launch {
+            mainRepository.saveExerciseData(exerciseData)
+            Log.d("CHARTSAVER", "saveExerciseData: saved $exerciseData")
+        }
+    }
+    fun onExerciseNameChange(newName: String) {
+        viewModelScope.launch {
+            timerRepository.saveExerciseName(newName)
+        }
+    }
+
+    fun clearTimerState() {
+        viewModelScope.launch {
+            timerRepository.clearPersistedState()
+        }
+    }
 }
 @Singleton
 class MainRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
-    private val moodEntryDao: MoodEntryDao
+    private val moodEntryDao: MoodEntryDao,
+    private val exerciseTrackerDao: ExerciseTrackerDao
 ){
     suspend fun bookUserAppointment(userId: String, appointment: Appointment): Result<Boolean>{
         return try {
@@ -265,6 +353,19 @@ class MainRepository @Inject constructor(
         withContext(Dispatchers.IO){
             moodEntryDao.insertMoodEntry(moodEntry)
         }
+    }
+    suspend fun saveExerciseData(exerciseData: ExerciseData){
+        withContext(Dispatchers.IO){
+            exerciseTrackerDao.insertExercise(exerciseData)
+        }
+    }
+
+    fun getExerciseDataList() : Flow<List<ExerciseData>>{
+        return exerciseTrackerDao.getAllExercises()
+    }
+
+    fun getExercisesSummary() : Flow<List<DailyExerciseSummary>>{
+        return exerciseTrackerDao.getLast7DailyExercises()
     }
 
 }
