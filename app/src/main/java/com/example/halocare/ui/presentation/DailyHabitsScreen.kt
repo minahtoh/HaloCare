@@ -14,6 +14,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -21,6 +22,11 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -40,11 +46,13 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -55,6 +63,7 @@ import com.example.halocare.R
 import com.example.halocare.services.ExerciseTimerService
 import com.example.halocare.ui.models.ExerciseData
 import com.example.halocare.ui.models.JournalEntryData
+import com.example.halocare.ui.models.SleepData
 import com.example.halocare.ui.presentation.charts.HaloCharts
 import com.example.halocare.ui.presentation.charts.JournalHeatmap
 import com.example.halocare.ui.presentation.charts.ScreenTimePieChart
@@ -67,6 +76,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
@@ -85,6 +95,9 @@ fun DailyHabitsScreen(
     val exerciseName by mainViewModel.exerciseName.collectAsStateWithLifecycle()
     val timerStatus by mainViewModel.isRunning.collectAsStateWithLifecycle()
     val exerciseDataList by mainViewModel.exerciseDataList.collectAsState()
+    val sleepDataList by mainViewModel.allSleepData.collectAsState()
+    val today = remember { LocalDate.now().format(DateTimeFormatter.ISO_DATE) }
+    val hasLoggedToday = sleepDataList.any { it.dayLogged == today }
 
     LaunchedEffect(Unit){
         mainViewModel.getExerciseDataList()
@@ -129,7 +142,7 @@ fun DailyHabitsScreen(
                     ExerciseTrackerChart(exerciseDataList ?: emptyList())
                 }
                 if(selectedTabIndex == 1){
-                    SleepTrackerChart()
+                    SleepTrackerChart(sleepDataList)
                 }
                 if(selectedTabIndex == 2){
                     JournalHeatmap()
@@ -154,7 +167,11 @@ fun DailyHabitsScreen(
                         exerciseList = exerciseDataList ?: emptyList()
                     )
                 }else if(selectedTabIndex == 1 ){
-                    SleepProgressIndicator(sleepHours = 7f, sleepQuality = 2 )
+                    val lastSleepData = sleepDataList.reversed().getOrNull(0)
+                    SleepProgressIndicator(
+                        sleepHours = lastSleepData?.sleepLength ?: 0f,
+                        sleepQuality = lastSleepData?.sleepQuality ?: 0
+                    )
                 }else if (selectedTabIndex == 2){
                     JournalStreakProgress()
                 }
@@ -186,7 +203,34 @@ fun DailyHabitsScreen(
                     fontSize = 24.sp,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                SleepTracker()
+                if(!hasLoggedToday){
+                    SleepTracker(
+                        saveSleepData = {
+                            mainViewModel.logSleepData(it)
+                        }
+                    )
+                }else{
+                    Box(modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Image(
+                                painter = painterResource(id = R.drawable.sleeping_icon_for_dissclaimer),
+                                contentDescription = "sleeping",
+                                modifier = Modifier.size(200.dp),
+                                //colorFilter = ColorFilter.tint(color = Color.Unspecified)
+                            )
+                            Text(
+                                text = "You’ve already logged your sleep for today.",
+                                color = Color.Gray,
+                                fontSize = 16.sp,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                }
+
             }
 
             //Log Journal Progress
@@ -517,14 +561,19 @@ fun getCompletedExerciseDates(
 
 
 
-@Preview()
+//@Preview()
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SleepTracker() {
+fun SleepTracker(
+    saveSleepData : (SleepData) -> Unit
+) {
     var selectedSleepOption by remember { mutableStateOf<String?>(null) }
     var manualSleepHours by remember { mutableStateOf(("")) }
-    var sleepQuality by remember  { mutableStateOf<Int?>(2) }
+    var sleepQuality by remember  { mutableStateOf(2) }
     var loggedToday by remember { mutableStateOf(false) }
+    var showSlider by remember { mutableStateOf(true) }
+    var manualSleepSliderValue by remember { mutableStateOf(6f) } // Default 6 hours
+
 
     val sleepOptions = listOf("Less than 5 hours", "About 5 hours", "8 hours", "More than 8 hours")
     val sleepQualityIcons = listOf("😴", "🙂", "😐", "😕", "😢")
@@ -558,16 +607,53 @@ fun SleepTracker() {
 
         Text("Or enter exact hours:", fontSize = 18.sp)
         TextField(
-            value = manualSleepHours,
+            value =  "${manualSleepSliderValue.roundToInt()} hours",
             onValueChange = { manualSleepHours = it },
             label = { Text("Hours slept") },
+            readOnly = true,
+            enabled = false,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
+                .clickable {
+                    showSlider = !showSlider
+                    Log.d("ONTEXTFIELDCLICK", "SleepTracker: showslider$showSlider")
+                }
+                .padding(20.dp)
+                ,
             colors = TextFieldDefaults.textFieldColors(
                 containerColor = MaterialTheme.colorScheme.tertiaryContainer
             )
         )
+        if (showSlider){
+            selectedSleepOption = null
+            AnimatedVisibility(
+                visible = showSlider,
+                enter = expandVertically(animationSpec = tween(durationMillis = 400)) + fadeIn(),
+                exit = shrinkVertically(animationSpec = tween(durationMillis = 300)) + fadeOut()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        text = "Select Sleep Duration",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+
+                    Slider(
+                        value = manualSleepSliderValue,
+                        onValueChange = { manualSleepSliderValue = it },
+                        valueRange = 0f..24f,
+                        steps = 23, // gives whole hour ticks
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Text(
+                        text = "Selected: ${String.format("%.1f", manualSleepSliderValue)} hours",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -595,7 +681,12 @@ fun SleepTracker() {
         Spacer(modifier = Modifier.height(12.dp))
         Button(
             onClick = {
-                loggedToday = true
+                val sleepData = SleepData(
+                    dayLogged = LocalDate.now().format(DateTimeFormatter.ISO_DATE),
+                    sleepQuality = sleepQuality,
+                    sleepLength = getSleepLengthInHours(selectedSleepOption,manualSleepSliderValue,showSlider)
+                )
+                saveSleepData(sleepData)
             },
             enabled = !loggedToday,
             colors = ButtonDefaults.buttonColors(
@@ -606,6 +697,25 @@ fun SleepTracker() {
         }
     }
 }
+
+fun getSleepLengthInHours(
+    selectedOption: String?,
+    sliderInput: Float,
+    isCustomInputUsed: Boolean
+): Float {
+    return if (isCustomInputUsed) {
+        sliderInput
+    } else {
+        when (selectedOption) {
+            "Less than 5 hours" -> 4f
+            "About 5 hours" -> 5f
+            "8 hours" -> 8f
+            "More than 8 hours" -> 9f
+            else -> 0f // fallback
+        }
+    }
+}
+
 
 @Composable
 fun SleepProgressIndicator(sleepHours: Float, sleepQuality: Int) {

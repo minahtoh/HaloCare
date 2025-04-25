@@ -9,6 +9,7 @@ import androidx.room.Room
 import com.example.halocare.database.ExerciseTrackerDao
 import com.example.halocare.database.HaloCareDatabase
 import com.example.halocare.database.MoodEntryDao
+import com.example.halocare.database.SleepDao
 import com.example.halocare.database.UserDao
 import com.example.halocare.network.NetworkConstants
 import com.example.halocare.services.TimerRepository
@@ -48,13 +49,8 @@ object AppModule {
     @Provides
     @Singleton
     fun provideTimerRepository(
-        // Hilt knows how to create TimerRepositoryImpl because
-        // we will add @Inject to its constructor (see step below)
-        // So, Hilt provides 'impl' as an argument here.
         impl: TimerRepositoryImpl
     ): TimerRepository {
-        // This function just returns the concrete implementation 'impl'
-        // whenever the 'TimerRepository' interface is requested.
         return impl
     }
 
@@ -78,6 +74,10 @@ object AppModule {
     @Provides
     fun provideExerciseTrackerDao(database: HaloCareDatabase): ExerciseTrackerDao{
         return database.exerciseDao()
+    }
+    @Provides
+    fun provideSleepTrackerDao(database: HaloCareDatabase): SleepDao{
+        return database.sleepDao()
     }
 
 

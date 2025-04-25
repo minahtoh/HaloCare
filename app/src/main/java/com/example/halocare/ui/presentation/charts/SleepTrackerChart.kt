@@ -4,8 +4,10 @@ import android.graphics.DashPathEffect
 import android.graphics.Paint
 import android.graphics.RectF
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -56,49 +58,42 @@ import com.patrykandpatrick.vico.core.entry.entryModelOf
 import com.patrykandpatrick.vico.core.marker.Marker
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
+import java.util.Locale
+import kotlin.math.roundToInt
+import kotlin.math.roundToLong
 
-@Preview
+//@Preview
 @Composable
 fun SleepTrackerChart(
-   // sleepData: List<SleepData>,
+    sleepData: List<SleepData>,
     modifier: Modifier = Modifier
 ) {
-    val sleepData = listOf(
-        SleepData("Mon", 7.5f, 4), // Monday: 7.5 hours, quality 4/5
-        SleepData("Tue", 6.0f, 3), // Tuesday: 6.0 hours, quality 3/5
-        SleepData("Wed", 8.0f, 5), // Wednesday: 8.0 hours, quality 5/5
-        SleepData("Thu", 7.0f, 2), // Thursday: 7.0 hours, quality 2/5
-        SleepData("Fri", 6.5f, 4), // Friday: 6.5 hours, quality 4/5
-        SleepData("Sat", 9.0f, 5), // Saturday: 9.0 hours, quality 5/5
-        SleepData("Sun", 8.5f, 3), // Sunday: 8.5 hours, quality 3/5
-    )
-    // Create an Animatable for each column
-    val animatables = remember {
-        List(sleepData.size) { Animatable(0f) }
+
+    val animatables = remember(sleepData) {
+        sleepData.map { Animatable(0f) }
     }
 
     // Start sequential animation
-    LaunchedEffect(Unit) {
+    LaunchedEffect(sleepData) {
         animatables.forEachIndexed { index, animatable ->
-            // Start each animation after a delay
             launch {
                 delay(index * 200L) // 200ms delay between columns
                 animatable.animateTo(
                     targetValue = 1f,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessLow
-                    )
+                    animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing)
                 )
             }
         }
     }
-
+    // Sleep quality emojis (1-5 scale)
+    val sleepQualityIcons = listOf("😴", "🙂", "😐", "😕", "😢")
 
     val columnValues = sleepData.mapIndexed { index, value ->
         value.sleepLength * animatables[index].value
     }
-
 
     val columnChartData = remember(columnValues) {
         entryModelOf(
@@ -137,7 +132,8 @@ fun SleepTrackerChart(
     }
 
     val sleepQualityFormatter = AxisValueFormatter<AxisPosition.Vertical.End> { value, _ ->
-        "${value.toInt()}%" // Example: Format as "80%" for quality
+        val index = value.toInt().coerceIn(1, 5) - 1 // Sleep quality is 1–5 scale
+        sleepQualityIcons.reversed().getOrElse(index) { "❓" }   // Fallback emoji
     }
 
     Column(
@@ -149,7 +145,7 @@ fun SleepTrackerChart(
             .padding(16.dp)
     ){
         Text(
-            text = "Sleep Tracker Usage Over Time",
+            text = "Sleep Habits Over Time",
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 8.dp, start = 15.dp, top = 8.dp)
@@ -166,10 +162,20 @@ fun SleepTrackerChart(
                 valueFormatter = sleepQualityFormatter,
                 maxLabelCount = 5
             ),
+
             bottomAxis = bottomAxis(
                 valueFormatter = { value, _ ->
                     val index = value.toInt().coerceIn(0, sleepData.size - 1)
-                    sleepData.getOrNull(index)?.dayLogged ?: ""
+                    val dayString = sleepData.getOrNull(index)?.dayLogged
+
+                    dayString?.let {
+                        try {
+                            val date = LocalDate.parse(it, DateTimeFormatter.ISO_DATE)
+                            date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault()) // "Mon", "Tue", etc.
+                        } catch (e: Exception) {
+                            "" //unlikely
+                        }
+                    } ?: ""
                 },
                 guideline = null
             ),
@@ -237,14 +243,14 @@ class CustomSleepMarker(private val sleepData: List<SleepData>) : Marker {
         // Draw primary text (sleep duration)
         labelPaint.color = Color.Black.toArgb()
         context.canvas.drawText(
-            "${sleepDuration}h",
+            "Slept for ${sleepDuration.roundToLong()}h",
             x, y - 15f, labelPaint
         )
 
         // Draw emoji for sleep quality
         labelPaint.color = Color.Gray.toArgb()
         context.canvas.drawText(
-            sleepEmoji, // Display emoji instead of number
+            "Felt Like $sleepEmoji",
             x, y + 5f, labelPaint
         )
 

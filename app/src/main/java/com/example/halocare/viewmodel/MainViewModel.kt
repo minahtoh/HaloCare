@@ -11,6 +11,7 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.example.halocare.database.DailyExerciseSummary
 import com.example.halocare.database.ExerciseTrackerDao
 import com.example.halocare.database.MoodEntryDao
+import com.example.halocare.database.SleepDao
 import com.example.halocare.network.NetworkRepository
 import com.example.halocare.network.models.WeatherResponse
 import com.example.halocare.network.models.WeatherResponseHourly
@@ -21,6 +22,7 @@ import com.example.halocare.ui.models.ExerciseData
 import com.example.halocare.ui.models.HaloMoodEntry
 import com.example.halocare.ui.models.Professional
 import com.example.halocare.ui.models.ProfessionalSpecialty
+import com.example.halocare.ui.models.SleepData
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import dagger.hilt.android.internal.Contexts.getApplication
@@ -107,12 +109,9 @@ class MainViewModel @Inject constructor(
             initialValue = "" // Start empty, flow will update from repo/DataStore
         )
 
-    val timerStatus: StateFlow<Boolean?> = timerRepository.isTimerRunning
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = false
-        )
+    val allSleepData = mainRepository.getAllSleepData()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
 
     init {
         registerReceiver()
@@ -276,12 +275,19 @@ class MainViewModel @Inject constructor(
             timerRepository.clearPersistedState()
         }
     }
+
+    fun logSleepData(sleepData: SleepData){
+        viewModelScope.launch {
+            mainRepository.insertSleep(sleepData)
+        }
+    }
 }
 @Singleton
 class MainRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val moodEntryDao: MoodEntryDao,
-    private val exerciseTrackerDao: ExerciseTrackerDao
+    private val exerciseTrackerDao: ExerciseTrackerDao,
+    private val sleepDao: SleepDao
 ){
     suspend fun bookUserAppointment(userId: String, appointment: Appointment): Result<Boolean>{
         return try {
@@ -367,5 +373,8 @@ class MainRepository @Inject constructor(
     fun getExercisesSummary() : Flow<List<DailyExerciseSummary>>{
         return exerciseTrackerDao.getLast7DailyExercises()
     }
+
+    suspend fun insertSleep(sleepData: SleepData) = sleepDao.insertSleepData(sleepData)
+    fun getAllSleepData(): Flow<List<SleepData>> = sleepDao.getAllSleepData()
 
 }
