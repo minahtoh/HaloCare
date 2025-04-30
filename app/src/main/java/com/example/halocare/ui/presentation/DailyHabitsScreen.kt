@@ -14,7 +14,15 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.DrawableRes
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedContentScope
+import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -26,6 +34,10 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.with
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -35,6 +47,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -49,19 +66,30 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.example.halocare.R
 import com.example.halocare.services.ExerciseTimerService
 import com.example.halocare.ui.models.ExerciseData
+import com.example.halocare.ui.models.JournalEntry
 import com.example.halocare.ui.models.JournalEntryData
 import com.example.halocare.ui.models.SleepData
 import com.example.halocare.ui.presentation.charts.HaloCharts
@@ -96,8 +124,12 @@ fun DailyHabitsScreen(
     val timerStatus by mainViewModel.isRunning.collectAsStateWithLifecycle()
     val exerciseDataList by mainViewModel.exerciseDataList.collectAsState()
     val sleepDataList by mainViewModel.allSleepData.collectAsState()
+    val journalDataList by mainViewModel.allLoggedJournals.collectAsState()
     val today = remember { LocalDate.now().format(DateTimeFormatter.ISO_DATE) }
     val hasLoggedToday = sleepDataList.any { it.dayLogged == today }
+    val showJournalDialog = remember { mutableStateOf(false) }
+    val selectedJournalEntries = remember { mutableStateOf<List<JournalEntry>>(emptyList()) }
+
 
     LaunchedEffect(Unit){
         mainViewModel.getExerciseDataList()
@@ -110,6 +142,14 @@ fun DailyHabitsScreen(
         },
         containerColor = MaterialTheme.colorScheme.primaryContainer
     ) { paddingValues ->
+        if (showJournalDialog.value) {
+            if (selectedJournalEntries.value.isNotEmpty()){
+                JournalViewDialog(
+                    journalEntries = selectedJournalEntries.value,
+                    onDismiss = { showJournalDialog.value = false }
+                )
+            }
+        }
         Column(modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
@@ -145,7 +185,14 @@ fun DailyHabitsScreen(
                     SleepTrackerChart(sleepDataList)
                 }
                 if(selectedTabIndex == 2){
-                    JournalHeatmap()
+                    JournalHeatmap(
+                       entries = journalDataList,
+                        onDateClicked = {
+                                entries ->
+                            selectedJournalEntries.value = entries
+                            showJournalDialog.value = true
+                        }
+                    )
                 }
                 if(selectedTabIndex == 3){
                     ScreenTimePieChart()
@@ -170,10 +217,10 @@ fun DailyHabitsScreen(
                     val lastSleepData = sleepDataList.reversed().getOrNull(0)
                     SleepProgressIndicator(
                         sleepHours = lastSleepData?.sleepLength ?: 0f,
-                        sleepQuality = lastSleepData?.sleepQuality ?: 0
+                        sleepQuality = lastSleepData?.sleepQuality ?: 1
                     )
                 }else if (selectedTabIndex == 2){
-                    JournalStreakProgress()
+                    JournalStreakProgress(journalDataList)
                 }
                 else Text("Progress Bar Placeholder")
             }
@@ -235,7 +282,11 @@ fun DailyHabitsScreen(
 
             //Log Journal Progress
             if (selectedTabIndex == 2){
-                JournalingTracker()
+                JournalingTracker(
+                    saveJournal = {
+                        mainViewModel.saveJournalEntry(it)
+                    }
+                )
             }
 
             //Log Screen time Progress
@@ -780,27 +831,21 @@ fun SleepProgressIndicator(sleepHours: Float, sleepQuality: Int) {
 
 @Composable
 fun JournalStreakProgress(
-   // entries: List<JournalEntryData>,
-    modifier: Modifier = Modifier) {
-    val dummyJournals = listOf(
-        JournalEntryData(LocalDate.now().minusDays(5), 3),
-        JournalEntryData(LocalDate.now().minusDays(4), 2),
-        JournalEntryData(LocalDate.now().minusDays(3), 1),
-        JournalEntryData(LocalDate.now().minusDays(2), 0),
-        JournalEntryData(LocalDate.now().minusDays(1), 6),
-        JournalEntryData(LocalDate.now().minusDays(6), 4),
-    )
+    entries: List<JournalEntry>,
+    modifier: Modifier = Modifier
+) {
+
     val today = LocalDate.now()
-    val sortedEntries = dummyJournals.sortedByDescending { it.date } // Ensure order
+    val uniqueDates = entries.map { it.date }.toSet()
     var currentStreak = 0
 
-    // Calculate streak
-    for (i in sortedEntries.indices) {
+    for (i in 0..uniqueDates.size) {
         val expectedDate = today.minusDays(i.toLong())
-        if (sortedEntries[i].date == expectedDate) {
+        if (expectedDate in uniqueDates) {
             currentStreak++
         } else break
     }
+
 
     val maxStreakGoal = 30 // Set streak goal
     val progress = currentStreak / maxStreakGoal.toFloat()
@@ -832,9 +877,26 @@ fun JournalStreakProgress(
 
 @Preview()
 @Composable
-fun JournalingTracker() {
+fun JournalingTracker(
+    saveJournal : (JournalEntry) -> Unit = {}
+) {
     var journalEntry by remember { mutableStateOf("") }
-
+    var showLoadingDialog by remember{ mutableStateOf(false) }
+    var selectedJournalType by remember { mutableStateOf("scroll") }
+    val maxCharacters = when (selectedJournalType) {
+        "scroll" -> 150
+        "notebook" -> 300
+        "sticky_note" -> 100
+        "open_book" -> 200
+        else -> 0
+    }
+    val isOverLimit = journalEntry.length > maxCharacters
+    if (showLoadingDialog){
+        JournalSaveDialog {
+            journalEntry = ""
+            showLoadingDialog = false
+        }
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -859,9 +921,79 @@ fun JournalingTracker() {
 
         Text("What are you grateful for today?", fontSize = 18.sp)
         Spacer(modifier = Modifier.height(8.dp))
+        Box(
+            modifier = Modifier
+                .background(
+                    MaterialTheme.colorScheme.secondaryContainer,
+                    shape = MaterialTheme.shapes.medium
+                )
+                .padding(4.dp)
+        ) {
+            JournalInputWithLimit(
+                journalEntry = journalEntry,
+                onJournalChange = { journalEntry = it },
+                maxCharacters = maxCharacters
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceAround,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            JournalTypeSelector(
+                selectedType = selectedJournalType,
+                onTypeSelected = { selectedJournalType = it }
+            )
+
+            Button(
+                onClick = {
+                    val journal = JournalEntry(
+                        date = LocalDate.now(),
+                        entryText = journalEntry,
+                        journalType = selectedJournalType
+                    )
+                    saveJournal(journal)
+                    showLoadingDialog = true
+                },
+                enabled = journalEntry.isNotBlank() && !isOverLimit
+            ) {
+                Text("Log Entry")
+                Spacer(modifier = Modifier.width(5.dp))
+                Icon(
+                    painter = painterResource(id = R.drawable.baseline_draw_24),
+                    contentDescription = null
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(60.dp))
+    }
+}
+
+@Composable
+fun JournalInputWithLimit(
+    journalEntry: String,
+    onJournalChange: (String) -> Unit,
+    maxCharacters: Int = 150
+) {
+    val annotatedText = buildAnnotatedString {
+        val normalText = journalEntry.take(maxCharacters)
+        val overflowText = journalEntry.drop(maxCharacters)
+
+        append(normalText)
+        if (overflowText.isNotEmpty()) {
+            withStyle(SpanStyle(color = Color.Red)) {
+                append(overflowText)
+            }
+        }
+    }
+
+    Column {
         BasicTextField(
             value = journalEntry,
-            onValueChange = { journalEntry = it },
+            onValueChange = onJournalChange,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(150.dp)
@@ -869,22 +1001,434 @@ fun JournalingTracker() {
                     MaterialTheme.colorScheme.secondaryContainer,
                     shape = MaterialTheme.shapes.medium
                 )
-                .padding(8.dp)
+                .padding(12.dp),
+            textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+            decorationBox = { innerTextField ->
+                Box(modifier = Modifier.fillMaxSize()) {
+                    if (journalEntry.isEmpty()) {
+                        Text(
+                            text = "Enter your journal...",
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            )
+                        )
+                    }
+                    innerTextField()
+                }
+            },
+            visualTransformation = {
+                TransformedText(annotatedText, OffsetMapping.Identity)
+            }
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Button(
-            onClick = { /* Save Journal Entry */ }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp),
+            horizontalArrangement = Arrangement.End
         ) {
-            Text("Log Journal Entry")
-            Spacer(modifier = Modifier.width(5.dp))
-            Icon(
-                painter = painterResource(id = R.drawable.baseline_draw_24),
-                contentDescription = null )
+            val overLimit = journalEntry.length > maxCharacters
+            Text(
+                text = "${journalEntry.length}/$maxCharacters",
+                style = MaterialTheme.typography.bodySmall.copy(
+                    color = if (overLimit) Color.Red else MaterialTheme.colorScheme.onSurface
+                )
+            )
         }
     }
 }
+
+@Composable
+fun JournalTypeSelector(
+    selectedType: String,
+    onTypeSelected: (String) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceAround,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        JournalTypeIcon(
+            icon = R.drawable.scroll_or_parchment_typ,
+            type = "scroll",
+            selectedType = selectedType,
+            onTypeSelected = onTypeSelected
+        )
+        JournalTypeIcon(
+            icon = R.drawable.sheet_of_paper_ic_typ,
+            type = "notebook",
+            selectedType = selectedType,
+            onTypeSelected = onTypeSelected
+        )
+        JournalTypeIcon(
+            icon =  R.drawable.sticky_note_ic,
+            type = "sticky_note",
+            selectedType = selectedType,
+            onTypeSelected = onTypeSelected
+        )
+        JournalTypeIcon(
+            icon = R.drawable.open_journal_book_1_ic_typ,
+            type = "open_book",
+            selectedType = selectedType,
+            onTypeSelected = onTypeSelected
+        )
+    }
+}
+
+@Composable
+fun JournalTypeIcon(
+    @DrawableRes icon: Int,
+    type: String,
+    selectedType: String,
+    onTypeSelected: (String) -> Unit
+) {
+    IconButton(
+        onClick = { onTypeSelected(type) }
+    ) {
+        Icon(
+            painter = painterResource(id = icon),
+            contentDescription = type,
+            tint = if (selectedType == type) MaterialTheme.colorScheme.inversePrimary.copy(alpha = 0.8f) else Color.Unspecified,
+            modifier = Modifier.size(40.dp)
+        )
+    }
+}
+
+@OptIn(ExperimentalAnimationApi::class)
+@Composable
+fun JournalViewDialog(
+    journalEntries: List<JournalEntry>, // List of journal entries
+    onDismiss: () -> Unit
+) {
+    val currentEntryIndex = remember { mutableStateOf(0) }
+
+    // Check if there are multiple entries
+    val hasMultipleEntries = journalEntries.size > 1
+
+
+    Dialog(onDismissRequest = { onDismiss() }) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.95f)
+                .heightIn(min = 600.dp)
+                .padding(16.dp)
+        ) {
+
+            var previousIndex by remember { mutableStateOf(0) }
+            val transitionSpec: AnimatedContentTransitionScope<Int>.() -> ContentTransform = {
+                if (targetState > initialState) {
+                    slideInHorizontally { it } + fadeIn() togetherWith
+                            slideOutHorizontally { -it } + fadeOut()
+                } else {
+                    slideInHorizontally { -it } + fadeIn() togetherWith
+                            slideOutHorizontally { it } + fadeOut()
+                }
+            }
+
+
+            AnimatedContent(
+                targetState = currentEntryIndex.value,
+                transitionSpec = transitionSpec,
+                modifier = Modifier.fillMaxSize()
+            ) { index ->
+
+                val currentJournal = journalEntries[index]
+
+                val journalBackground = when (currentJournal.journalType.lowercase()) {
+                    "scroll" -> painterResource(id = R.drawable.scroll_bg)
+                    "notebook" -> painterResource(id = R.drawable.paper_bg)
+                    "sticky_note" -> painterResource(id = R.drawable.sticky_note_bg)
+                    "open_book" -> painterResource(id = R.drawable.open_journal_am_bg_f)
+                    else -> painterResource(id = R.drawable.journal_scroll_bg)
+                }
+
+                val journalFont = when (currentJournal.journalType.lowercase()) {
+                    "scroll" -> FontFamily(Font(R.font.parisienne))
+                    "notebook" -> FontFamily(Font(R.font.patrick_hand))
+                    "sticky_note" -> FontFamily(Font(R.font.architects_daughter))
+                    "open_book" -> FontFamily(Font(R.font.satisfy))
+                    else -> FontFamily(Font(R.font.la_belle_aurore))
+                }
+
+                val backgroundPaddingTop = when (currentJournal.journalType.lowercase()) {
+                    "scroll" -> 150.dp
+                    "notebook" -> 120.dp
+                    "sticky_note" -> 160.dp
+                    "open_book" -> 195.dp
+                    else -> 0.dp
+                }
+
+                val backgroundPaddingStart = when (currentJournal.journalType.lowercase()) {
+                    "notebook" -> 20.dp
+                    "scroll" -> 5.dp
+                    else -> 0.dp
+                }
+
+                val backgroundPaddingEnd = when (currentJournal.journalType.lowercase()) {
+                    "open_book" -> 0.dp
+                    else -> 0.dp
+                }
+
+                val textColor = when (currentJournal.journalType.lowercase()) {
+                    "notebook" -> Color.Blue.copy(alpha = 0.5f)
+                    "scroll" -> Color.DarkGray.copy(alpha = 0.7f)
+                    else -> Color.DarkGray
+                }
+
+                val fontSize = when (currentJournal.journalType.lowercase()) {
+                    "notebook" -> 15.sp
+                    "open_book" -> 13.sp
+                    else -> 17.sp
+                }
+
+                val lineHeight = when (currentJournal.journalType.lowercase()) {
+                    "notebook" -> 15.sp
+                    "open_book" -> 15.sp
+                    else -> 25.sp
+                }
+
+                val dateTextPadding = when (currentJournal.journalType.lowercase()) {
+                    "scroll" -> 130.dp
+                    "notebook" -> 85.dp
+                    "sticky_note" -> 160.dp
+                    else -> 0.dp
+                }
+
+                Box(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    // Background
+                    Image(
+                        painter = journalBackground,
+                        contentDescription = "Journal Background",
+                        modifier = Modifier
+                            .height(600.dp)
+                            .width(450.dp)
+                            .clip(RoundedCornerShape(16.dp)),
+                    )
+
+                    // Foreground Text
+                    Box(
+                        modifier = Modifier
+                            .height(600.dp)
+                            .width(450.dp)
+                            .padding(32.dp)
+                            .padding(
+                                top = backgroundPaddingTop,
+                                start = backgroundPaddingStart,
+                                end = backgroundPaddingEnd
+                            )
+                    ) {
+                        if (currentJournal.journalType == "open_book"){
+                            TwoColumnNotebookText(
+                                fullText = currentJournal.entryText,
+                                date = currentJournal.date.toString() + ".",
+                                font = journalFont,
+                                maxCharsPerColumn = 100
+                            )
+                        } else{
+                            Text(
+                                text = currentJournal.entryText,
+                                style = TextStyle(
+                                    fontFamily = journalFont,
+                                    fontSize = fontSize,
+                                    lineHeight = lineHeight,
+                                    fontWeight = FontWeight.Bold,
+                                    color = textColor
+                                )
+                            )
+                            Text(
+                                text = "${currentJournal.date}.",
+                                style = TextStyle(
+                                    fontFamily = journalFont,
+                                    fontSize = fontSize,
+                                    lineHeight = lineHeight,
+                                    fontWeight = FontWeight.Bold,
+                                    color = textColor
+                                ),
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(bottom = dateTextPadding, end = 5.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+
+            IconButton(
+                modifier = Modifier
+                    .padding(top = 30.dp)
+                    .size(40.dp)
+                    .align(Alignment.TopEnd),
+                onClick = {
+                    onDismiss()
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "close",
+                    tint = MaterialTheme.colorScheme.onError,
+
+                    )
+            }
+
+            if (hasMultipleEntries) {
+                // Previous button (only visible when NOT on first item)
+                AnimatedVisibility(
+                    visible = currentEntryIndex.value > 0,
+                    enter = fadeIn() + slideInHorizontally(),
+                    exit = fadeOut() + slideOutHorizontally(),
+                    modifier = Modifier.align(Alignment.CenterStart)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .padding(start = 26.dp)
+                            .size(40.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                shape = CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        IconButton(
+                            onClick = {
+                                currentEntryIndex.value = currentEntryIndex.value - 1
+                                previousIndex = currentEntryIndex.value
+
+                            },
+                            modifier = Modifier.size(30.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowBack,
+                                contentDescription = "Previous Entry",
+                                modifier = Modifier.size(24.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+
+                // Next button (only visible when NOT on last item)
+                AnimatedVisibility(
+                    visible = currentEntryIndex.value < journalEntries.size - 1,
+                    enter = fadeIn() + slideInHorizontally { it / 2 },
+                    exit = fadeOut() + slideOutHorizontally { it / 2 },
+                    modifier = Modifier.align(Alignment.CenterEnd)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .padding(end = 26.dp)
+                            .size(40.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                shape = CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        IconButton(
+                            onClick = {
+                                currentEntryIndex.value = currentEntryIndex.value + 1
+                                previousIndex = currentEntryIndex.value
+                            },
+                            modifier = Modifier.size(30.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowForward,
+                                contentDescription = "Next Entry",
+                                modifier = Modifier.size(24.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+@Composable
+fun TwoColumnNotebookText(
+    fullText: String,
+    date: String,
+    modifier: Modifier = Modifier,
+    font: FontFamily,
+    textStyle: TextStyle = TextStyle.Default,
+    maxCharsPerColumn: Int = 1000 // adjust as needed
+) {
+    // Split the text manually
+    val midpoint = fullText.length.coerceAtMost(maxCharsPerColumn)
+    val firstHalf = fullText.substring(0, midpoint)
+    val secondHalf = fullText.substring(midpoint)
+
+    Row(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = "$date\n$firstHalf",
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = 8.dp),
+            style = textStyle.copy(fontFamily = font, fontSize = 15.sp, fontWeight = FontWeight.Bold),
+            lineHeight = 16.sp
+        )
+        Text(
+            text = secondHalf,
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 18.dp),
+            style = textStyle.copy(fontFamily = font, fontSize = 15.sp, fontWeight = FontWeight.Bold),
+            lineHeight = 16.sp
+        )
+    }
+}
+
+@Composable
+fun JournalSaveDialog(
+    onFinished: () -> Unit
+) {
+    var isSaving by remember { mutableStateOf(true) }
+
+    // Automatically transition after 2 seconds
+    LaunchedEffect(Unit) {
+        delay(2000)
+        isSaving = false
+        delay(1000) // Show checkmark for 1 second
+        onFinished()
+    }
+
+    Dialog(onDismissRequest = { /* Block manual dismiss */ }) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.8f)
+                .height(200.dp)
+                .background(Color.White, shape = RoundedCornerShape(16.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                if (isSaving) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(48.dp),
+                        color = MaterialTheme.colorScheme.tertiaryContainer
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(text = "Writing...", style = MaterialTheme.typography.bodyMedium)
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = "Saved",
+                        tint = Color(0xFF4CAF50),
+                        modifier = Modifier.size(64.dp)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(text = "Journal Saved!", style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        }
+    }
+}
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

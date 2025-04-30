@@ -10,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.example.halocare.database.DailyExerciseSummary
 import com.example.halocare.database.ExerciseTrackerDao
+import com.example.halocare.database.JournalDao
 import com.example.halocare.database.MoodEntryDao
 import com.example.halocare.database.SleepDao
 import com.example.halocare.network.NetworkRepository
@@ -20,6 +21,7 @@ import com.example.halocare.services.TimerRepository
 import com.example.halocare.ui.models.Appointment
 import com.example.halocare.ui.models.ExerciseData
 import com.example.halocare.ui.models.HaloMoodEntry
+import com.example.halocare.ui.models.JournalEntry
 import com.example.halocare.ui.models.Professional
 import com.example.halocare.ui.models.ProfessionalSpecialty
 import com.example.halocare.ui.models.SleepData
@@ -110,6 +112,9 @@ class MainViewModel @Inject constructor(
         )
 
     val allSleepData = mainRepository.getAllSleepData()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allLoggedJournals = mainRepository.getAllJournals()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
 
@@ -281,13 +286,20 @@ class MainViewModel @Inject constructor(
             mainRepository.insertSleep(sleepData)
         }
     }
+
+    fun saveJournalEntry(journalEntry: JournalEntry){
+        viewModelScope.launch {
+            mainRepository.saveJournal(journalEntry)
+        }
+    }
 }
 @Singleton
 class MainRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val moodEntryDao: MoodEntryDao,
     private val exerciseTrackerDao: ExerciseTrackerDao,
-    private val sleepDao: SleepDao
+    private val sleepDao: SleepDao,
+    private val journalDao: JournalDao
 ){
     suspend fun bookUserAppointment(userId: String, appointment: Appointment): Result<Boolean>{
         return try {
@@ -376,5 +388,8 @@ class MainRepository @Inject constructor(
 
     suspend fun insertSleep(sleepData: SleepData) = sleepDao.insertSleepData(sleepData)
     fun getAllSleepData(): Flow<List<SleepData>> = sleepDao.getAllSleepData()
+
+    suspend fun saveJournal(journalEntry: JournalEntry) = journalDao.insertJournal(journalEntry)
+    fun getAllJournals(): Flow<List<JournalEntry>> = journalDao.getAllJournals()
 
 }

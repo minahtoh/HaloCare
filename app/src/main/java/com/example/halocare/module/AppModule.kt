@@ -8,6 +8,7 @@ import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
 import com.example.halocare.database.ExerciseTrackerDao
 import com.example.halocare.database.HaloCareDatabase
+import com.example.halocare.database.JournalDao
 import com.example.halocare.database.MoodEntryDao
 import com.example.halocare.database.SleepDao
 import com.example.halocare.database.UserDao
@@ -39,7 +40,7 @@ object AppModule {
     private const val TIMER_PREFERENCES = "timer_prefs"
 
     @Provides
-    @Singleton // Provide DataStore as a singleton
+    @Singleton
     fun providePreferencesDataStore(@ApplicationContext context: Context): DataStore<Preferences> {
         // Create the DataStore instance
         return PreferenceDataStoreFactory.create {
@@ -78,6 +79,10 @@ object AppModule {
     @Provides
     fun provideSleepTrackerDao(database: HaloCareDatabase): SleepDao{
         return database.sleepDao()
+    }
+    @Provides
+    fun provideJournalDao(database: HaloCareDatabase): JournalDao{
+        return database.journalDao()
     }
 
 
