@@ -91,6 +91,7 @@ import com.example.halocare.services.ExerciseTimerService
 import com.example.halocare.ui.models.ExerciseData
 import com.example.halocare.ui.models.JournalEntry
 import com.example.halocare.ui.models.JournalEntryData
+import com.example.halocare.ui.models.ScreenTimeEntry
 import com.example.halocare.ui.models.SleepData
 import com.example.halocare.ui.presentation.charts.HaloCharts
 import com.example.halocare.ui.presentation.charts.JournalHeatmap
@@ -129,6 +130,8 @@ fun DailyHabitsScreen(
     val hasLoggedToday = sleepDataList.any { it.dayLogged == today }
     val showJournalDialog = remember { mutableStateOf(false) }
     val selectedJournalEntries = remember { mutableStateOf<List<JournalEntry>>(emptyList()) }
+    val screenTimeSummary = remember { mutableStateListOf<ScreenTimeEntry>() }
+
 
 
     LaunchedEffect(Unit){
@@ -195,7 +198,9 @@ fun DailyHabitsScreen(
                     )
                 }
                 if(selectedTabIndex == 3){
-                    ScreenTimePieChart()
+                    ScreenTimePieChart(
+                        screenTimeSummary.toList()
+                    )
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
@@ -291,14 +296,26 @@ fun DailyHabitsScreen(
 
             //Log Screen time Progress
             if(selectedTabIndex == 3){
-                ScreenTimeTracker()
+                ScreenTimeTracker(
+                    screenTimeSummary = screenTimeSummary,
+                    onAppSelected = { entry ->
+                        // Update the summary list when an app is selected
+                        screenTimeSummary.removeAll { it.appName == entry.appName }
+                        if (entry.minutes > 0) {
+                            screenTimeSummary.add(entry)
+                        }
+                    }
+                )
             }
         }
     }
 }
 
 @Composable
-fun ScreenTimeTracker() {
+fun ScreenTimeTracker(
+    screenTimeSummary: MutableList<ScreenTimeEntry>,
+    onAppSelected : (ScreenTimeEntry)-> Unit,
+) {
     val context = LocalContext.current
     var hasPermission by remember { mutableStateOf(hasUsagePermission(context)) }
     var selectedApps by remember { mutableStateOf(mutableSetOf<String>()) }
@@ -306,12 +323,50 @@ fun ScreenTimeTracker() {
 
 
     val allApps = listOf("YouTube", "Instagram", "Settings", "TikTok", "HaloCare", "Twitter")
+    val defaultColorPalette = listOf(
+        Color(0xFFE57373), // red
+        Color(0xFF64B5F6), // blue
+        Color(0xFF81C784), // green
+        Color(0xFFFFD54F), // yellow
+        Color(0xFFBA68C8), // purple
+        Color(0xFFFF8A65)  // orange
+    )
+
+    val appColorMap = remember {
+        allApps.mapIndexed { index, app ->
+            app to defaultColorPalette[index % defaultColorPalette.size]
+        }.toMap()
+    }
 
     LaunchedEffect(selectedApps) {
         if (hasPermission) {
-            screenTimeData = getScreenTimeForApps(context, selectedApps)
+            val data = getScreenTimeForApps(context, selectedApps)
+            screenTimeData = data
+
+            // Send updated data to parent
+            data.forEach { (app, time) ->
+                onAppSelected(
+                    ScreenTimeEntry(
+                        appName = app,
+                        minutes = (time / 1000 / 60).toInt(),
+                        color = appColorMap[app] ?: Color.Gray
+                    )
+                )
+            }
+            val removedApps = screenTimeSummary.map { it.appName } - data.keys
+            removedApps.forEach { removedApp ->
+                onAppSelected(
+                    ScreenTimeEntry(
+                        appName = removedApp,
+                        minutes = 0,
+                        color = appColorMap[removedApp] ?: Color.Gray
+                    )
+                )
+            }
+
         }
     }
+
 
     Column(modifier = Modifier
         .fillMaxSize()
@@ -336,11 +391,9 @@ fun ScreenTimeTracker() {
                             RoundedCornerShape(8.dp)
                         )
                         .clickable {
-                            selectedApps = selectedApps
-                                .toMutableSet()
-                                .apply {
-                                    if (isSelected) remove(app) else add(app)
-                                }
+                            selectedApps = selectedApps.toMutableSet().apply {
+                                if (isSelected) remove(app) else add(app)
+                            }
                         }
                         .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
