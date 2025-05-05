@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.app.TimePickerDialog
 import android.content.Context
 import android.content.Intent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -28,7 +30,10 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -38,35 +43,46 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.halocare.R
 import com.example.halocare.receivers.MedicationReminderReceiver
+import com.example.halocare.ui.models.Medication
+import com.example.halocare.viewmodel.MainViewModel
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.YearMonth
@@ -75,11 +91,20 @@ import java.util.Calendar
 
 @Preview(widthDp = 320, heightDp = 720)
 @Composable
-fun MedicationReminderScreen() {
+fun MedicationReminderScreen(
+    mainViewModel: MainViewModel
+) {
     var showAddDialog by remember { mutableStateOf(false) }
-    val today = LocalDate.now()
-    var selectedTab by remember { mutableStateOf(0) } // 0 = Today's Doses, 1 = All Medications
-    var selectedMedication by remember { mutableStateOf<Medication?>(null) } // Store selected medication
+    val today = remember { LocalDate.now() }
+    var selectedTab by remember { mutableStateOf(0) }
+    var selectedMedication by remember { mutableStateOf<Medication?>(null) }
+    val medicationsList by mainViewModel.allMedications.collectAsState()
+    val medicationSchedule: Map<LocalDate, List<Medication>> = medicationsList
+        .flatMap { medication ->
+            medication.prescribedDays.map { date -> date to medication }
+        }
+        .groupBy({ it.first }, { it.second })
+
 
 
     Scaffold(
@@ -103,7 +128,7 @@ fun MedicationReminderScreen() {
                 .padding(paddingValues)
                 .padding(16.dp)
         ) {
-            MedicationCalendar(medicationSchedule = dummyMedicationSchedule)
+            MedicationCalendar(medicationSchedule = medicationSchedule)
             Spacer(modifier = Modifier.height(5.dp))
            // MedicationList()
             Column {
@@ -122,9 +147,9 @@ fun MedicationReminderScreen() {
                 }
                 // **Filter medication list based on tab selection**
                 val medicationsToShow = if (selectedTab == 0) {
-                    dummyMedicationSchedule[today].orEmpty() // Today's Doses
+                    medicationSchedule[today].orEmpty() // Today's Doses
                 } else {
-                    dummyMedicationSchedule.values.flatten() // All Medications
+                    medicationSchedule.values.flatten().distinctBy { it.name } // All Medications
                 }
 
                 LazyColumn {
@@ -141,10 +166,14 @@ fun MedicationReminderScreen() {
             }
             // **Show Dose Logging Dialog when a medication is selected**
             selectedMedication?.let { medication ->
-                DoseLoggingDialog(
+                LogMedicationDialog(
                     medication = medication,
-                    onDismiss = { selectedMedication = null },
-
+                    onDismiss = {  selectedMedication = null },
+                    onLogDose = {
+                        val updatedMeds = medication.copy(dosesUsedToday = it)
+                        mainViewModel.updateMedication(updatedMeds)
+                        selectedMedication = null
+                    }
                 )
             }
         }
@@ -152,7 +181,11 @@ fun MedicationReminderScreen() {
 
     if (showAddDialog) {
         Dialog(onDismissRequest = { showAddDialog = false }) {
-            AddMedicationDialog(onDismiss = { showAddDialog = false })
+            AddMedicationDialog(
+                onDismiss = {
+                    mainViewModel.saveMedicationData(it)
+                    showAddDialog = false
+                })
         }
     }
 }
@@ -170,13 +203,99 @@ fun MedicationReminderTopBar() {
 }
 
 @Composable
-fun MedicationList() {
-    LazyColumn(modifier = Modifier.fillMaxSize()) {
-        items(dummyMedications) { medication ->
-            MedicationCard(medication)
+fun LogMedicationDialog(
+    medication: Medication,
+    onDismiss: () -> Unit,
+    onLogDose: (Int) -> Unit
+) {
+    var currentLogged by remember { mutableIntStateOf(medication.dosesUsedToday) }
+    val doseTimes = remember(medication.firstDoseTime, medication.frequency) {
+        List(medication.frequency) { i ->
+            val calculatedTime = medication.firstDoseTime.plusHours((i * (24 / medication.frequency)).toLong())
+
+            // Check if the calculated time exceeds midnight, and if so, set it to 23:00
+            if (calculatedTime.hour == 0 && calculatedTime.minute == 0) {
+                calculatedTime.withHour(23).withMinute(0)
+            } else {
+                calculatedTime
+            }
         }
     }
+
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onLogDose(currentLogged)
+                    onDismiss()
+                }
+            ) {
+                Text("Done")
+            }
+        },
+        title = {
+            Text("Log Doses for ${medication.name}")
+        },
+        text = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Tap to log doses. Remaining: ${medication.frequency - currentLogged}")
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    doseTimes.forEachIndexed { index, time ->
+                        val isLogged = index < currentLogged
+                        val now = LocalTime.now()
+                        val isTimeReached = now >= time
+
+                        val circleColor = when {
+                            isLogged -> Color(medication.color)
+                            isTimeReached -> Color.LightGray
+                            else -> Color.Gray.copy(alpha = 0.3f)
+                        }
+
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(CircleShape)
+                                    .background(circleColor)
+                                    .clickable(
+                                        enabled = isTimeReached && !isLogged && currentLogged < medication.frequency
+                                    ) {
+                                        currentLogged++
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = time.toString().substring(0, 5),
+                                    color = if (isLogged) Color.White else Color.Black,
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            when {
+                                isLogged -> AnimatedVisibility(true) {
+                                    Text("✔", color = Color.Green)
+                                }
+                                isTimeReached -> AnimatedVisibility(true) {
+                                    Text("•••", color = Color.DarkGray)
+                                }
+                                else -> Spacer(modifier = Modifier.height(18.dp)) // keeps spacing consistent
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    )
 }
+
 
 @Composable
 fun DoseLoggingDialog(
@@ -188,8 +307,7 @@ fun DoseLoggingDialog(
     var note by remember { mutableStateOf("") }
     val currentTime = LocalTime.now()
 
-    // Generate today’s doses based on realFrequency
-    val todayDoses = generateDoses(medication.timeFrequency)
+    val todayDoses = generateDoses(medication.frequency)
 
     AlertDialog(
         onDismissRequest = { onDismiss() },
@@ -197,7 +315,7 @@ fun DoseLoggingDialog(
         text = {
             Column {
                 Text("Dosage: ${medication.dosage}")
-                Text("Frequency: ${medication.timeFrequency}x per day")
+                Text("Frequency: ${medication.frequency}x per day")
 
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -296,9 +414,9 @@ fun MedicationCard(
         ) {
             Column {
                 Text(medication.name, style = MaterialTheme.typography.titleMedium)
-                Text("${medication.dosage} - ${medication.frequency}",
+                Text("${medication.dosage} mg - ${medication.frequency}x daily",
                     style = MaterialTheme.typography.bodySmall)
-                Text("Next Dose: ${medication.nextDose}",
+                Text("Dose remaining: ${medication.frequency - medication.dosesUsedToday}",
                     style = MaterialTheme.typography.bodySmall, color = Color.Gray)
             }
             Switch(
@@ -315,11 +433,16 @@ fun MedicationCard(
 @Composable
 fun AddMedicationDialog(onDismiss: (Medication) -> Unit) {
     var name by remember { mutableStateOf("") }
-    var dosage by remember { mutableStateOf("") }
+    var dosage by remember { mutableStateOf(1) }
     var frequency by remember { mutableStateOf(1) } // Default: Once Daily
     var time by remember { mutableStateOf(LocalTime.of(8, 0)) }
     val timePickerDialog = rememberTimePickerDialog(time) { selectedTime -> time = selectedTime }
     var shouldNotify by remember { mutableStateOf(true) }
+    var showDateDialog by remember { mutableStateOf(false) }
+    var prescribedDates by remember { mutableStateOf<List<LocalDate>>(emptyList()) }
+    var selectedColor by remember { mutableStateOf(Color(0xFFE57373)) }
+    val formatter = DateTimeFormatter.ofPattern("EEE, MMM d")
+    val context = LocalContext.current
 
     Card(
         modifier = Modifier
@@ -347,12 +470,17 @@ fun AddMedicationDialog(onDismiss: (Medication) -> Unit) {
             Spacer(modifier = Modifier.height(8.dp))
 
             OutlinedTextField(
-                value = dosage,
-                onValueChange = { dosage = it },
-                label = { Text("Dosage") }
+                value = dosage.toString(),
+                onValueChange = { dosage = it.toInt() },
+                label = { Text("Dosage") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+
             )
             Spacer(modifier = Modifier.height(8.dp))
-
+            Text(
+                text = "How many times per day?"
+            )
+            Spacer(modifier = Modifier.height(5.dp))
             // Frequency Selector (Dropdown)
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -372,6 +500,48 @@ fun AddMedicationDialog(onDismiss: (Medication) -> Unit) {
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Prescribed For",
+                modifier = Modifier
+                    .padding(10.dp)
+                    .clickable {
+                        showDateDialog = true
+                    }
+            )
+            Spacer(modifier = Modifier.height(5.dp))
+            if (showDateDialog) {
+                DatesSelectorDialog(
+                    selectedDates = prescribedDates,
+                    onDateToggle = { date ->
+                        prescribedDates = prescribedDates.toMutableList().apply {
+                            if (contains(date)) remove(date) else add(date)
+                        }
+                    },
+                    onDismiss = { showDateDialog = false },
+                    onConfirm = { showDateDialog = false }
+                )
+            }
+            val sortedDates = prescribedDates.sorted()
+            Column {
+                when {
+                    sortedDates.size <= 3 -> {
+                        sortedDates.forEach { date ->
+                            Text(text = date.format(formatter))
+                        }
+                    }
+                    else -> {
+                        Text(text = sortedDates.first().format(formatter))
+                        Text(text = "...")
+                        Text(text = sortedDates.last().format(formatter))
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "1st dose time?"
+            )
+            Spacer(modifier = Modifier.height(8.dp))
 
             // Time Selector (TimePickerDialog)
             Row(
@@ -382,8 +552,18 @@ fun AddMedicationDialog(onDismiss: (Medication) -> Unit) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("Time: ${time.format(DateTimeFormatter.ofPattern("hh:mm a"))}",
-                    fontWeight = FontWeight.Bold)
+                    fontWeight = FontWeight.Bold
+                )
             }
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text("Choose a color:",
+                style = MaterialTheme.typography.bodyLarge
+            )
+            ColorChooserRow(
+                selectedColor = selectedColor,
+                onColorSelected = { selectedColor = it }
+            )
             Spacer(modifier = Modifier.height(16.dp))
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -404,20 +584,28 @@ fun AddMedicationDialog(onDismiss: (Medication) -> Unit) {
 
             Button(
                 onClick = {
-                    if (name.isNotBlank() && dosage.isNotBlank()) {
+                    if (name.isNotBlank() && dosage != 0) {
                         onDismiss(
                             Medication(
-                                name = name,
+                                name = name.capitalize(),
                                 dosage = dosage,
-                                frequency = "$frequency times daily",
-                                nextDose = time.format(DateTimeFormatter.ofPattern("hh:mm a")),
+                                frequency = frequency,
                                 isReminderOn = shouldNotify,
-                                timeFrequency = frequency
+                                dosesUsedToday = 0,
+                                prescribedDays = prescribedDates,
+                                color = selectedColor.toArgb(),
+                                firstDoseTime = time
                             )
                         )
                     }
                     if (shouldNotify){
                     //TODO : implement notification enabler
+                        scheduleMedicationReminder(
+                            context = context,
+                            medicationName = name.capitalize(),
+                            medicationDose = dosage.toString(),
+                            time = time
+                        )
                     }
                 },
                 modifier = Modifier.fillMaxWidth()
@@ -427,6 +615,135 @@ fun AddMedicationDialog(onDismiss: (Medication) -> Unit) {
         }
     }
 }
+
+@Composable
+fun ColorChooserRow(
+    selectedColor: Color,
+    onColorSelected: (Color) -> Unit
+) {
+    val colorOptions = listOf(
+        Color(0xFFE57373), // Red
+        Color(0xFF64B5F6), // Blue
+        Color(0xFF81C784), // Green
+        Color(0xFFFFD54F), // Yellow
+        Color(0xFFBA68C8)  // Purple
+    )
+
+    Row(
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+    ) {
+        colorOptions.forEach { color ->
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .padding(4.dp)
+                    .clip(CircleShape)
+                    .background(color)
+                    .border(
+                        width = if (color == selectedColor) 3.dp else 1.dp,
+                        color = if (color == selectedColor) Color.Black else Color.Gray,
+                        shape = CircleShape
+                    )
+                    .clickable { onColorSelected(color) }
+            )
+        }
+    }
+}
+
+@Composable
+fun DatesSelectorDialog(
+    selectedDates: List<LocalDate>,
+    onDateToggle: (LocalDate) -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+      var currentMonth by remember { mutableStateOf(YearMonth.now()) }
+
+    Dialog(onDismissRequest = { onDismiss() }) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            tonalElevation = 8.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight()
+                .padding(16.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                // Header with month and navigation
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = { currentMonth = currentMonth.minusMonths(1) }) {
+                        Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Previous Month")
+                    }
+                    Text(
+                        text = currentMonth.month.name.lowercase().replaceFirstChar { it.uppercase() } + " ${currentMonth.year}",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    IconButton(onClick = { currentMonth = currentMonth.plusMonths(1) }) {
+                        Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Next Month")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Calendar grid
+                val daysInMonth = currentMonth.lengthOfMonth()
+                val firstDayOffset = LocalDate.of(currentMonth.year, currentMonth.month, 1).dayOfWeek.value % 7
+
+                LazyVerticalGrid(columns = GridCells.Fixed(7)) {
+                    items(firstDayOffset) {
+                        Box(modifier = Modifier.size(40.dp)) // empty cells for alignment
+                    }
+
+                    items(daysInMonth) { index ->
+                        val date = LocalDate.of(currentMonth.year, currentMonth.month, index + 1)
+                        val isSelected = selectedDates.contains(date)
+
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .padding(4.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSelected) Color(0xFF4CAF50) else Color.LightGray)
+                                .clickable {
+                                    onDateToggle(date)
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "${index + 1}",
+                                fontWeight = FontWeight.Bold,
+                                color = if (isSelected) Color.White else Color.Black
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Confirm + Cancel
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancel")
+                    }
+                    TextButton(onClick = { onConfirm() }) {
+                        Text("Confirm")
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun rememberTimePickerDialog(
     initialTime: LocalTime,
@@ -448,20 +765,13 @@ fun EnableNotifications(medication: Medication){
     val eveningTime = LocalTime.of(20, 0) // 8 PM
     val afternoonTime = LocalTime.of(14, 0) // 2 PM (only for 3x daily)
 
-    scheduleMedicationReminder(context, medication, morningTime)
-    if (medication.timeFrequency >= 2) {
-        scheduleMedicationReminder(context, medication, eveningTime)
-    }
-    if (medication.timeFrequency == 3) {
-        scheduleMedicationReminder(context, medication, afternoonTime)
-    }
 }
 
-fun scheduleMedicationReminder(context: Context, medication: Medication, time: LocalTime) {
+fun scheduleMedicationReminder(context: Context, medicationName: String, medicationDose: String, time: LocalTime) {
     val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
     val intent = Intent(context, MedicationReminderReceiver::class.java).apply {
-        putExtra("medication_name", medication.name)
-        putExtra("medication_dosage", medication.dosage)
+        putExtra("medication_name", medicationName)
+        putExtra("medication_dosage", medicationDose)
     }
 
     val pendingIntent = PendingIntent.getBroadcast(
@@ -491,43 +801,86 @@ fun scheduleMedicationReminder(context: Context, medication: Medication, time: L
 
 
 // Dummy Data Model
-data class Medication(
-    val name: String,
-    val dosage: String,
-    val frequency: String,
-    val nextDose: String,
-    val isReminderOn: Boolean,
-    val color: Color = Color.Red,
-    val isCompleted : Boolean = false,
-    val timeFrequency : Int = 2
-)
+
 
 val dummyMedications = listOf(
-    Medication("Paracetamol", "500mg", "Twice Daily", "08:00 PM", true),
-    Medication("Vitamin C", "1000mg", "Once Daily", "09:00 AM", false)
-)
-
-val dummyMedicationSchedule: Map<LocalDate, List<Medication>> = mapOf(
-    LocalDate.now() to listOf(
-        Medication("Paracetamol", "500mg", "Twice a day", "08:00 AM", true, Color.Blue),
-        Medication("Ibuprofen", "200mg", "Once a day", "12:00 PM", true, Color.Green)
+    Medication(
+        medicationId = 1,
+        name = "Paracetamol",
+        dosage = 500,
+        frequency = 3,
+        dosesUsedToday = 1,
+        prescribedDays = listOf(
+            LocalDate.now(),
+            LocalDate.now().plusDays(1),
+            LocalDate.now().plusDays(2)
+        ),
+        isReminderOn = true,
+        color = Color(0xFFE57373).toArgb() // Soft Red
     ),
-    LocalDate.now().plusDays(1) to listOf(
-        Medication("Metformin", "850mg", "Twice a day", "07:30 AM", true, Color.Magenta),
-        Medication("Atorvastatin", "10mg", "Every night", "09:00 PM", true, Color.Yellow)
+    Medication(
+        medicationId = 2,
+        name = "Amoxicillin",
+        dosage = 250,
+        frequency = 2,
+        dosesUsedToday = 0,
+        prescribedDays = listOf(
+            LocalDate.now().minusDays(1),
+            LocalDate.now(),
+            LocalDate.now().plusDays(1),
+            LocalDate.now().plusDays(2)
+        ),
+        isReminderOn = true,
+        color = Color(0xFF64B5F6).toArgb() // Light Blue
     ),
-    LocalDate.now().plusDays(2) to listOf(
-        Medication("Amoxicillin", "250mg", "Three times a day", "10:00 AM", true, Color.Cyan),
-        Medication("Paracetamol", "500mg", "Twice a day", "08:00 AM", true, Color.Blue,true,3)
+    Medication(
+        medicationId = 3,
+        name = "Ibuprofen",
+        dosage = 400,
+        frequency = 1,
+        dosesUsedToday = 1,
+        prescribedDays = listOf(
+            LocalDate.now(),
+            LocalDate.now().plusDays(2),
+            LocalDate.now().plusDays(4)
+        ),
+        isReminderOn = false,
+        color = Color(0xFF81C784).toArgb() // Soft Green
     ),
-    LocalDate.now().plusDays(3) to listOf(
-        Medication("Ibuprofen", "200mg", "Once a day", "12:00 PM", true, Color.Green)
+    Medication(
+        medicationId = 4,
+        name = "Cetirizine",
+        dosage = 10,
+        frequency = 1,
+        dosesUsedToday = 0,
+        prescribedDays = listOf(
+            LocalDate.now(),
+            LocalDate.now().plusWeeks(1)
+        ),
+        isReminderOn = true,
+        color = Color(0xFFFFD54F).toArgb() // Yellow
     ),
-    LocalDate.now().plusDays(4) to listOf(
-        Medication("Atorvastatin", "10mg", "Every night", "09:00 PM", true, Color.Yellow),
-        Medication("Metformin", "850mg", "Twice a day", "07:30 AM", true, Color.Magenta)
+    Medication(
+        medicationId = 5,
+        name = "Vitamin D",
+        dosage = 1000,
+        frequency = 1,
+        dosesUsedToday = 0,
+        prescribedDays = (0..6).map { LocalDate.now().plusDays(it.toLong()) },
+        isReminderOn = false,
+        color = Color(0xFFBA68C8).toArgb() // Purple
     )
 )
+
+val dummyMedicationSchedule: Map<LocalDate, List<Medication>> =
+    dummyMedications
+        .flatMap { medication ->
+            medication.prescribedDays.map { date -> date to medication }
+        }
+        .groupBy(
+            keySelector = { it.first },
+            valueTransform = { it.second }
+        )
 
 @Composable
 fun MedicationCalendar(medicationSchedule: Map<LocalDate, List<Medication>>) {
@@ -579,7 +932,10 @@ fun MedicationCalendar(medicationSchedule: Map<LocalDate, List<Medication>>) {
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .height(5.dp)
-                                            .background(medication.color, RoundedCornerShape(50))
+                                            .background(
+                                                Color(medication.color),
+                                                RoundedCornerShape(50)
+                                            )
                                     )
                                 }
                             }
@@ -661,11 +1017,11 @@ fun MedicationBottomSheet(day: LocalDate, medications: List<Medication>, onDismi
                     Box(
                         modifier = Modifier
                             .size(16.dp)
-                            .background(medication.color, shape = CircleShape)
+                            .background(Color(medication.color), shape = CircleShape)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(text = medication.name, style = MaterialTheme.typography.bodyLarge)
-                    if (medication.isCompleted){
+                    if (medication.dosage == medication.frequency){
                         Icon(painter = painterResource(id = R.drawable.baseline_verified_24),
                             contentDescription = "Completed",
                             modifier = Modifier.size(25.dp)
@@ -673,11 +1029,12 @@ fun MedicationBottomSheet(day: LocalDate, medications: List<Medication>, onDismi
                     }
                 }
             }
+            Spacer(modifier = Modifier.height(20.dp))
         }
     }
 }
 
 fun blendMedicationColors(medications: List<Medication>): Color {
-    return medications.firstOrNull()?.color ?: Color.Transparent // Simplified blending logic
+    return Color(medications.firstOrNull()?.color ?: Color.Transparent.toArgb()) // Simplified blending logic
 }
 

@@ -11,6 +11,7 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.example.halocare.database.DailyExerciseSummary
 import com.example.halocare.database.ExerciseTrackerDao
 import com.example.halocare.database.JournalDao
+import com.example.halocare.database.MedicationsDao
 import com.example.halocare.database.MoodEntryDao
 import com.example.halocare.database.SleepDao
 import com.example.halocare.network.NetworkRepository
@@ -22,6 +23,7 @@ import com.example.halocare.ui.models.Appointment
 import com.example.halocare.ui.models.ExerciseData
 import com.example.halocare.ui.models.HaloMoodEntry
 import com.example.halocare.ui.models.JournalEntry
+import com.example.halocare.ui.models.Medication
 import com.example.halocare.ui.models.Professional
 import com.example.halocare.ui.models.ProfessionalSpecialty
 import com.example.halocare.ui.models.SleepData
@@ -116,6 +118,10 @@ class MainViewModel @Inject constructor(
 
     val allLoggedJournals = mainRepository.getAllJournals()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allMedications = mainRepository.getAllMedications()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
 
 
     init {
@@ -292,6 +298,17 @@ class MainViewModel @Inject constructor(
             mainRepository.saveJournal(journalEntry)
         }
     }
+
+    fun saveMedicationData(medication: Medication){
+        viewModelScope.launch {
+            mainRepository.saveMedication(medication)
+        }
+    }
+    fun updateMedication(medication: Medication){
+        viewModelScope.launch {
+            mainRepository.updateMedication(medication)
+        }
+    }
 }
 @Singleton
 class MainRepository @Inject constructor(
@@ -299,7 +316,8 @@ class MainRepository @Inject constructor(
     private val moodEntryDao: MoodEntryDao,
     private val exerciseTrackerDao: ExerciseTrackerDao,
     private val sleepDao: SleepDao,
-    private val journalDao: JournalDao
+    private val journalDao: JournalDao,
+    private val medicationsDao: MedicationsDao
 ){
     suspend fun bookUserAppointment(userId: String, appointment: Appointment): Result<Boolean>{
         return try {
@@ -392,4 +410,8 @@ class MainRepository @Inject constructor(
     suspend fun saveJournal(journalEntry: JournalEntry) = journalDao.insertJournal(journalEntry)
     fun getAllJournals(): Flow<List<JournalEntry>> = journalDao.getAllJournals()
 
+    fun getAllMedications() : Flow<List<Medication>> = medicationsDao.getAllMedications()
+    suspend fun updateMedication(medication: Medication) = medicationsDao.updateMedication(medication)
+    suspend fun deleteMedication(medication: Medication) = medicationsDao.deleteMedication(medication)
+    suspend fun saveMedication(medication: Medication) = medicationsDao.insertMedication(medication)
 }

@@ -227,7 +227,9 @@ fun HaloCareNavHost(
             )
         }
         composable(route = MedicationScreen.route){
-            MedicationReminderScreen()
+            MedicationReminderScreen(
+                mainViewModel = mainViewModel
+            )
         }
         composable(route = PediatricDevelopmentScreen.route){
             PediatricTrackerScreen()

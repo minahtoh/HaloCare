@@ -9,6 +9,7 @@ import androidx.room.Room
 import com.example.halocare.database.ExerciseTrackerDao
 import com.example.halocare.database.HaloCareDatabase
 import com.example.halocare.database.JournalDao
+import com.example.halocare.database.MedicationsDao
 import com.example.halocare.database.MoodEntryDao
 import com.example.halocare.database.SleepDao
 import com.example.halocare.database.UserDao
@@ -83,6 +84,10 @@ object AppModule {
     @Provides
     fun provideJournalDao(database: HaloCareDatabase): JournalDao{
         return database.journalDao()
+    }
+    @Provides
+    fun provideMedicationsDao(database: HaloCareDatabase): MedicationsDao{
+        return database.medicationsDao()
     }
 
 
