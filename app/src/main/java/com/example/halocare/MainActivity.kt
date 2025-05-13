@@ -23,6 +23,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,6 +51,7 @@ import com.example.halocare.ui.presentation.PediatricTrackerScreen
 import com.example.halocare.ui.presentation.ProfileScreen
 import com.example.halocare.ui.presentation.RegisterScreen
 import com.example.halocare.ui.presentation.SettingsScreen
+import com.example.halocare.ui.presentation.StatusBarProvider
 import com.example.halocare.ui.presentation.TelehealthScreen
 import com.example.halocare.viewmodel.AuthViewModel
 import com.example.halocare.viewmodel.MainViewModel
@@ -63,7 +65,10 @@ class MainActivity : ComponentActivity() {
         createMedicationsNotificationChannel()
 
         setContent {
-            HaloCareTheme {
+            var isDarkMode by rememberSaveable { mutableStateOf(false) }
+            HaloCareTheme(
+                darkTheme = isDarkMode
+            ) {
                 val authViewModel: AuthViewModel by viewModels()
                 val mainViewModel: MainViewModel by viewModels()
                 val navHostController = rememberNavController()
@@ -79,6 +84,7 @@ class MainActivity : ComponentActivity() {
                 val scrollState = rememberScrollState()
                 var previousScrollOffset by remember { mutableStateOf(0) }
                 var showFeatureGrid by remember { mutableStateOf(false) }
+
                 // Detect scroll direction
                 LaunchedEffect(scrollState.value) {
                     isBottomBarVisible = scrollState.value <= previousScrollOffset
@@ -98,13 +104,17 @@ class MainActivity : ComponentActivity() {
                 ) {
                     Box(
                         modifier = Modifier
-                        .fillMaxSize()
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = {showFeatureGrid = false}
-                        )
-                        .pointerInput(Unit) { detectTapGestures(onTap = { showFeatureGrid = false }) },) {
+                            .fillMaxSize()
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = { showFeatureGrid = false }
+                            )
+                            .pointerInput(Unit) {
+                                detectTapGestures(onTap = {
+                                    showFeatureGrid = false
+                                })
+                            },) {
                         HaloCareNavHost(
                             navHostController = navHostController,
                             modifier = Modifier
@@ -158,87 +168,95 @@ fun HaloCareNavHost(
     mainViewModel : MainViewModel
 ){
 
-    NavHost(navController = navHostController, startDestination = HomeScreen.route ){
-        composable(route = LoginScreen.route){
-            LoginScreen(
-                onSignupClick = {navHostController.navigateSingleTopTo(RegisterScreen.route)},
-                onSuccessfulLogin = {
-                    navHostController.navigateSingleTopTo(HomeScreen.route, true)
-                },
-                viewModel = authViewModel
-            )
-        }
-        composable(route = RegisterScreen.route){
-            RegisterScreen(
-                onSignUpSuccess = {navHostController.navigateSingleTopTo(LoginScreen.route, true)},
-                authViewModel = authViewModel,
-                onLoginClick = {navHostController.navigateSingleTopTo(LoginScreen.route)}
-            )
-        }
-        composable(route = ProfileScreen.route){
-            ProfileScreen(
-                onSkip = {navHostController.navigateSingleTopTo(HomeScreen.route, true)},
-                onContinue = {navHostController.navigateSingleTopTo(HomeScreen.route)},
-                authViewModel = authViewModel
-            )
-        }
-        composable(route = HomeScreen.route){
-            HomeScreen(
-                onProfileClick = {navHostController.navigateSingleTopTo(ProfileScreen.route)},
-                authViewModel = authViewModel,
-                scrollState = scrollState,
-                mainViewModel = mainViewModel
-            )
-        }
-        composable(route = ConsultsScreen.route){
-            ConsultsScreen(
-                onBackPressed = {navHostController.navigateUp()},
-                scrollState = scrollState,
-                onAppointmentsClick = {navHostController.navigateSingleTopTo(AppointmentsScreen.route)},
-                mainViewModel = mainViewModel
-            )
-        }
-        composable(route = AppointmentsScreen.route){
-            AppointmentsScreen(
-                mainViewModel = mainViewModel,
-                navigateToConsultsScreen = {
-                    navHostController.navigate(ConsultsScreen.route){
-                    popUpTo(AppointmentsScreen.route){
-                        inclusive = true
+    StatusBarProvider {
+        NavHost(navController = navHostController, startDestination = HomeScreen.route) {
+            composable(route = LoginScreen.route) {
+                LoginScreen(
+                    onSignupClick = { navHostController.navigateSingleTopTo(RegisterScreen.route) },
+                    onSuccessfulLogin = {
+                        navHostController.navigateSingleTopTo(HomeScreen.route, true)
+                    },
+                    viewModel = authViewModel
+                )
+            }
+            composable(route = RegisterScreen.route) {
+                RegisterScreen(
+                    onSignUpSuccess = {
+                        navHostController.navigateSingleTopTo(
+                            LoginScreen.route,
+                            true
+                        )
+                    },
+                    authViewModel = authViewModel,
+                    onLoginClick = { navHostController.navigateSingleTopTo(LoginScreen.route) }
+                )
+            }
+            composable(route = ProfileScreen.route) {
+                ProfileScreen(
+                    onSkip = { navHostController.navigateSingleTopTo(HomeScreen.route, true) },
+                    onContinue = { navHostController.navigateSingleTopTo(HomeScreen.route) },
+                    authViewModel = authViewModel
+                )
+            }
+            composable(route = HomeScreen.route) {
+                HomeScreen(
+                    onProfileClick = { navHostController.navigateSingleTopTo(ProfileScreen.route) },
+                    onCategoryClick = { navHostController.navigateSingleTopTo(TelehealthScreen.route) },
+                    authViewModel = authViewModel,
+                    scrollState = scrollState,
+                    mainViewModel = mainViewModel
+                )
+            }
+            composable(route = ConsultsScreen.route) {
+                ConsultsScreen(
+                    onBackPressed = { navHostController.navigateUp() },
+                    scrollState = scrollState,
+                    onAppointmentsClick = { navHostController.navigateSingleTopTo(AppointmentsScreen.route) },
+                    mainViewModel = mainViewModel
+                )
+            }
+            composable(route = AppointmentsScreen.route) {
+                AppointmentsScreen(
+                    mainViewModel = mainViewModel,
+                    navigateToConsultsScreen = {
+                        navHostController.navigate(ConsultsScreen.route) {
+                            popUpTo(AppointmentsScreen.route) {
+                                inclusive = true
+                            }
                         }
                     }
-                }
-            )
-        }
-        composable(route = HealthTrackingScreen.route){
-            HealthTrackingScreen(onCategoryClick = {
-                navHostController.navigateSingleTopTo(it)
-            })
-        }
-        composable(route = DailyHabitsScreen.route){
-            DailyHabitsScreen(
-                mainViewModel = mainViewModel
-            )
-        }
-        composable(route = MoodScreen.route){
-            MoodTrackerScreen(
-                mainViewModel = mainViewModel,
-                onBackIconClick = {navHostController.popBackStack() }
-            )
-        }
-        composable(route = MedicationScreen.route){
-            MedicationReminderScreen(
-                mainViewModel = mainViewModel
-            )
-        }
-        composable(route = PediatricDevelopmentScreen.route){
-            PediatricTrackerScreen()
-        }
-        composable(route = TelehealthScreen.route){
-            TelehealthScreen()
-        }
-        composable(route = SettingsScreen.route){
-            SettingsScreen()
+                )
+            }
+            composable(route = HealthTrackingScreen.route) {
+                HealthTrackingScreen(onCategoryClick = {
+                    navHostController.navigateSingleTopTo(it)
+                })
+            }
+            composable(route = DailyHabitsScreen.route) {
+                DailyHabitsScreen(
+                    mainViewModel = mainViewModel
+                )
+            }
+            composable(route = MoodScreen.route) {
+                MoodTrackerScreen(
+                    mainViewModel = mainViewModel,
+                    onBackIconClick = { navHostController.popBackStack() }
+                )
+            }
+            composable(route = MedicationScreen.route) {
+                MedicationReminderScreen(
+                    mainViewModel = mainViewModel
+                )
+            }
+            composable(route = PediatricDevelopmentScreen.route) {
+                PediatricTrackerScreen()
+            }
+            composable(route = TelehealthScreen.route) {
+                TelehealthScreen()
+            }
+            composable(route = SettingsScreen.route) {
+                SettingsScreen()
+            }
         }
     }
 }

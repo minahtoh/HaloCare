@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -22,6 +23,15 @@ import com.example.halocare.R
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HealthTrackingScreen(onCategoryClick: (String) -> Unit) {
+    val statusBarController = rememberStatusBarController()
+    val statusBarColor = MaterialTheme.colorScheme.inversePrimary
+
+    LaunchedEffect(Unit){
+        statusBarController.updateStatusBar(
+            color = statusBarColor,
+            darkIcons = true
+        )
+    }
     Scaffold(
         topBar = {
             HealthTrackingTopBar()
@@ -102,7 +112,7 @@ fun PreviewHealthTrackingScreen() {
 @Composable
 fun HealthTrackingTopBar(){
     Surface(
-        color = MaterialTheme.colorScheme.tertiaryContainer,
+        color = MaterialTheme.colorScheme.inversePrimary,
         shadowElevation = 7.dp,
         modifier = Modifier.fillMaxWidth()
     ){

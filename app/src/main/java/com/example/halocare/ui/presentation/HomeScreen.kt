@@ -138,10 +138,13 @@ import kotlin.math.absoluteValue
 @Composable
 fun HomeScreen(
     onProfileClick : () -> Unit = {},
+    onCategoryClick : () -> Unit ={},
     authViewModel: AuthViewModel,
     mainViewModel: MainViewModel,
     scrollState: ScrollState
 ) {
+    val statusBarController = rememberStatusBarController()
+    val statusBarColor = MaterialTheme.colorScheme.inversePrimary
     val features = listOf(
         "Development Tracker", "Medication Reminder", "Health Insights",
         "Symptom Checker"
@@ -166,7 +169,7 @@ fun HomeScreen(
             TopAppBar(
                 title = { Text("Welcome, ${loggedUser.name}") },
                 colors = TopAppBarDefaults.smallTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    containerColor = MaterialTheme.colorScheme.inversePrimary,
                     scrolledContainerColor = Color.Transparent
                 ),
                 actions = {
@@ -178,7 +181,7 @@ fun HomeScreen(
                 }
             )
         },
-        containerColor = MaterialTheme.colorScheme.inversePrimary
+        containerColor = MaterialTheme.colorScheme.tertiaryContainer
     ) { paddingValues ->
 
         val pagerState = rememberPagerState {images.size }
@@ -186,6 +189,10 @@ fun HomeScreen(
         var lastUserInteraction by remember { mutableStateOf(System.currentTimeMillis()) }
 
         LaunchedEffect(Unit) {
+            statusBarController.updateStatusBar(
+                color = statusBarColor,
+                darkIcons = true
+            )
             while (true) {
                 delay(3000)
                 val now = System.currentTimeMillis()
@@ -202,7 +209,7 @@ fun HomeScreen(
         ) {
             Column(
                 modifier = Modifier
-                    .padding(5.dp)
+                    .padding(20.dp)
                     .verticalScroll(scrollState)
             ) {
                 Column {
@@ -256,24 +263,37 @@ fun HomeScreen(
                     }
                 }
 
-                Column {
+                Column(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(2),
                         modifier = Modifier
-                            .height(300.dp)
-                            .padding(10.dp)
+                            .height(400.dp)
+                            .padding(10.dp),
+                        contentPadding = PaddingValues(15.dp)
+
                     ) {
                         items(features.size) { index ->
                             Card(
                                 modifier = Modifier
                                     .padding(8.dp)
-                                    .fillMaxWidth()
-                                    .clickable { /* Navigate to feature */ },
+                                    .width(150.dp)
+                                    .height(135.dp)
+                                    .clickable {
+                                        onCategoryClick()
+                                    },
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                                ),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                             ) {
                                 Column(
-                                    modifier = Modifier.padding(16.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
                                 ) {
                                     Icon(
                                         icons[index],
@@ -287,22 +307,26 @@ fun HomeScreen(
                         }
                     }
                 }
+                var isDaytimeColor by remember { mutableStateOf(false) }
                 if (weatherData != null){
                     HomeWeatherCard(
                         weatherData = weatherData!!,
                         onClick = {
                             mainViewModel.getHourlyWeather("Lagos")
                             showBottomSheet = true
+                            isDaytimeColor = it
                         }
                     )
-                } else{
+                }else{
                     WeatherCard()
                 }
+                Spacer(modifier = Modifier.height(350.dp))
                 if (showBottomSheet){
                     HourlyWeatherBottomSheet(
                         hourlyWeatherList = hourlyWeatherData?.forecast?.days?.get(0)?.hourly,
                         loadingState = hourlyWeatherLoadingState,
-                        onDismiss = {showBottomSheet = false}
+                        onDismiss = {showBottomSheet = false},
+                        isDayTime = isDaytimeColor
                     )
                 }
             }
@@ -377,7 +401,6 @@ fun HaloCareBottomBarCurved(
 
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
 
-
     AnimatedVisibility(
         visible = isVisible,
         enter = fadeIn() + slideInVertically { it },
@@ -386,21 +409,21 @@ fun HaloCareBottomBarCurved(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(70.dp),
+                .height(100.dp),
             contentAlignment = Alignment.BottomCenter
         ) {
-            val outlineColor = MaterialTheme.colorScheme.tertiaryContainer
+            val outlineColor = MaterialTheme.colorScheme.inversePrimary
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(80.dp)
+                    .height(100.dp)
             ) {
                 val width = size.width
                 val height = size.height
 
-                val fabRadius = 40.dp.toPx() // Adjust based on FAB size
+                val fabRadius = 50.dp.toPx() // Adjust based on FAB size
                 val fabCenterX = width / 2
-                val fabBottomY = height - fabRadius / 2
+                val fabBottomY = height - (fabRadius * 2)/3
 
                 val path = Path().apply {
                     moveTo(0f, 0f)
@@ -433,8 +456,8 @@ fun HaloCareBottomBarCurved(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(70.dp)
-                    .padding(end = 5.dp),
+                    .height(100.dp)
+                    .padding(10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -503,10 +526,11 @@ fun HaloCareBottomBarCurved(
 
             FloatingActionButton(
                 onClick = { onFabClick() },
-                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                containerColor = MaterialTheme.colorScheme.tertiary,
                 shape = CircleShape,
                 modifier = Modifier
                     .align(Alignment.TopCenter)
+                    .size(60.dp)
                     .offset(y = (-24).dp) // Lifts the FAB above the cutout
             ) {
                 Icon(
@@ -535,10 +559,13 @@ fun BottomNavItem(
     onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .width(IntrinsicSize.Min)
+            .width(80.dp)
+            .padding(1.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent)
             .clickable(onClick = onClick)
+            ,
+        contentAlignment = Alignment.Center
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally
@@ -612,7 +639,7 @@ fun calculateCurrentOffsetForPage(page: Int, pagerState: PagerState): Float {
 @Composable
 fun HomeWeatherCard(
     weatherData: WeatherResponse,
-    onClick: () -> Unit
+    onClick: (Boolean) -> Unit
 ) {
     val current = weatherData.current
     val isDaytime = current.isDay
@@ -620,13 +647,13 @@ fun HomeWeatherCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }
+            .clickable { onClick(isDaytime) }
            ,
         colors = CardDefaults.cardColors(
             containerColor = if (isDaytime)
-                MaterialTheme.colorScheme.surfaceVariant
+                MaterialTheme.colorScheme.primaryContainer
             else
-                MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
+                MaterialTheme.colorScheme.inversePrimary
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
@@ -642,17 +669,17 @@ fun HomeWeatherCard(
                 Column {
                     Text(
                         text = weatherData.location.name,
-                        style = MaterialTheme.typography.headlineSmall,
+                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
                         color = if (isDaytime)
                             MaterialTheme.colorScheme.onSurface
-                        else MaterialTheme.colorScheme.surface
+                        else MaterialTheme.colorScheme.primary
                     )
                     Text(
                         text = "${weatherData.location.country} | ${weatherData.location.localtime}",
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                         color = if (isDaytime)
                             MaterialTheme.colorScheme.onSurfaceVariant
-                        else MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
+                        else MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
                     )
                 }
 
@@ -755,7 +782,7 @@ private fun WeatherDetailItem(
             painter = icon,
             contentDescription = null,
             tint = if (isDaytime) MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.inversePrimary
+            else MaterialTheme.colorScheme.errorContainer
         )
 
         Column {
@@ -764,14 +791,14 @@ private fun WeatherDetailItem(
                 style = MaterialTheme.typography.titleMedium,
                 color = if (isDaytime)
                     MaterialTheme.colorScheme.onSurface
-                else MaterialTheme.colorScheme.surface
+                else MaterialTheme.colorScheme.secondary
             )
             Text(
                 text = secondaryText,
                 style = MaterialTheme.typography.bodySmall,
                 color = if (isDaytime)
                     MaterialTheme.colorScheme.onSurfaceVariant
-                else MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
+                else MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f)
             )
         }
     }
@@ -783,12 +810,15 @@ fun HourlyWeatherBottomSheet(
     hourlyWeatherList: List<WeatherResponseHourly.HourlyForecast>?,
     modifier: Modifier = Modifier,
     loadingState: LoadingState,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    isDayTime: Boolean
 ) {
     val isLoading = loadingState == LoadingState.LOADING
+
     ModalBottomSheet(
         onDismissRequest = { onDismiss() },
-        windowInsets = WindowInsets.navigationBars
+        windowInsets = WindowInsets.navigationBars,
+        containerColor = MaterialTheme.colorScheme.tertiaryContainer
     ) {
         Column(
             modifier = modifier
@@ -815,7 +845,10 @@ fun HourlyWeatherBottomSheet(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(if (isLoading) 5 else hourlyWeatherList?.size ?: 0) { hourlyData ->
-                    VerticalWeatherCard(if (isLoading) null else hourlyWeatherList?.get(hourlyData))
+                    VerticalWeatherCard(
+                        hourlyData = if (isLoading) null else hourlyWeatherList?.get(hourlyData),
+                        isDaytime = isDayTime
+                    )
                 }
             }
         }
@@ -825,20 +858,22 @@ fun HourlyWeatherBottomSheet(
 @Composable
 fun VerticalWeatherCard(
     hourlyData: WeatherResponseHourly.HourlyForecast?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isDaytime: Boolean
 ) {
     Card(
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(4.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
+            containerColor = if (isDaytime) MaterialTheme.colorScheme.primaryContainer
+                                else MaterialTheme.colorScheme.inversePrimary
         ),
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
         if (hourlyData == null) {
-            VerticalShimmerWeatherCard()
+            VerticalShimmerWeatherCard(isDaytime)
         } else {
             Column(
                 modifier = Modifier.padding(16.dp)
@@ -949,7 +984,9 @@ private fun WeatherStatItem(
 }
 @Preview
 @Composable
-private fun VerticalShimmerWeatherCard() {
+private fun VerticalShimmerWeatherCard(
+    isDaytime: Boolean
+) {
     val colorList = listOf(
         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
@@ -964,7 +1001,7 @@ private fun VerticalShimmerWeatherCard() {
         initialValue = 0f,
         targetValue = 1000f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = FastOutSlowInEasing),
+            animation = tween(300, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Restart
         )
     )
@@ -980,12 +1017,15 @@ private fun VerticalShimmerWeatherCard() {
         elevation = CardDefaults.cardElevation(4.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDaytime)MaterialTheme.colorScheme.primaryContainer
+                            else MaterialTheme.colorScheme.inversePrimary
+        )
     ) {
         Column(
             modifier = Modifier
                 .padding(16.dp)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -1095,6 +1135,16 @@ fun FeatureGridPopup(
         modifier = modifier
     ) {
         Box {
+            // Pointer triangle
+            PointerTriangle(
+                modifier = Modifier
+                    .graphicsLayer {
+                        rotationZ = 180f
+                        alpha = 0.5f
+                    }
+                    .offset(y = (-1).dp) // Slight overlap
+                    .align(Alignment.BottomCenter)
+            )
             Card(
                 shape = RoundedCornerShape(16.dp),
                 elevation = CardDefaults.cardElevation(8.dp),
@@ -1104,7 +1154,7 @@ fun FeatureGridPopup(
                     .padding(horizontal = 16.dp, vertical = 8.dp)
                     .padding(bottom = 8.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                    containerColor = MaterialTheme.colorScheme.inversePrimary
                 )
             ) {
                 Column(
@@ -1128,16 +1178,7 @@ fun FeatureGridPopup(
                     }
                 }
             }
-            // Pointer triangle
-            PointerTriangle(
-                modifier = Modifier
-                    .graphicsLayer {
-                        rotationZ = 180f
-                        alpha = 0.5f
-                    }
-                    .offset(y = (-1).dp) // Slight overlap
-                    .align(Alignment.BottomCenter)
-            )
+
         }
     }
 }
@@ -1159,7 +1200,7 @@ fun FeatureGridItem(
             modifier = Modifier
                 .size(56.dp)
                 .background(
-                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    color = MaterialTheme.colorScheme.tertiaryContainer,
                     shape = CircleShape
                 )
         ) {

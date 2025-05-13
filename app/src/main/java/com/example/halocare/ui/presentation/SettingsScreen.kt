@@ -23,6 +23,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -34,6 +35,14 @@ import androidx.compose.ui.unit.dp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen() {
+    val statusBarController = rememberStatusBarController()
+    val statusBarColor = MaterialTheme.colorScheme.inversePrimary.copy(alpha = 0.8f)
+    LaunchedEffect(Unit){
+        statusBarController.updateStatusBar(
+            color = statusBarColor,
+            darkIcons = true
+        )
+    }
     Scaffold(
         topBar = {
             TopAppBar(title = { Text("Settings") })

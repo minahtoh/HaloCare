@@ -116,6 +116,9 @@ import kotlin.math.roundToInt
 fun DailyHabitsScreen(
     mainViewModel: MainViewModel
 ) {
+    val statusBarController = rememberStatusBarController()
+    val statusBarColor = MaterialTheme.colorScheme.inversePrimary
+
     var selectedTabIndex by remember { mutableStateOf(0) }
     val tabTitles = listOf("Exercise", "Sleep", "Journaling", "Screen Time")
     var elapsedTime by remember{ mutableStateOf(0f) }
@@ -135,15 +138,24 @@ fun DailyHabitsScreen(
 
 
     LaunchedEffect(Unit){
+        statusBarController.updateStatusBar(
+            color = statusBarColor,
+            darkIcons = true
+        )
         mainViewModel.getExerciseDataList()
     }
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Daily Habits") },
+                title = { Text(
+                    text = "Daily Habits",
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
+                ) },
+                colors = TopAppBarDefaults.mediumTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.inversePrimary)
             )
         },
-        containerColor = MaterialTheme.colorScheme.primaryContainer
+        containerColor = MaterialTheme.colorScheme.tertiaryContainer
     ) { paddingValues ->
         if (showJournalDialog.value) {
             if (selectedJournalEntries.value.isNotEmpty()){
@@ -391,9 +403,11 @@ fun ScreenTimeTracker(
                             RoundedCornerShape(8.dp)
                         )
                         .clickable {
-                            selectedApps = selectedApps.toMutableSet().apply {
-                                if (isSelected) remove(app) else add(app)
-                            }
+                            selectedApps = selectedApps
+                                .toMutableSet()
+                                .apply {
+                                    if (isSelected) remove(app) else add(app)
+                                }
                         }
                         .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -491,8 +505,10 @@ fun ExerciseTrackerChart(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .fillMaxHeight()
             .background(
-                MaterialTheme.colorScheme.secondaryContainer
+                color = MaterialTheme.colorScheme.surfaceTint,
+                shape = RoundedCornerShape(15.dp)
             )
             .padding(16.dp)
     ) {
@@ -1142,7 +1158,7 @@ fun JournalTypeIcon(
         Icon(
             painter = painterResource(id = icon),
             contentDescription = type,
-            tint = if (selectedType == type) MaterialTheme.colorScheme.inversePrimary.copy(alpha = 0.8f) else Color.Unspecified,
+            tint = if (selectedType == type) MaterialTheme.colorScheme.inversePrimary.copy(alpha = 0.9f) else Color.Unspecified,
             modifier = Modifier.size(40.dp)
         )
     }

@@ -59,6 +59,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -69,6 +70,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
@@ -79,6 +81,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.core.graphics.toColor
 import com.example.halocare.R
 import com.example.halocare.receivers.MedicationReminderReceiver
 import com.example.halocare.ui.models.Medication
@@ -94,6 +97,9 @@ import java.util.Calendar
 fun MedicationReminderScreen(
     mainViewModel: MainViewModel
 ) {
+    val statusBarController = rememberStatusBarController()
+    val statusBarColor = MaterialTheme.colorScheme.tertiaryContainer
+
     var showAddDialog by remember { mutableStateOf(false) }
     val today = remember { LocalDate.now() }
     var selectedTab by remember { mutableStateOf(0) }
@@ -106,6 +112,12 @@ fun MedicationReminderScreen(
         .groupBy({ it.first }, { it.second })
 
 
+    LaunchedEffect(Unit){
+        statusBarController.updateStatusBar(
+            color = statusBarColor,
+            darkIcons = true
+        )
+    }
 
     Scaffold(
         topBar = { MedicationReminderTopBar() },
@@ -113,14 +125,15 @@ fun MedicationReminderScreen(
             FloatingActionButton(
                 onClick = { showAddDialog = true },
                 shape = CircleShape,
-                containerColor = MaterialTheme.colorScheme.primary
+                containerColor = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(bottom = 50.dp, end = 15.dp)
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.baseline_medication_24),
                     contentDescription = "Add Medication")
             }
         },
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = MaterialTheme.colorScheme.secondaryContainer
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -194,11 +207,17 @@ fun MedicationReminderScreen(
 @Composable
 fun MedicationReminderTopBar() {
     TopAppBar(
-        title = { Text("Medication Reminder") },
+        title = {
+            Text(
+                text = "Medication Reminder",
+                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                modifier = Modifier.padding(10.dp)
+            )},
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.tertiaryContainer,
             titleContentColor = MaterialTheme.colorScheme.onTertiaryContainer
         ),
+        modifier = Modifier.shadow(elevation = 7.dp)
     )
 }
 
@@ -225,6 +244,7 @@ fun LogMedicationDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        containerColor = Color(medication.color).copy(alpha = 0.9f),
         confirmButton = {
             TextButton(
                 onClick = {
@@ -403,7 +423,8 @@ fun MedicationCard(
             .padding(8.dp)
             .clickable { if (isForToday) onClick() },
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(Color(medication.color))
     ) {
         Row(
             modifier = Modifier
@@ -758,14 +779,6 @@ fun rememberTimePickerDialog(
         false
     )
 }
-@Composable
-fun EnableNotifications(medication: Medication){
-    val context = LocalContext.current
-    val morningTime = LocalTime.of(6, 0)  // 6 AM
-    val eveningTime = LocalTime.of(20, 0) // 8 PM
-    val afternoonTime = LocalTime.of(14, 0) // 2 PM (only for 3x daily)
-
-}
 
 fun scheduleMedicationReminder(context: Context, medicationName: String, medicationDose: String, time: LocalTime) {
     val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
@@ -1004,7 +1017,10 @@ fun MedicationChart(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MedicationBottomSheet(day: LocalDate, medications: List<Medication>, onDismiss: () -> Unit) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.secondaryContainer
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Medications for ${day.dayOfMonth} ${day.month.name.capitalize()}", style = MaterialTheme.typography.titleMedium)
             medications.forEach { medication ->

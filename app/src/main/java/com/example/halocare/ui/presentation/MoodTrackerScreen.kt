@@ -20,6 +20,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -39,6 +41,7 @@ import androidx.compose.ui.window.Dialog
 import com.example.halocare.R
 import com.example.halocare.ui.models.HaloMoodEntry
 import com.example.halocare.ui.presentation.charts.MoodChart
+import com.example.halocare.ui.presentation.rememberStatusBarController
 import com.example.halocare.viewmodel.MainViewModel
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -51,6 +54,9 @@ fun MoodTrackerScreen(
     mainViewModel: MainViewModel,
     onBackIconClick: () -> Unit
 ){
+    val statusBarController = rememberStatusBarController()
+    val statusBarColor = MaterialTheme.colorScheme.surfaceTint
+
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
 
     val zoneId = ZoneId.systemDefault()
@@ -77,6 +83,10 @@ fun MoodTrackerScreen(
         derivedStateOf { scrollState.value < 50 }  // Adjust threshold as needed
     }
     LaunchedEffect(Unit){
+        statusBarController.updateStatusBar(
+            color = statusBarColor,
+            darkIcons = true
+        )
         mainViewModel.apply {
             getTodaysMood(startOfDayMillis,endOfDayMillis)
             getTodayAdvice()
@@ -91,7 +101,8 @@ fun MoodTrackerScreen(
             FloatingActionButton(
                 onClick = { showMoodDialog = true },
                 shape = CircleShape,
-                containerColor = MaterialTheme.colorScheme.primary
+                containerColor = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(end = 20.dp, bottom = 50.dp)
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.baseline_draw_24),
@@ -108,7 +119,7 @@ fun MoodTrackerScreen(
                 MoodTrackerTopBar(onBackIconClick)
             }
         },
-        containerColor = MaterialTheme.colorScheme.surfaceVariant
+        containerColor = MaterialTheme.colorScheme.inversePrimary
     ) { paddingValues ->
         Column(modifier = Modifier
             .fillMaxSize()
@@ -266,7 +277,7 @@ fun WeekDateSelector(
                     .background(
                         backgroundColor
                     )
-                    .padding(vertical = 8.dp, horizontal = 12.dp),
+                    .padding(vertical = 8.dp, horizontal = 15.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
@@ -323,7 +334,7 @@ fun MoodEntryLogger(
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
+            containerColor = MaterialTheme.colorScheme.inversePrimary
         )
     ) {
         Column(
@@ -377,16 +388,16 @@ fun MoodEntryLogger(
                     onDismissRequest = { expanded = false },
                     modifier = Modifier
                         .height(250.dp)
-                        .width(250.dp)
+                        .width(375.dp)
                 ) {
                     Box(
                         modifier = Modifier.fillMaxSize()
                     ) {
                         LazyVerticalGrid(
-                            columns = GridCells.Fixed(3),
+                            columns = GridCells.Fixed(4),
                             modifier = Modifier
                                 .height(250.dp)
-                                .width(250.dp)
+                                .width(375.dp)
                                 .padding(8.dp),
                             userScrollEnabled = true
                         ) {
@@ -395,12 +406,12 @@ fun MoodEntryLogger(
                                     modifier = Modifier
                                         .padding(8.dp)
                                         .size(60.dp)
-                                        .clip(CircleShape)
+                                        .clip(RoundedCornerShape(15.dp))
                                         .clickable {
                                             selectedIcon = moodIcon
                                             expanded = false
                                         }
-                                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                                        .background(MaterialTheme.colorScheme.inversePrimary),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Column(
@@ -489,14 +500,14 @@ fun MoodTrackerTopBar(
     onBackIconClick : ()-> Unit
 ){
     Surface(
-        color = MaterialTheme.colorScheme.tertiaryContainer,
+        color = MaterialTheme.colorScheme.surfaceTint,
         modifier = Modifier,
         shadowElevation = 7.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 20.dp, bottom = 20.dp, start = 10.dp, end = 10.dp),
+                .padding(top = 20.dp, bottom = 20.dp, start = 20.dp, end = 10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -506,21 +517,19 @@ fun MoodTrackerTopBar(
                 shadowElevation = 5.dp,
                 modifier = Modifier.size(30.dp)
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.baseline_keyboard_double_arrow_right_24),
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowRight,
                     contentDescription = "back",
                     modifier = Modifier
                         .rotate(180f)
                         .clickable { onBackIconClick() },
-                    colorFilter = ColorFilter.tint(
-                        color = MaterialTheme.colorScheme.surfaceTint
-                    )
+                    tint =  MaterialTheme.colorScheme.surfaceTint
                 )
             }
             Text(
                 text = "Mood Tracker",
                 style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.surfaceTint,
+                color = MaterialTheme.colorScheme.secondaryContainer,
                 fontWeight = FontWeight.Bold
             )
             Surface(
@@ -531,12 +540,13 @@ fun MoodTrackerTopBar(
             ) {
                 Column(
                     modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.baseline_psychology_24),
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.surfaceVariant,
+                        tint = MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.size(25.dp)
                     )
                 }

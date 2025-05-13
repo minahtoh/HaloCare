@@ -66,6 +66,8 @@ fun ConsultsScreen(
     scrollState: ScrollState,
     mainViewModel : MainViewModel
 ){
+    val statusBarController = rememberStatusBarController()
+    val statusBarColor = MaterialTheme.colorScheme.inversePrimary
     val currentUserId by mainViewModel.currentUserId.collectAsState()
     val appointmentsList by mainViewModel.appointmentsList.collectAsState()
 
@@ -93,6 +95,10 @@ fun ConsultsScreen(
         ) { paddingValues ->
 
             LaunchedEffect(true ){
+                statusBarController.updateStatusBar(
+                    color = statusBarColor,
+                    darkIcons = true
+                )
                 mainViewModel.getUserAppointments(currentUserId)
             }
 
@@ -266,7 +272,7 @@ fun ConsultationsTopBar(
     onBackPressed : () -> Unit
 ){
     Surface(
-        color = MaterialTheme.colorScheme.tertiaryContainer,
+        color = MaterialTheme.colorScheme.inversePrimary,
         modifier = Modifier,
         shadowElevation = 7.dp
     ) {
@@ -278,23 +284,14 @@ fun ConsultationsTopBar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant,
+                color = MaterialTheme.colorScheme.inversePrimary,
                 shape = RoundedCornerShape(50),
-                shadowElevation = 5.dp,
                 modifier = Modifier
-                    .size(30.dp)
+                    .size(5.dp)
                     .clickable {
                         onBackPressed()
                     }
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.baseline_keyboard_double_arrow_right_24),
-                    contentDescription = "back",
-                    modifier = Modifier.rotate(180f),
-                    colorFilter = ColorFilter.tint(
-                        color = MaterialTheme.colorScheme.surfaceTint
-                    )
-                )
             }
             Text(
                 text = "Consultations",

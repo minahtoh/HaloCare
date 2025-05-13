@@ -100,6 +100,8 @@ dependencies {
     implementation "androidx.work:work-runtime-ktx:2.9.0"
     implementation "androidx.hilt:hilt-work:1.1.0"
 
+    implementation "nl.dionsegijn:konfetti-compose:2.0.4"
+
 
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.2.1'

@@ -29,7 +29,6 @@ import kotlin.math.sin
 @Composable
 fun HaloCareHomeIcon(
     modifier: Modifier = Modifier,
-    onClick: () -> Unit = {},
     size: Dp = 40.dp,
     isSelected: Boolean = false,
     backgroundColor: Color = MaterialTheme.colorScheme.surfaceTint,
@@ -41,8 +40,7 @@ fun HaloCareHomeIcon(
 
     Canvas(
         modifier = modifier
-            .size(size)
-            .clickable { onClick() },
+            .size(size),
     ){
 
         // Use contrasting color if selected
