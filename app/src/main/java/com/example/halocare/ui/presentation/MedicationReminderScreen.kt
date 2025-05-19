@@ -13,9 +13,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -32,14 +34,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -139,14 +144,20 @@ fun MedicationReminderScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp)
         ) {
-            MedicationCalendar(medicationSchedule = medicationSchedule)
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                MedicationCalendar(medicationSchedule = medicationSchedule)
+            }
             Spacer(modifier = Modifier.height(5.dp))
            // MedicationList()
             Column {
                 // **TabRow for switching views**
-                TabRow(selectedTabIndex = selectedTab) {
+                TabRow(
+                    selectedTabIndex = selectedTab,
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                ) {
                     Tab(
                         selected = selectedTab == 0,
                         onClick = { selectedTab = 0 },
@@ -165,14 +176,25 @@ fun MedicationReminderScreen(
                     medicationSchedule.values.flatten().distinctBy { it.name } // All Medications
                 }
 
-                LazyColumn {
-                    items(medicationsToShow) { medication ->
-                        MedicationCard(
-                            medication =  medication,
-                            isForToday = selectedTab == 0
-                        ) {
-                            // Open Dose Logging Dialog on click
-                            selectedMedication = medication
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight()
+                        .background(
+                            color = MaterialTheme.colorScheme.inversePrimary,
+                        )
+                ) {
+                    LazyColumn(
+                       modifier = Modifier.padding(top = 3.dp)
+                    ) {
+                        items(medicationsToShow) { medication ->
+                            MedicationCard(
+                                medication = medication,
+                                isForToday = selectedTab == 0
+                            ) {
+                                // Open Dose Logging Dialog on click
+                                selectedMedication = medication
+                            }
                         }
                     }
                 }
@@ -195,10 +217,14 @@ fun MedicationReminderScreen(
     if (showAddDialog) {
         Dialog(onDismissRequest = { showAddDialog = false }) {
             AddMedicationDialog(
-                onDismiss = {
+                onSubmit = {
                     mainViewModel.saveMedicationData(it)
                     showAddDialog = false
-                })
+                },
+                onClose = {
+                    showAddDialog = false
+                }
+            )
         }
     }
 }
@@ -317,90 +343,6 @@ fun LogMedicationDialog(
 }
 
 
-@Composable
-fun DoseLoggingDialog(
-    medication: Medication,
-    loggedDoses: List<LocalTime> = listOf(LocalTime.of(8, 0)), // Doses already logged
-    onDismiss: () -> Unit,
-   // onLogDose: (LocalTime, Boolean, String) -> Unit // (doseTime, taken, note)
-) {
-    var note by remember { mutableStateOf("") }
-    val currentTime = LocalTime.now()
-
-    val todayDoses = generateDoses(medication.frequency)
-
-    AlertDialog(
-        onDismissRequest = { onDismiss() },
-        title = { Text("Log Dose for ${medication.name}") },
-        text = {
-            Column {
-                Text("Dosage: ${medication.dosage}")
-                Text("Frequency: ${medication.frequency}x per day")
-
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // List doses
-                todayDoses.forEach { doseTime ->
-                    val isUnlocked = doseTime <= currentTime
-                    val isLogged = doseTime in loggedDoses
-                    if(!isUnlocked){
-                        Row(modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(3.dp)) {
-                            Text("Next Dose at: ${doseTime.format(DateTimeFormatter.ofPattern("hh:mm a"))}")
-                        }
-                    }
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(3.dp)
-                    ) {
-                        Checkbox(
-                            checked = isLogged,
-                            onCheckedChange = null,
-                            enabled = isUnlocked && !isLogged
-                        )
-                        Text(
-                            text = "Dose at ${doseTime.format(DateTimeFormatter.ofPattern("hh:mm a"))}",
-                            fontWeight = if (isLogged) FontWeight.Light else FontWeight.Bold,
-                            color = if (isLogged) Color.Gray else Color.Unspecified
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Optional note input
-                OutlinedTextField(
-                    value = note,
-                    onValueChange = { note = it },
-                    label = { Text("Add a note (optional)") },
-                    maxLines = 2
-                )
-            }
-        },
-        confirmButton = {
-            Row(
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                modifier = Modifier.fillMaxWidth()) {
-                todayDoses.filter { it <= currentTime && it !in loggedDoses }.forEach { doseTime ->
-                    Button(
-                        onClick = {
-                        //    onLogDose(doseTime, true, note)
-                            onDismiss()
-                        }
-                    ) {
-                        Text("Log ${doseTime.format(DateTimeFormatter.ofPattern("hh:mm a"))}")
-                    }
-                }
-            }
-        }
-    )
-}
-
 fun generateDoses(frequency: Int): List<LocalTime> {
     return when (frequency) {
         1 -> listOf(LocalTime.of(8, 0)) // Once daily → 8 AM
@@ -420,7 +362,7 @@ fun MedicationCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(8.dp)
+            .padding(start = 8.dp, end = 8.dp, bottom = 4.dp)
             .clickable { if (isForToday) onClick() },
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         shape = RoundedCornerShape(12.dp),
@@ -452,7 +394,10 @@ fun MedicationCard(
 }
 
 @Composable
-fun AddMedicationDialog(onDismiss: (Medication) -> Unit) {
+fun AddMedicationDialog(
+    onSubmit: (Medication) -> Unit,
+    onClose: () -> Unit
+) {
     var name by remember { mutableStateOf("") }
     var dosage by remember { mutableStateOf(1) }
     var frequency by remember { mutableStateOf(1) } // Default: Once Daily
@@ -470,17 +415,33 @@ fun AddMedicationDialog(onDismiss: (Medication) -> Unit) {
             .fillMaxWidth()
             .padding(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        shape = RoundedCornerShape(16.dp)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                "Add Medication",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    "Add Medication",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "cancel",
+                    modifier = Modifier
+                        .size(20.dp)
+                        .clickable {
+                            onClose()
+                        }
+                )
+            }
             Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedTextField(
@@ -495,7 +456,6 @@ fun AddMedicationDialog(onDismiss: (Medication) -> Unit) {
                 onValueChange = { dosage = it.toInt() },
                 label = { Text("Dosage") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
@@ -543,17 +503,31 @@ fun AddMedicationDialog(onDismiss: (Medication) -> Unit) {
                 )
             }
             val sortedDates = prescribedDates.sorted()
-            Column {
-                when {
-                    sortedDates.size <= 3 -> {
-                        sortedDates.forEach { date ->
-                            Text(text = date.format(formatter))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row {
+                    Text(text = "Days:", fontWeight = FontWeight.SemiBold)
+                }
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    when {
+                        sortedDates.size <= 3 -> {
+                            sortedDates.forEach { date ->
+                                Text(text = date.format(formatter))
+                            }
                         }
-                    }
-                    else -> {
-                        Text(text = sortedDates.first().format(formatter))
-                        Text(text = "...")
-                        Text(text = sortedDates.last().format(formatter))
+
+                        else -> {
+                            Text(text = sortedDates.first().format(formatter))
+                            Text(text = "...")
+                            Text(text = sortedDates.last().format(formatter))
+                        }
                     }
                 }
             }
@@ -573,7 +547,7 @@ fun AddMedicationDialog(onDismiss: (Medication) -> Unit) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("Time: ${time.format(DateTimeFormatter.ofPattern("hh:mm a"))}",
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.SemiBold
                 )
             }
             Spacer(modifier = Modifier.height(10.dp))
@@ -600,13 +574,19 @@ fun AddMedicationDialog(onDismiss: (Medication) -> Unit) {
                     text = "Notify",
                     fontWeight =  FontWeight.Bold,
                 )
+                Spacer(modifier = Modifier.width(7.dp))
+                Icon(
+                    imageVector = Icons.Default.Notifications,
+                    contentDescription = "notify",
+                    tint = MaterialTheme.colorScheme.inversePrimary
+                )
             }
             Spacer(modifier = Modifier.height(16.dp))
 
             Button(
                 onClick = {
                     if (name.isNotBlank() && dosage != 0) {
-                        onDismiss(
+                        onSubmit(
                             Medication(
                                 name = name.capitalize(),
                                 dosage = dosage,
@@ -629,9 +609,11 @@ fun AddMedicationDialog(onDismiss: (Medication) -> Unit) {
                         )
                     }
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(10.dp)
             ) {
-                Text("Save")
+                Text("Add Medication")
             }
         }
     }
@@ -911,7 +893,12 @@ fun MedicationCalendar(medicationSchedule: Map<LocalDate, List<Medication>>) {
             modifier = Modifier.padding(bottom = 8.dp)
         )
 
-        LazyVerticalGrid(columns = GridCells.Fixed(7)) {
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(7),
+            modifier = Modifier.padding(5.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
             // Add empty spaces for days before the first day
             items(startOffset) {
                 Box(modifier = Modifier.size(40.dp))
@@ -925,14 +912,23 @@ fun MedicationCalendar(medicationSchedule: Map<LocalDate, List<Medication>>) {
                 Box(
                     modifier = Modifier
                         .size(48.dp)
-                        .border(1.dp, Color.Gray, RoundedCornerShape(8.dp))
-                        .padding(4.dp)
+                        .border(1.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
+                        .padding(3.dp)
                         .clickable {
                             dayIndex.let { selectedDay = today.withDayOfMonth(it + 1) }
                         },
                     contentAlignment = Alignment.TopCenter
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                color = MaterialTheme.colorScheme.inversePrimary,
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            .padding(start = 3.dp, end = 3.dp)
+                    ) {
                         Text("${dayIndex + 1}", fontWeight = FontWeight.Bold, fontSize = 14.sp) // ✅ Fixed
 
                         if (medications.isNotEmpty()) {
@@ -967,67 +963,25 @@ fun MedicationCalendar(medicationSchedule: Map<LocalDate, List<Medication>>) {
 
 
 
-@Composable
-fun MedicationChart(
-    medicationSchedule: Map<LocalDate, List<Medication>>
-) {
-    val today = LocalDate.now()
-    val daysInMonth = today.lengthOfMonth()
-    val firstDayOfMonth = today.withDayOfMonth(1).dayOfWeek.value % 7 // Adjust for Sunday start
-    val daysList = List(firstDayOfMonth) { null } + (1..daysInMonth).map { it }
-    var selectedDay by remember { mutableStateOf<LocalDate?>(null) }
-
-    Column(modifier = Modifier.padding(16.dp)) {
-        Text(
-            text = today.month.name.capitalize(),
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
-        LazyVerticalGrid(columns = GridCells.Fixed(7)) {
-            items(daysList) { day ->
-                Box(
-                    modifier = Modifier
-                        .aspectRatio(1f)
-                        .background(
-                            color = medicationSchedule[today.withDayOfMonth(day ?: 1)]?.let {
-                                blendMedicationColors(it)
-                            } ?: Color.Transparent,
-                            shape = RoundedCornerShape(8.dp)
-                        )
-                        .border(1.dp, Color.Gray, RoundedCornerShape(8.dp))
-                        .clickable {
-                            day?.let { selectedDay = today.withDayOfMonth(it) }
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(text = day?.toString() ?: "", style = MaterialTheme.typography.bodyMedium)
-                }
-            }
-        }
-    }
-
-    selectedDay?.let { day ->
-        MedicationBottomSheet(day, medicationSchedule[day] ?: emptyList()) {
-            selectedDay = null
-        }
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MedicationBottomSheet(day: LocalDate, medications: List<Medication>, onDismiss: () -> Unit) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = MaterialTheme.colorScheme.secondaryContainer
+        containerColor = MaterialTheme.colorScheme.primaryContainer
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("Medications for ${day.dayOfMonth} ${day.month.name.capitalize()}", style = MaterialTheme.typography.titleMedium)
+        Column(modifier = Modifier.padding(start = 30.dp)) {
+            Text(
+                text ="Medications for ${day.dayOfMonth} ${day.month.name.capitalize()}",
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+            )
+            Spacer(modifier = Modifier.height(13.dp))
+          //  Divider(modifier = Modifier.height(7.dp).width(150.dp).padding(start = 17.dp))
             medications.forEach { medication ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 8.dp),
+                        .padding(vertical = 8.dp, horizontal = 15.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
@@ -1036,7 +990,7 @@ fun MedicationBottomSheet(day: LocalDate, medications: List<Medication>, onDismi
                             .background(Color(medication.color), shape = CircleShape)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = medication.name, style = MaterialTheme.typography.bodyLarge)
+                    Text(text = medication.name, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold))
                     if (medication.dosage == medication.frequency){
                         Icon(painter = painterResource(id = R.drawable.baseline_verified_24),
                             contentDescription = "Completed",
@@ -1045,7 +999,7 @@ fun MedicationBottomSheet(day: LocalDate, medications: List<Medication>, onDismi
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(100.dp))
         }
     }
 }

@@ -87,9 +87,16 @@ fun ProfileScreen(
     val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     val isConnected = connectivityManager.activeNetworkInfo?.isConnectedOrConnecting == true
 
+    val statusBarController = rememberStatusBarController()
+    val statusBarColor = MaterialTheme.colorScheme.surfaceTint
+
 
     // Fetch image from backend when online
     LaunchedEffect(Unit) {
+        statusBarController.updateStatusBar(
+            color = statusBarColor,
+            darkIcons = true
+        )
         if (isConnected) {
             try {
               //  val backendImageUrl = fetchImageFromBackend(userId) // Replace with actual API call
@@ -191,7 +198,6 @@ fun ProfileScreen(
                         value = profession,
                         onValueChange = { profession = it },
                         label = { Text("Profession") },
-                        keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Phone),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(25.dp),
                         enabled = isFieldEditable(loggedUser.profession)
@@ -216,7 +222,7 @@ fun ProfileScreen(
                         shape = RoundedCornerShape(25.dp)
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(26.dp))
                     Button(
                         onClick = {
                             val updatedUser = User(
@@ -231,13 +237,13 @@ fun ProfileScreen(
                             )
                             authViewModel.updateUser(updatedUser)
                         },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 55.dp).padding(7.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            containerColor = MaterialTheme.colorScheme.inversePrimary,
                             contentColor = MaterialTheme.colorScheme.onTertiaryContainer
                         )
                     ) {
-                        Text("Save")
+                        Text(text = "Save", modifier = Modifier.padding(7.dp))
                     }
                     Spacer(modifier = Modifier.height(5.dp))
                     TextButton(onClick = onSkip) {
@@ -283,7 +289,7 @@ fun ProfileTopBar(){
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(10.dp),
+                .padding(10.dp).padding(start = 15.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {

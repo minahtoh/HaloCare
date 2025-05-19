@@ -9,7 +9,15 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -27,8 +35,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -102,6 +112,9 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 ) {
+                    if (!isBottomBarVisible){
+                        showFeatureGrid = false
+                    }
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -111,9 +124,14 @@ class MainActivity : ComponentActivity() {
                                 onClick = { showFeatureGrid = false }
                             )
                             .pointerInput(Unit) {
-                                detectTapGestures(onTap = {
+                                detectTapGestures(
+                                    onTap = {
                                     showFeatureGrid = false
-                                })
+                                     },
+                                    onPress = {
+                                        showFeatureGrid = false
+                                    }
+                                )
                             },) {
                         HaloCareNavHost(
                             navHostController = navHostController,
@@ -125,16 +143,16 @@ class MainActivity : ComponentActivity() {
                             mainViewModel = mainViewModel
                         )
                         // Feature Grid Popup
-                        FeatureGridPopup(
-                            isVisible = showFeatureGrid,
-                            onFeatureClick = { route ->
-                                showFeatureGrid = false
-                                navHostController.navigate(route)
-                            },
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .padding(bottom = 120.dp)
-                        )
+
+                            FeatureGridOverlay(
+                                isVisible = showFeatureGrid,
+                                onDismissRequest = { showFeatureGrid = false },
+                                onFeatureClick = { route ->
+                                    showFeatureGrid = false
+                                    navHostController.navigate(route)
+                                }
+                            )
+
                     }
                 }
             }
@@ -260,6 +278,55 @@ fun HaloCareNavHost(
         }
     }
 }
+
+
+@Composable
+fun FeatureGridOverlay(
+    isVisible: Boolean,
+    onDismissRequest: () -> Unit,
+    onFeatureClick: (String) -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .zIndex(10f) // Make sure it's on top
+    ) {
+        // Dim background
+        AnimatedVisibility(
+            visible = isVisible,
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.05f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onDismissRequest
+                    )
+            )
+        }
+
+        // Animated popup card
+        AnimatedVisibility(
+            visible = isVisible,
+            enter = fadeIn() + expandVertically(expandFrom = Alignment.Top),
+            exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 150.dp)
+        ) {
+            FeatureGridPopup(
+                onFeatureClick = onFeatureClick
+            )
+        }
+    }
+}
+
+
+
 
 fun NavHostController.navigateSingleTopTo(route: String, popBackStack : Boolean = false) =
     this.navigate(route) {

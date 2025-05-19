@@ -76,6 +76,7 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FloatingActionButton
@@ -100,6 +101,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -114,6 +116,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -178,7 +181,8 @@ fun HomeScreen(
                     }) {
                         Icon(Icons.Default.AccountCircle, contentDescription = "Profile")
                     }
-                }
+                },
+                modifier = Modifier.shadow(elevation = 10.dp)
             )
         },
         containerColor = MaterialTheme.colorScheme.tertiaryContainer
@@ -209,18 +213,20 @@ fun HomeScreen(
         ) {
             Column(
                 modifier = Modifier
-                    .padding(20.dp)
+                    .padding(top = 7.dp)
                     .verticalScroll(scrollState)
             ) {
-                Column {
+                var isDaytimeColor by remember { mutableStateOf(false) }
+
+                Column(modifier = Modifier.fillMaxWidth()) {
                     HorizontalPager(
                         state = pagerState,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(200.dp),
-                        contentPadding = PaddingValues(32.dp),
+                            .height(280.dp),
+                        contentPadding = PaddingValues(start = 30.dp, end = 30.dp),
                         //     beyondViewportPageCount = 1,
-                        pageSpacing = 3.dp
+                        pageSpacing = 0.dp
                     ) { page ->
                         UserDashboardCard(
                             imageRes = images[page],
@@ -262,7 +268,33 @@ fun HomeScreen(
                         }
                     }
                 }
-
+                Spacer(modifier = Modifier.height(16.dp))
+                CentreCircleDivider(
+                    modifier = Modifier.padding(horizontal = 30.dp)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Column(modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 33.dp, end = 33.dp))
+                {
+                    if (weatherData != null){
+                        DashboardWeatherCard(
+                            weatherData = weatherData!!,
+                            onClick = {
+                                mainViewModel.getHourlyWeather("Lagos")
+                                showBottomSheet = true
+                                isDaytimeColor = it
+                            }
+                        )
+                    }else{
+                        WeatherCard()
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                CentreCircleDivider(
+                    modifier = Modifier.padding(horizontal = 30.dp)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
                 Column(
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -270,21 +302,23 @@ fun HomeScreen(
                         columns = GridCells.Fixed(2),
                         modifier = Modifier
                             .height(400.dp)
-                            .padding(10.dp),
-                        contentPadding = PaddingValues(15.dp)
+                            .padding(1.dp),
+                        contentPadding = PaddingValues(15.dp),
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        verticalArrangement = Arrangement.spacedBy(5.dp)
 
                     ) {
                         items(features.size) { index ->
                             Card(
                                 modifier = Modifier
-                                    .padding(8.dp)
+                                    //.padding(8.dp)
                                     .width(150.dp)
-                                    .height(135.dp)
+                                    .height(145.dp)
                                     .clickable {
                                         onCategoryClick()
                                     },
                                 colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer
                                 ),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                             ) {
@@ -306,19 +340,6 @@ fun HomeScreen(
                             }
                         }
                     }
-                }
-                var isDaytimeColor by remember { mutableStateOf(false) }
-                if (weatherData != null){
-                    HomeWeatherCard(
-                        weatherData = weatherData!!,
-                        onClick = {
-                            mainViewModel.getHourlyWeather("Lagos")
-                            showBottomSheet = true
-                            isDaytimeColor = it
-                        }
-                    )
-                }else{
-                    WeatherCard()
                 }
                 Spacer(modifier = Modifier.height(350.dp))
                 if (showBottomSheet){
@@ -342,7 +363,7 @@ fun UserDashboardCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .height(150.dp),
+            .height(250.dp),
         shape = RoundedCornerShape(20.dp),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
@@ -393,6 +414,49 @@ fun UserDashboardCard(
 }
 
 @Composable
+fun CentreCircleDivider(
+    modifier: Modifier = Modifier,
+    lineColor: Color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+    lineThickness: Dp = 3.dp,
+    circleRadius: Dp = 6.dp,
+    circleColor: Color = MaterialTheme.colorScheme.primary
+){
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Left line
+        Divider(
+            color = lineColor,
+            thickness = lineThickness,
+            modifier = Modifier
+                .weight(1f)
+        )
+
+        // Circle spacer
+        Spacer(modifier = Modifier.width(8.dp))
+
+        // Circle in center
+        Box(
+            modifier = Modifier
+                .size(circleRadius * 2)
+                .background(circleColor, CircleShape)
+        )
+
+        // Circle spacer
+        Spacer(modifier = Modifier.width(8.dp))
+
+        // Right line
+        Divider(
+            color = lineColor,
+            thickness = lineThickness,
+            modifier = Modifier
+                .weight(1f)
+        )
+    }
+}
+
+@Composable
 fun HaloCareBottomBarCurved(
     navController: NavController,
     isVisible: Boolean,
@@ -409,19 +473,19 @@ fun HaloCareBottomBarCurved(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(100.dp),
+                .height(160.dp),
             contentAlignment = Alignment.BottomCenter
         ) {
             val outlineColor = MaterialTheme.colorScheme.inversePrimary
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(100.dp)
+                    .height(110.dp)
             ) {
                 val width = size.width
                 val height = size.height
 
-                val fabRadius = 50.dp.toPx() // Adjust based on FAB size
+                val fabRadius = 60.dp.toPx() // Adjust based on FAB size
                 val fabCenterX = width / 2
                 val fabBottomY = height - (fabRadius * 2)/3
 
@@ -456,7 +520,7 @@ fun HaloCareBottomBarCurved(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(100.dp)
+                    .height(110.dp)
                     .padding(10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -464,7 +528,7 @@ fun HaloCareBottomBarCurved(
                 BottomNavItem(
                     icon = {
                         HaloCareHomeIcon(
-                            size = 25.dp,
+                            size = 30.dp,
                             // isSelected = true,
                             contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                             backgroundColor = MaterialTheme.colorScheme.secondaryContainer
@@ -481,7 +545,7 @@ fun HaloCareBottomBarCurved(
                         Image(
                             painter = painterResource(id = R.drawable.baseline_healing_24),
                             contentDescription = null,
-                            modifier = Modifier.size(25.dp),
+                            modifier = Modifier.size(30.dp),
                             colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSecondaryContainer)
                         )
                     },
@@ -491,13 +555,13 @@ fun HaloCareBottomBarCurved(
                         navController.navigateSingleTopTo(ConsultsScreen.route)
                     }
                 )
-                Spacer(Modifier.width(56.dp)) // Space for FAB
+                Spacer(Modifier.width(60.dp)) // Space for FAB
                 BottomNavItem(
                     icon = {
                         Image(
                             painter = painterResource(id = R.drawable.baseline_monitor_heart_24),
                             contentDescription = null,
-                            modifier = Modifier.size(25.dp),
+                            modifier = Modifier.size(30.dp),
                             colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSecondaryContainer)
                         )
                     },
@@ -512,7 +576,7 @@ fun HaloCareBottomBarCurved(
                         Image(
                             painter = painterResource(id = R.drawable.baseline_settings_24),
                             contentDescription = null,
-                            modifier = Modifier.size(25.dp),
+                            modifier = Modifier.size(30.dp),
                             colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSecondaryContainer)
                         )
                     },
@@ -531,7 +595,7 @@ fun HaloCareBottomBarCurved(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .size(60.dp)
-                    .offset(y = (-24).dp) // Lifts the FAB above the cutout
+                    .offset(y = (20).dp) // Lifts the FAB above the cutout
             ) {
                 Icon(
                     Icons.Default.Add,
@@ -559,12 +623,12 @@ fun BottomNavItem(
     onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .width(80.dp)
+            .width(65.dp)
+            .height(90.dp)
             .padding(1.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent)
-            .clickable(onClick = onClick)
-            ,
+            .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -575,7 +639,7 @@ fun BottomNavItem(
             }
             Text(
                 text = label,
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
                 textAlign = TextAlign.Center,
                 color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Gray
 
@@ -804,6 +868,130 @@ private fun WeatherDetailItem(
     }
 }
 
+@Composable
+fun DashboardWeatherCard(
+    weatherData: WeatherResponse,
+    onClick: (Boolean) -> Unit
+) {
+    val current = weatherData.current
+    val isDaytime = current.isDay
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(250.dp)
+            .clickable { onClick(isDaytime) },
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDaytime)
+                MaterialTheme.colorScheme.primaryContainer
+            else
+                MaterialTheme.colorScheme.secondaryContainer
+        ),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+        ) {
+            // Top Row: Location + Time + Icon
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column {
+                    Text(
+                        text = weatherData.location.name,
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Text(
+                        text = weatherData.location.localtime,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                    )
+                }
+
+                Icon(
+                    painter = painterResource(
+                        id = if (isDaytime)
+                            R.drawable.baseline_wb_sunny_24
+                        else R.drawable.baseline_nights_stay_24
+                    ),
+                    contentDescription = null,
+                    tint = if (isDaytime) Color.Yellow else Color.Cyan,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Temperature (centered)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "${current.tempCelsius}°C",
+                    style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.ExtraBold),
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Image(
+                    painter = rememberAsyncImagePainter(current.condition.icon),
+                    contentDescription = current.condition.text,
+                    modifier = Modifier.size(32.dp)
+                )
+            }
+
+            Text(
+                text = current.condition.text,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Bottom Weather Metrics
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                WeatherMetric(icon = R.drawable.baseline_air_24, value = "${current.windSpeed} km/h", label = "Wind")
+                WeatherMetric(icon = R.drawable.baseline_cloud_24, value = "${current.cloudCoverage}%", label = "Clouds")
+                WeatherMetric(icon = R.drawable.baseline_water_drop_24, value = "${current.precipitationMm} mm", label = "Rain")
+            }
+        }
+    }
+}
+
+@Composable
+fun WeatherMetric(icon: Int, value: String, label: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Icon(
+            painter = painterResource(id = icon),
+            contentDescription = label,
+            modifier = Modifier.size(20.dp),
+            tint = MaterialTheme.colorScheme.onPrimaryContainer
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onPrimaryContainer
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+        )
+    }
+}
+
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HourlyWeatherBottomSheet(
@@ -1001,7 +1189,7 @@ private fun VerticalShimmerWeatherCard(
         initialValue = 0f,
         targetValue = 1000f,
         animationSpec = infiniteRepeatable(
-            animation = tween(300, easing = FastOutSlowInEasing),
+            animation = tween(500, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Restart
         )
     )
@@ -1123,17 +1311,10 @@ private fun VerticalShimmerWeatherCard(
 
 @Composable
 fun FeatureGridPopup(
-    isVisible: Boolean,
     features: List<Feature> = featureList,
     onFeatureClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    AnimatedVisibility(
-        visible = isVisible,
-        enter = fadeIn() + expandVertically(expandFrom = Alignment.Top),
-        exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top),
-        modifier = modifier
-    ) {
         Box {
             // Pointer triangle
             PointerTriangle(
@@ -1180,7 +1361,6 @@ fun FeatureGridPopup(
             }
 
         }
-    }
 }
 
 @Composable

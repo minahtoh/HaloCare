@@ -8,6 +8,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -21,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -31,10 +33,18 @@ import com.patrykandpatrick.vico.compose.axis.vertical.startAxis
 import com.patrykandpatrick.vico.compose.chart.Chart
 import com.patrykandpatrick.vico.compose.chart.line.lineChart
 import com.patrykandpatrick.vico.compose.chart.scroll.rememberChartScrollSpec
+import com.patrykandpatrick.vico.compose.component.shape.chartShape
+import com.patrykandpatrick.vico.compose.component.shape.dashedShape
 import com.patrykandpatrick.vico.core.axis.AxisPosition
 import com.patrykandpatrick.vico.core.axis.formatter.AxisValueFormatter
 import com.patrykandpatrick.vico.core.chart.layout.HorizontalLayout
+import com.patrykandpatrick.vico.core.chart.values.AxisValuesOverrider
 import com.patrykandpatrick.vico.core.chart.values.ChartValues
+import com.patrykandpatrick.vico.core.component.shape.DashedShape
+import com.patrykandpatrick.vico.core.component.shape.LineComponent
+import com.patrykandpatrick.vico.core.component.shape.Shapes
+import com.patrykandpatrick.vico.core.component.text.TextComponent
+import com.patrykandpatrick.vico.core.dimensions.Dimensions
 import com.patrykandpatrick.vico.core.entry.FloatEntry
 import com.patrykandpatrick.vico.core.entry.entryModelOf
 import kotlinx.coroutines.delay
@@ -95,15 +105,49 @@ fun HaloCharts(
     val lineColor = MaterialTheme.colorScheme.primary
 
     val maxTime = exerciseDataList.maxOfOrNull { it.timeElapsed }?.toFloat() ?: 0f
+    val axisLineComponent = LineComponent(
+        color = MaterialTheme.colorScheme.inversePrimary.toArgb(),
+        thicknessDp =2f,
+        shape = RoundedCornerShape(23.dp).chartShape()
+    )
+
+    val tickComponent = LineComponent(
+        color = MaterialTheme.colorScheme.error.toArgb(),
+        thicknessDp = 1f
+    )
+    val paddedMaxY = when {
+        maxTime < 600 -> 600f
+        maxTime < 1800 -> 1800f
+        else -> maxTime * 1.2f
+    }
+    val customGuideline = LineComponent(
+        color =MaterialTheme.colorScheme.inversePrimary.toArgb(), // Change this to your desired color
+        thicknessDp = 1f,
+        shape = Shapes.dashedShape(
+            RoundedCornerShape(2.dp).chartShape(),
+            dashLength = 3.dp,
+            3.dp,
+            fitStrategy = DashedShape.FitStrategy.Fixed
+        ),
+    )
+
+
+    val labelComponent = TextComponent.Builder()
+        .apply {
+            color = MaterialTheme.colorScheme.tertiaryContainer.toArgb()
+            textSizeSp = 12f
+        }
+        .build()
+
 
 
     Column(
         modifier = Modifier
-            .fillMaxWidth().height(350.dp)
+            .fillMaxWidth().fillMaxHeight()
             .background(
-                color = MaterialTheme.colorScheme.primaryContainer,
+                color = MaterialTheme.colorScheme.surfaceTint,
                 shape = RoundedCornerShape(7.dp)
-            ).padding(end = 25.dp)
+            ).padding(end = 25.dp, start = 4.dp)
     ) {
         Text(
             text = "$featureName",
@@ -113,18 +157,32 @@ fun HaloCharts(
         )
 
         Chart(
-            chart = lineChart(),
+            chart = lineChart(
+                axisValuesOverrider = AxisValuesOverrider.fixed(
+                    minY = 0f,
+                    maxY = paddedMaxY // add 20% headroom above max time
+                )
+            ),
             model = columnData,
             startAxis = startAxis(
                 valueFormatter = TimeAxisValueFormatter(maxTime), // Format Y-axis as whole numbers
                 maxLabelCount = 5,
+                label = labelComponent,
+                axis = axisLineComponent,
+                tick = tickComponent,
+                guideline = customGuideline
             ),
             bottomAxis = bottomAxis(
                 valueFormatter = DateAxisValueFormatter(exerciseDataList),
                 guideline = null,
                 labelSpacing = 3,
                 title = "Days",
-                tickLength = 10.dp
+                tickLength = 10.dp,
+                axis = LineComponent(
+                    color = MaterialTheme.colorScheme.inversePrimary.toArgb(),
+                    thicknessDp = 2f,
+                    shape = RoundedCornerShape(23.dp).chartShape()
+                )
 
             ),
             chartScrollSpec = rememberChartScrollSpec(

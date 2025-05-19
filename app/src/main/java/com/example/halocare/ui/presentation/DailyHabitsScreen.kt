@@ -168,7 +168,7 @@ fun DailyHabitsScreen(
         Column(modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
-            .padding(16.dp)
+            .padding(1.dp)
             .verticalScroll(rememberScrollState())
         ) {
             // Tabs
@@ -183,141 +183,141 @@ fun DailyHabitsScreen(
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp))
+            Column(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
 
-            // Chart Placeholder (Replace with actual chart implementation)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(350.dp)
-                    .background(Color.LightGray),
-                contentAlignment = Alignment.Center
-            ) {
-                if(selectedTabIndex == 0){
-                    ExerciseTrackerChart(exerciseDataList ?: emptyList())
+                // Chart Placeholder (Replace with actual chart implementation)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(350.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if(selectedTabIndex == 0){
+                        ExerciseTrackerChart(exerciseDataList ?: emptyList())
+                    }
+                    if(selectedTabIndex == 1){
+                        SleepTrackerChart(sleepDataList)
+                    }
+                    if(selectedTabIndex == 2){
+                        JournalHeatmap(
+                            entries = journalDataList,
+                            onDateClicked = {
+                                    entries ->
+                                selectedJournalEntries.value = entries
+                                showJournalDialog.value = true
+                            }
+                        )
+                    }
+                    if(selectedTabIndex == 3){
+                        ScreenTimePieChart(
+                            screenTimeSummary.toList()
+                        )
+                    }
                 }
-                if(selectedTabIndex == 1){
-                    SleepTrackerChart(sleepDataList)
-                }
-                if(selectedTabIndex == 2){
-                    JournalHeatmap(
-                       entries = journalDataList,
-                        onDateClicked = {
-                                entries ->
-                            selectedJournalEntries.value = entries
-                            showJournalDialog.value = true
-                        }
-                    )
-                }
-                if(selectedTabIndex == 3){
-                    ScreenTimePieChart(
-                        screenTimeSummary.toList()
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            // Progress Bar Placeholder
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(280.dp)
-                    .background(MaterialTheme.colorScheme.secondaryContainer),
-                contentAlignment = Alignment.Center
-            ) {
-                if (selectedTabIndex == 0){
-                    ExerciseProgressSection(
-                        currentProgress = getTodayExerciseTotal(exerciseDataList ?: emptyList()),
-                        exerciseList = exerciseDataList ?: emptyList()
-                    )
-                }else if(selectedTabIndex == 1 ){
-                    val lastSleepData = sleepDataList.reversed().getOrNull(0)
-                    SleepProgressIndicator(
-                        sleepHours = lastSleepData?.sleepLength ?: 0f,
-                        sleepQuality = lastSleepData?.sleepQuality ?: 1
-                    )
-                }else if (selectedTabIndex == 2){
-                    JournalStreakProgress(journalDataList)
+                // Progress Bar Placeholder
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(280.dp)
+                        .background(MaterialTheme.colorScheme.secondaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (selectedTabIndex == 0){
+                        ExerciseProgressSection(
+                            currentProgress = getTodayExerciseTotal(exerciseDataList ?: emptyList()),
+                            exerciseList = exerciseDataList ?: emptyList()
+                        )
+                    }else if(selectedTabIndex == 1 ){
+                        val lastSleepData = sleepDataList.reversed().getOrNull(0)
+                        SleepProgressIndicator(
+                            sleepHours = lastSleepData?.sleepLength ?: 0f,
+                            sleepQuality = lastSleepData?.sleepQuality ?: 1
+                        )
+                    }else if (selectedTabIndex == 2){
+                        JournalStreakProgress(journalDataList)
+                    }
+                    else Text("Progress Bar Placeholder")
                 }
-                else Text("Progress Bar Placeholder")
-            }
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            // Log Exercise Progress
-            if (selectedTabIndex == 0) { // Exercise Tab
-                Text("Start Today's Exercise", fontSize = 18.sp)
-                Spacer(modifier = Modifier.height(8.dp))
-                ExerciseTimer(
-                    onTimerStopped = {
-                        mainViewModel.saveExerciseData(it)
-                        elapsedTime = it.timeElapsed
+                // Log Exercise Progress
+                if (selectedTabIndex == 0) { // Exercise Tab
+                    Text("Start Today's Exercise", fontSize = 18.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    ExerciseTimer(
+                        onTimerStopped = {
+                            mainViewModel.saveExerciseData(it)
+                            elapsedTime = it.timeElapsed
                         },
-                    time = time,
-                    exerciseName = exerciseName,
-                    updateExerciseName = {mainViewModel.onExerciseNameChange(it)},
-                    clearTimerState = {mainViewModel.clearTimerState()},
-                    isTimerRunning = timerStatus
-                )
-            }
-
-            // Log Sleep Progress
-            if(selectedTabIndex == 1){
-                Text(
-                    "Sleep Tracking",
-                    fontSize = 24.sp,
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                if(!hasLoggedToday){
-                    SleepTracker(
-                        saveSleepData = {
-                            mainViewModel.logSleepData(it)
-                        }
+                        time = time,
+                        exerciseName = exerciseName,
+                        updateExerciseName = {mainViewModel.onExerciseNameChange(it)},
+                        clearTimerState = {mainViewModel.clearTimerState()},
+                        isTimerRunning = timerStatus
                     )
-                }else{
-                    Box(modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.Center) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Image(
-                                painter = painterResource(id = R.drawable.sleeping_icon_for_dissclaimer),
-                                contentDescription = "sleeping",
-                                modifier = Modifier.size(200.dp),
-                                //colorFilter = ColorFilter.tint(color = Color.Unspecified)
-                            )
-                            Text(
-                                text = "You’ve already logged your sleep for today.",
-                                color = Color.Gray,
-                                fontSize = 16.sp,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
                 }
 
-            }
-
-            //Log Journal Progress
-            if (selectedTabIndex == 2){
-                JournalingTracker(
-                    saveJournal = {
-                        mainViewModel.saveJournalEntry(it)
-                    }
-                )
-            }
-
-            //Log Screen time Progress
-            if(selectedTabIndex == 3){
-                ScreenTimeTracker(
-                    screenTimeSummary = screenTimeSummary,
-                    onAppSelected = { entry ->
-                        // Update the summary list when an app is selected
-                        screenTimeSummary.removeAll { it.appName == entry.appName }
-                        if (entry.minutes > 0) {
-                            screenTimeSummary.add(entry)
+                // Log Sleep Progress
+                if(selectedTabIndex == 1){
+                    Text(
+                        "Sleep Tracking",
+                        fontSize = 24.sp,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    if(!hasLoggedToday){
+                        SleepTracker(
+                            saveSleepData = {
+                                mainViewModel.logSleepData(it)
+                            }
+                        )
+                    }else{
+                        Box(modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.Center) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Image(
+                                    painter = painterResource(id = R.drawable.sleeping_icon_for_dissclaimer),
+                                    contentDescription = "sleeping",
+                                    modifier = Modifier.size(200.dp),
+                                    //colorFilter = ColorFilter.tint(color = Color.Unspecified)
+                                )
+                                Text(
+                                    text = "You’ve already logged your sleep for today.",
+                                    color = Color.Gray,
+                                    fontSize = 16.sp,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
                         }
                     }
-                )
+
+                }
+
+                //Log Journal Progress
+                if (selectedTabIndex == 2){
+                    JournalingTracker(
+                        saveJournal = {
+                            mainViewModel.saveJournalEntry(it)
+                        }
+                    )
+                }
+
+                //Log Screen time Progress
+                if(selectedTabIndex == 3){
+                    ScreenTimeTracker(
+                        screenTimeSummary = screenTimeSummary,
+                        onAppSelected = { entry ->
+                            // Update the summary list when an app is selected
+                            screenTimeSummary.removeAll { it.appName == entry.appName }
+                            if (entry.minutes > 0) {
+                                screenTimeSummary.add(entry)
+                            }
+                        }
+                    )
+                }
             }
         }
     }
@@ -505,14 +505,15 @@ fun ExerciseTrackerChart(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .fillMaxHeight()
+            .height(300.dp)
+            .shadow(elevation = 7.dp)
             .background(
-                color = MaterialTheme.colorScheme.surfaceTint,
+                color = MaterialTheme.colorScheme.surfaceVariant,
                 shape = RoundedCornerShape(15.dp)
             )
-            .padding(16.dp)
+            .padding(6.dp)
     ) {
-        Text(text = "Exercise Progress", color = Color.Black)
+        Text(text = "Exercise Progress", color = Color.Black, modifier = Modifier.padding(10.dp))
         Spacer(modifier = Modifier.height(8.dp))
 
         HaloCharts(exerciseDataList = exerciseDataList.takeLast(20), featureName = "Exercise Tracker")
