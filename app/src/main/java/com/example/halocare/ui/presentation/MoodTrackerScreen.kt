@@ -29,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -153,14 +154,30 @@ fun MoodTrackerScreen(
             }
             Spacer(modifier = Modifier.height(15.dp))
             // Mood Chart
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(400.dp)
-                    .background(Color.LightGray),
-                contentAlignment = Alignment.Center
+                    .height(450.dp)
+                    .shadow(elevation = 17.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.secondary,
+                        shape = RoundedCornerShape(
+                            bottomStart = 15.dp, bottomEnd = 15.dp,
+                            topStart = 2.dp, topEnd = 2.dp
+                        )
+                    )
+                    .padding(bottom = 4.dp, top = 2.dp, start = 2.dp, end = 2.dp),
+                verticalArrangement = Arrangement.Bottom
             ) {
-                MoodChart(moodEntries = moodsList ?: emptyList())
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight()
+                        .background(Color.LightGray, shape = RoundedCornerShape(11.dp))
+                    ,
+                ) {
+                    MoodChart(moodEntries = moodsList ?: emptyList())
+                }
             }
 
             // Mood Insights Section

@@ -102,7 +102,6 @@ fun HaloCharts(
         }
     )
 
-    val lineColor = MaterialTheme.colorScheme.primary
 
     val maxTime = exerciseDataList.maxOfOrNull { it.timeElapsed }?.toFloat() ?: 0f
     val axisLineComponent = LineComponent(
@@ -121,7 +120,7 @@ fun HaloCharts(
         else -> maxTime * 1.2f
     }
     val customGuideline = LineComponent(
-        color =MaterialTheme.colorScheme.inversePrimary.toArgb(), // Change this to your desired color
+        color =MaterialTheme.colorScheme.inversePrimary.toArgb(),
         thicknessDp = 1f,
         shape = Shapes.dashedShape(
             RoundedCornerShape(2.dp).chartShape(),

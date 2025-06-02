@@ -143,7 +143,6 @@ class MainActivity : ComponentActivity() {
                             mainViewModel = mainViewModel
                         )
                         // Feature Grid Popup
-
                             FeatureGridOverlay(
                                 isVisible = showFeatureGrid,
                                 onDismissRequest = { showFeatureGrid = false },
@@ -289,7 +288,7 @@ fun FeatureGridOverlay(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .zIndex(10f) // Make sure it's on top
+            .zIndex(2f) // Make sure it's on top
     ) {
         // Dim background
         AnimatedVisibility(

@@ -19,6 +19,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.Arrangement
@@ -108,6 +109,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Fill
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -128,6 +130,7 @@ import coil.compose.rememberAsyncImagePainter
 import com.example.halocare.R
 import com.example.halocare.network.models.WeatherResponse
 import com.example.halocare.network.models.WeatherResponseHourly
+import com.example.halocare.ui.utils.FabCutoutShape
 import com.example.halocare.viewmodel.AuthViewModel
 import com.example.halocare.viewmodel.LoadingState
 import com.example.halocare.viewmodel.MainViewModel
@@ -477,45 +480,20 @@ fun HaloCareBottomBarCurved(
             contentAlignment = Alignment.BottomCenter
         ) {
             val outlineColor = MaterialTheme.colorScheme.inversePrimary
-            Canvas(
+            val borderColor = MaterialTheme.colorScheme.secondary
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(110.dp)
-            ) {
-                val width = size.width
-                val height = size.height
+                    .graphicsLayer {
+                        shadowElevation = 20f
+                        shape = FabCutoutShape()
+                        clip = true
+                    }
+                    .background(MaterialTheme.colorScheme.inversePrimary)
+                    .border(2.dp, Color.Black.copy(alpha = 0.1f), FabCutoutShape())
+            )
 
-                val fabRadius = 60.dp.toPx() // Adjust based on FAB size
-                val fabCenterX = width / 2
-                val fabBottomY = height - (fabRadius * 2)/3
-
-                val path = Path().apply {
-                    moveTo(0f, 0f)
-                    lineTo(fabCenterX - fabRadius * 1.5f, 0f)
-
-                    // Create the curved cutout for the FAB
-                    cubicTo(
-                        fabCenterX - fabRadius, 0f,
-                        fabCenterX - fabRadius * 0.5f, fabBottomY,
-                        fabCenterX, fabBottomY
-                    )
-                    cubicTo(
-                        fabCenterX + fabRadius * 0.5f, fabBottomY,
-                        fabCenterX + fabRadius, 0f,
-                        fabCenterX + fabRadius * 1.5f, 0f
-                    )
-
-                    lineTo(width, 0f)
-                    lineTo(width, height)
-                    lineTo(0f, height)
-                    close()
-                }
-
-                drawPath(
-                    path,
-                    color = outlineColor
-                )
-            }
 
             Row(
                 modifier = Modifier
@@ -1029,8 +1007,8 @@ fun HourlyWeatherBottomSheet(
 
             LazyColumn(
                 modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                //contentPadding = PaddingValues(vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 items(if (isLoading) 5 else hourlyWeatherList?.size ?: 0) { hourlyData ->
                     VerticalWeatherCard(
@@ -1058,7 +1036,7 @@ fun VerticalWeatherCard(
         ),
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = 1.dp, vertical = 3.dp)
     ) {
         if (hourlyData == null) {
             VerticalShimmerWeatherCard(isDaytime)
@@ -1170,7 +1148,7 @@ private fun WeatherStatItem(
         }
     }
 }
-@Preview
+//@Preview
 @Composable
 private fun VerticalShimmerWeatherCard(
     isDaytime: Boolean
