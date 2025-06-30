@@ -83,7 +83,6 @@ fun MoodChartBackground(
     skyColors: List<Pair<Int, Color>>,
     vegetationBaseColors: List<Pair<Int, Color>>,
     vegetationHighlightColors: List<Pair<Int, Color>>,
-    landscapePoints: List<Float>,
     textMeasurer: TextMeasurer,
     content: @Composable BoxScope.() -> Unit
 ) {
@@ -245,7 +244,6 @@ fun MoodTimeline(
         skyColors = skyColors,
         vegetationBaseColors = vegetationBaseColors,
         vegetationHighlightColors = vegetationHighlightColors,
-        landscapePoints = landscapePoints,
         textMeasurer = textMeasurer
     ) {
         // Draw connecting lines between entries (uses the fixed Y position)
@@ -630,10 +628,24 @@ fun MoodChart(
             )
         }
     }
-    LaunchedEffect(key1 = scrollState, key2 = hourWidthPx, key3 = hourRange) {
 
-        val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-        val targetHour = (currentHour - 1).coerceIn(hourRange.first, hourRange.last)
+    val firstEntryTimestamp = moodEntries.minByOrNull { it.timeLogged }?.timeLogged
+
+    LaunchedEffect(firstEntryTimestamp) {
+        val now = Calendar.getInstance()
+        val isTodayList = moodEntries.isNotEmpty() && moodEntries.all { entry ->
+            val entryCal = Calendar.getInstance().apply { timeInMillis = entry.timeLogged }
+            entryCal.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
+                    entryCal.get(Calendar.DAY_OF_YEAR) == now.get(Calendar.DAY_OF_YEAR)
+        }
+
+        val targetHour = if (isTodayList) {
+            (now.get(Calendar.HOUR_OF_DAY) - 1).coerceIn(hourRange.first, hourRange.last)
+        } else {
+            firstEntryTimestamp?.let {
+                convertTimestampToFloatHour(it).toInt().coerceIn(hourRange.first, hourRange.last)
+            } ?: (now.get(Calendar.HOUR_OF_DAY) - 1).coerceIn(hourRange.first, hourRange.last)
+        }
         val targetScrollOffsetPx = (targetHour * hourWidthPx).roundToInt()
 
         delay(150)

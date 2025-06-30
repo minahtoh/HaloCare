@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
@@ -47,6 +48,7 @@ import com.example.halocare.viewmodel.MainViewModel
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.format.TextStyle
 import java.util.Locale
 
 //@Preview(widthDp = 320, heightDp = 720)
@@ -78,8 +80,6 @@ fun MoodTrackerScreen(
     val dailyAdvice by mainViewModel.todayAdvice.collectAsState()
     val context = LocalContext.current
 
-
-    // Track whether the user has scrolled down
     val isTopBarVisible by remember {
         derivedStateOf { scrollState.value < 50 }  // Adjust threshold as needed
     }
@@ -190,7 +190,8 @@ fun MoodTrackerScreen(
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             "Mood Insights",
@@ -198,11 +199,10 @@ fun MoodTrackerScreen(
                             fontWeight = FontWeight.Bold
                         )
                         Icon(
-                            painter = painterResource(id = R.drawable.emoji_adviser),
+                            painter = painterResource(id = R.drawable.wazirr_mirr),
                             contentDescription = null,
                             modifier = Modifier
-                                .size(30.dp)
-                                .rotate(360f),
+                                .size(30.dp),
                             tint = Color.Unspecified
                         )
                     }
@@ -219,7 +219,29 @@ fun MoodTrackerScreen(
                     .padding(6.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "Gandalf's says",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Icon(
+                        painter = painterResource(id = R.drawable.wzzrd),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(30.dp),
+                        tint = Color.Unspecified
+                    )
+                }
+                Column(modifier = Modifier.padding(
+                    bottom = 16.dp, start = 16.dp, end = 16.dp)) {
                     Text(
                         text = dailyAdvice ?: " ",
                         fontSize = 14.sp,
@@ -232,6 +254,9 @@ fun MoodTrackerScreen(
                     MoodEntryLogger(
                         onLogUserMood = {
                             mainViewModel.logMoodEntry(it)
+                            showMoodDialog = false
+                        },
+                        onClose = {
                             showMoodDialog = false
                         }
                     )
@@ -267,9 +292,9 @@ fun WeekDateSelector(
 
 
             val backgroundColor = if (isSelected && isClickable) {
-                MaterialTheme.colorScheme.primary // Highlight selected & enabled
+                MaterialTheme.colorScheme.errorContainer // Highlight selected & enabled
             } else {
-                Color.Transparent
+                MaterialTheme.colorScheme.inversePrimary
             }
 
             val dayOfWeekColor = when {
@@ -287,31 +312,57 @@ fun WeekDateSelector(
 
             Column(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(10.dp))
+                    .clip(RoundedCornerShape(18.dp))
                     .clickable(enabled = isClickable) {
                         onDateSelected(date)
                     }
                     .background(
                         backgroundColor
                     )
-                    .padding(vertical = 8.dp, horizontal = 15.dp),
+                    .padding(vertical = 2.dp, horizontal = 13.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    text = date.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, Locale.getDefault()),
-                    color = dayOfWeekColor,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-                Text(
-                    text = date.dayOfMonth.toString(),
-                    color = dayOfMonthColor,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Spacer(modifier = Modifier.height(5.dp))
+                Column(
+                    modifier = Modifier
+                        .height(25.dp)
+                        .width(50.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.surfaceTint,
+                            shape = RoundedCornerShape(20.dp)
+                        )
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault()),
+                        color = dayOfWeekColor,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(modifier = Modifier.height(25.dp))
+                Column(
+                    modifier = Modifier.size(30.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.inversePrimary,
+                            shape = RoundedCornerShape(7.dp)
+                        ),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = date.dayOfMonth.toString(),
+                        color = dayOfMonthColor,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(modifier = Modifier.height(7.dp))
             }
         }
+
     }
 }
 
@@ -320,7 +371,8 @@ fun WeekDateSelector(
 @Preview()
 @Composable
 fun MoodEntryLogger(
-    onLogUserMood : (HaloMoodEntry) -> Unit = {}
+    onLogUserMood : (HaloMoodEntry) -> Unit = {},
+    onClose : () -> Unit = {}
 ) {
     var selectedIcon by remember {
         mutableStateOf<MoodIconData?>(null)
@@ -340,8 +392,20 @@ fun MoodEntryLogger(
         MoodIconData(R.drawable.owkay_icon, "okay"),
         MoodIconData(R.drawable.lmfaoo_icon, "lmfaooo"),
         MoodIconData(R.drawable.traumatised_icon, "jesus"),
-        MoodIconData(R.drawable.depressed_icon, "depressed")
-    )
+        MoodIconData(R.drawable.depressed_icon, "depressed"),
+         MoodIconData(R.drawable.sheff, "cooking"),
+        MoodIconData(R.drawable.shockrr, "shocker"),
+        MoodIconData(R.drawable.too_sippin, "sipping"),
+        MoodIconData(R.drawable.micro_man, "announcement"),
+         MoodIconData(R.drawable.clawn, "clown"),
+        MoodIconData(R.drawable.wzzrd, "sorcerer"),
+         MoodIconData(R.drawable.socreates, "socrates"),
+         MoodIconData(R.drawable.robo_cop, "RoboCop"),
+         MoodIconData(R.drawable.bord_super, "superNO"),
+         MoodIconData(R.drawable.insp_cookie, "inspectorCookie"),
+         MoodIconData(R.drawable.zoomzoomzoom, "lockin"),
+         MoodIconData(R.drawable.general_ra, "general"),
+     )
 
 
     Card(
@@ -360,11 +424,26 @@ fun MoodEntryLogger(
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "How are you feeling?",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = "How are you feeling?",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "cancel",
+                    modifier = Modifier
+                        .size(20.dp)
+                        .clickable {
+                            onClose()
+                        }
+                )
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 

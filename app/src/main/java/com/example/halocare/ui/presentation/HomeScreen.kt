@@ -1306,7 +1306,7 @@ fun FeatureGridPopup(
             )
             Card(
                 shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(8.dp),
+                elevation = CardDefaults.cardElevation(2.dp),
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
                     .wrapContentHeight()
