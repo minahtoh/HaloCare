@@ -573,7 +573,9 @@ fun HaloCareBottomBarCurved(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .size(60.dp)
-                    .offset(y = (20).dp) // Lifts the FAB above the cutout
+                    .offset(y = (30).dp) // Lifts the FAB above the cutout
+                    .shadow(elevation = 2.dp, shape = CircleShape, clip = false)
+
             ) {
                 Icon(
                     Icons.Default.Add,
@@ -1352,11 +1354,17 @@ fun FeatureGridItem(
         modifier = Modifier
             .clickable { onClick(feature.route) }
             .padding(8.dp)
+
     ) {
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
                 .size(56.dp)
+                .shadow(
+                    elevation = 3.dp,
+                    shape = CircleShape,
+                    clip = false
+                )
                 .background(
                     color = MaterialTheme.colorScheme.tertiaryContainer,
                     shape = CircleShape

@@ -96,7 +96,10 @@ fun SleepTrackerChart(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.secondaryContainer)
+            .background(
+                color = MaterialTheme.colorScheme.surfaceTint,
+                shape = RoundedCornerShape(7.dp)
+            )
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {

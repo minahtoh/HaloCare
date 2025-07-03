@@ -6,6 +6,7 @@ import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Shader
 import android.os.Build
 import android.provider.Settings
 import android.util.Log
@@ -18,6 +19,7 @@ import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateDpAsState
@@ -31,6 +33,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -57,12 +61,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RenderEffect
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
@@ -85,6 +92,7 @@ import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -242,7 +250,7 @@ fun DailyHabitsScreen(
                         modifier = Modifier
                             .verticalScroll(scrollState)
                             .fillMaxSize()
-                            .padding(8.dp)
+                            .padding(1.dp)
                             .pointerInput(Unit) {
                                 detectTapGestures {
                                     focusManager.clearFocus()
@@ -297,13 +305,9 @@ private fun ExerciseTabContent(
     val timerStatus by mainViewModel.isRunning.collectAsStateWithLifecycle()
 
     // Chart Placeholder
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(320.dp),
-    ){
-        ExerciseTrackerChart(exerciseDataList ?: emptyList())
-    }
+
+    ExerciseTrackerChart(exerciseDataList ?: emptyList())
+
     // Progress Bar Placeholder
     Column(
         modifier = Modifier
@@ -317,30 +321,68 @@ private fun ExerciseTabContent(
             exerciseList = exerciseDataList ?: emptyList()
         )
     }
-
+    Spacer(modifier = Modifier.height(3.dp))
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .height(500.dp)
+            .shadow(elevation = 7.dp, clip = false)
+            .clip(RoundedCornerShape(15.dp))
             .background(
-                color = MaterialTheme.colorScheme.primaryContainer
+                color = MaterialTheme.colorScheme.surfaceVariant,
             )
-            .padding(7.dp)
-    ) {
-        Text("Start Today's Exercise", fontSize = 18.sp)
-        Spacer(modifier = Modifier.height(8.dp))
-        ExerciseTimer(
-            onTimerStopped = {
-                mainViewModel.saveExerciseData(it)
-                elapsedTime = it.timeElapsed
-            },
-            time = time,
-            exerciseName = exerciseName,
-            updateExerciseName = { mainViewModel.onExerciseNameChange(it) },
-            clearTimerState = { mainViewModel.clearTimerState() },
-            isTimerRunning = timerStatus
-        )
-        Spacer(modifier = Modifier.height(135.dp))
+            .padding(3.dp)
+    ){
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                )
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize()
+            ){
+                Image(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(
+                            RoundedCornerShape(
+                                topStart = 15.dp, topEnd = 15.dp,
+                                bottomStart = 0.dp, bottomEnd = 0.dp
+                            )
+                        ),
+                    painter = painterResource(id = R.drawable.background_exercise_timer),
+                    contentDescription = null
+                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(7.dp)
+                ) {
+                    Text(
+                        "Start Today's Exercise",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    ExerciseTimer(
+                        onTimerStopped = {
+                            mainViewModel.saveExerciseData(it)
+                            elapsedTime = it.timeElapsed
+                        },
+                        time = time,
+                        exerciseName = exerciseName,
+                        updateExerciseName = { mainViewModel.onExerciseNameChange(it) },
+                        clearTimerState = { mainViewModel.clearTimerState() },
+                        isTimerRunning = timerStatus
+                    )
+                    Spacer(modifier = Modifier.height(5.dp))
+                }
+            }
+        }
     }
+    Spacer(modifier = Modifier.height(150.dp))
 }
 
 @Composable
@@ -352,15 +394,49 @@ private fun SleepTabContent(
     val hasLoggedToday = sleepDataList.any { it.dayLogged == today }
 
     // Chart Placeholder
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(350.dp),
-    ){
-        SleepTrackerChart(
-            sleepDataList
+            .height(305.dp) // slightly more than chart height
+            .padding(horizontal = 6.dp)
+    ) {
+        // Folder background layer (static shape)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.TopStart)
+                .height(300.dp)
+                .padding(horizontal = 10.dp)
+                .shadow(3.dp, RoundedCornerShape(14.dp), clip = false)
+                .clip(RoundedCornerShape(20.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f))
         )
+
+        // Main card/chart
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(300.dp)
+                .align(Alignment.BottomCenter)
+                .shadow(7.dp, RoundedCornerShape(15.dp), clip = false)
+                .clip(RoundedCornerShape(15.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(12.dp)
+            ) {
+                Text(
+                    text = "Sleep Pattern",
+                    color = Color.Black,
+                    modifier = Modifier.padding(bottom = 10.dp)
+                )
+                SleepTrackerChart(sleepDataList)
+            }
+        }
     }
+    Spacer(modifier = Modifier.height(7.dp))
     // Progress Bar Placeholder
     Column(
         modifier = Modifier
@@ -461,24 +537,58 @@ private fun JournalTabContent(
             }
         )
     }
-
 }
 
 @Composable
 private fun ScreenTimeTabContent(
     screenTimeSummary: MutableList<ScreenTimeEntry>
 ){
-      // Chart Placeholder
-    Column(
+    // Chart Placeholder
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(320.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ){
-        ScreenTimePieChart(
-            screenTimeSummary.toList()
+            .height(305.dp) // slightly more than chart height
+            .padding(horizontal = 6.dp)
+    ) {
+        // Folder background layer (static shape)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.TopStart)
+                .height(300.dp)
+                .padding(horizontal = 10.dp)
+                .shadow(3.dp, RoundedCornerShape(14.dp), clip = false)
+                .clip(RoundedCornerShape(20.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f))
         )
+
+        // Main card/chart
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(300.dp)
+                .align(Alignment.BottomCenter)
+                .shadow(7.dp, RoundedCornerShape(15.dp), clip = false)
+                .clip(RoundedCornerShape(15.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(12.dp)
+            ) {
+                Text(
+                    text = "Screen Time Usage",
+                    color = Color.Black,
+                    modifier = Modifier.padding(bottom = 10.dp)
+                )
+                ScreenTimePieChart(
+                    screenTimeSummary.toList()
+                )
+            }
+        }
     }
+
 
     ScreenTimeTracker(
         screenTimeSummary = screenTimeSummary,
@@ -497,7 +607,7 @@ fun ScreenTimeTracker(
     onAppSelected : (ScreenTimeEntry)-> Unit,
 ) {
     val context = LocalContext.current
-    var hasPermission by remember { mutableStateOf(hasUsagePermission(context)) }
+    val hasPermission by remember { mutableStateOf(hasUsagePermission(context)) }
     var selectedApps by remember { mutableStateOf(mutableSetOf<String>()) }
     var screenTimeData by remember { mutableStateOf<Map<String, Long>>(emptyMap()) }
 
@@ -670,21 +780,34 @@ fun getScreenTimeForApps(context: Context, selectedApps: Set<String>): Map<Strin
 fun ExerciseTrackerChart(
     exerciseDataList: List<ExerciseData>
 ) {
-    Column(
+    Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .height(300.dp)
-            .shadow(elevation = 7.dp)
-            .background(
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = RoundedCornerShape(15.dp)
+            .padding(6.dp) // space around the shadow
+            .shadow(
+                elevation = 7.dp,
+                shape = RoundedCornerShape(15.dp),
+                clip = false
             )
-            .padding(6.dp)
+            .clip(RoundedCornerShape(15.dp)) // actually clips the content
+            .background(MaterialTheme.colorScheme.surfaceVariant)
     ) {
-        Text(text = "Exercise Progress", color = Color.Black, modifier = Modifier.padding(10.dp))
-        Spacer(modifier = Modifier.height(8.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(300.dp)
+                .padding(12.dp) // internal padding
+        ) {
+            Text(
+                text = "Exercise Progress",
+                color = Color.Black,
+                modifier = Modifier.padding(bottom = 10.dp)
+            )
 
-        HaloCharts(exerciseDataList = exerciseDataList.takeLast(20), featureName = "Exercise Tracker")
+            HaloCharts(
+                exerciseDataList = exerciseDataList.takeLast(20),
+                featureName = "Exercise Tracker"
+            )
+        }
     }
 }
 
@@ -2267,7 +2390,7 @@ fun ExerciseTimer(
         Column(
             modifier = Modifier
                 .shadow(
-                    elevation = 4.dp, shape = RoundedCornerShape(13.dp)
+                    elevation = 2.dp, shape = RoundedCornerShape(13.dp)
                 )
                 .background(
                     color = MaterialTheme.colorScheme.tertiaryContainer,
@@ -2285,65 +2408,13 @@ fun ExerciseTimer(
             )
             Spacer(modifier = Modifier.height(27.dp))
         }
-        Spacer(modifier = Modifier.height(56.dp))
-        Surface(
-            modifier = Modifier.shadow(8.dp, CircleShape, clip = false),
-            shape = CircleShape,
-            tonalElevation = 7.dp
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(150.dp)
-                    .drawBehind {
-                        if (highlightAlpha > 0f) {
-                            val strokeWidthPx = 8.dp.toPx()
-                            rotate(rotationAngle) {
-                                drawArc(
-                                    brush = Brush.sweepGradient(
-                                        colors = listOf(
-                                            Color.Transparent,
-                                            highlightColor.copy(alpha = 0.1f), // Use base highlight color
-                                            highlightColor,
-                                            highlightColor.copy(alpha = 0.1f),
-                                            Color.Transparent
-                                        ),
-                                        center = center
-                                    ),
-                                    startAngle = 0f,
-                                    sweepAngle = 360f,
-                                    useCenter = false,
-                                    topLeft = Offset(strokeWidthPx / 2, strokeWidthPx / 2),
-                                    size = Size(
-                                        size.width - strokeWidthPx,
-                                        size.height - strokeWidthPx
-                                    ),
-                                    style = Stroke(width = strokeWidthPx),
-                                    alpha = highlightAlpha
-                                )
-                            }
-                        }
-                    }
-                    .clip(CircleShape)
-                    .background(Color.Blue.copy(alpha = 0.2f)),
-                contentAlignment = Alignment.Center
-            ) {
-                val displayTime = if (time < 60) "$time s" else "${time / 60}m ${time % 60}s"
+        Spacer(modifier = Modifier.height(46.dp))
+        val displayTime = if (time < 60) "$time s" else "${time / 60}m ${time % 60}s"
 
-                Text(
-                    text = displayTime,
-                    fontSize = 24.sp,
-                    color = Color.Black,
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
-                )
-                Icon(
-                    painter = painterResource(id = R.drawable.baseline_directions_run_24),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 15.dp)
-                )
-            }
-        }
+        TimerContainer(
+            time = displayTime,
+            glowWhenRunning = true
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -2422,9 +2493,100 @@ private fun stopTimerService(context: Context) {
     context.startService(serviceIntent)
 }
 
+@Composable
+fun TimerContainer(
+    time: String,
+    modifier: Modifier = Modifier,
+    highlightColor: Color = Color(0xFF4285F4),
+    glowWhenRunning: Boolean = false,
+    content: @Composable () -> Unit = {
+        Text(
+            text = time,
+            fontSize = 28.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color(0xFF1A1A1A),
+            style = MaterialTheme.typography.bodyLarge
+        )
+    }
+) {
+    // Animate rotation for inner snake glow
+    val infiniteTransition = rememberInfiniteTransition(label = "Snake Inner Rotation")
+    val rotationAngle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 950, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "Inner Arc Rotation"
+    )
+
+    Surface(
+        modifier = modifier
+            .size(160.dp),
+        shape = CircleShape,
+        color = Color.White,
+        shadowElevation = 6.dp
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            // Inner rotating arc
+            if (glowWhenRunning) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val strokeWidth = 6.dp.toPx()
+                    val sweepAngle = 90f // Snake segment length
+                    val inset = strokeWidth // keeps it inside
+
+                    rotate(rotationAngle, pivot = center) {
+                        drawArc(
+                            brush = Brush.sweepGradient(
+                                listOf(
+                                    Color.Transparent,
+                                    highlightColor.copy(alpha = 0.25f),
+                                    highlightColor,
+                                    highlightColor.copy(alpha = 0.25f),
+                                    Color.Transparent
+                                )
+                            ),
+                            startAngle = 0f,
+                            sweepAngle = sweepAngle,
+                            useCenter = false,
+                            topLeft = Offset(inset, inset),
+                            size = Size(size.width - 2 * inset, size.height - 2 * inset),
+                            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                        )
+                    }
+                }
+            }
+
+            // Timer content + icon
+            Box(
+                modifier = Modifier
+                    .size(140.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                content()
+
+                Icon(
+                    painter = painterResource(id = R.drawable.baseline_directions_run_24),
+                    contentDescription = "Running Icon",
+                    tint = Color.DarkGray.copy(alpha = 0.75f),
+                    modifier = Modifier
+                        .size(24.dp)
+                        .align(Alignment.BottomCenter)
+                        .offset(y = (-10).dp)
+                )
+            }
+        }
+    }
+}
+
 
 @Preview(showBackground = true)
 @Composable
 fun PreviewDailyHabitsScreen() {
  //   DailyHabitsScreen()
 }
+

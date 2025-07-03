@@ -149,7 +149,7 @@ fun HaloCharts(
             ).padding(end = 25.dp, start = 4.dp)
     ) {
         Text(
-            text = "$featureName",
+            text = featureName,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 8.dp, start = 15.dp, top = 8.dp)
