@@ -6,8 +6,10 @@ import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.ImageDecoder
 import android.graphics.Shader
 import android.os.Build
+import android.os.Build.VERSION.SDK_INT
 import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
@@ -100,6 +102,11 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.ComponentRegistry
+import coil.ImageLoader
+import coil.compose.AsyncImage
+import coil.decode.ImageDecoderDecoder
+import coil.request.ImageRequest
 import com.example.halocare.R
 import com.example.halocare.services.ExerciseTimerService
 import com.example.halocare.ui.models.ExerciseData
@@ -250,7 +257,7 @@ fun DailyHabitsScreen(
                         modifier = Modifier
                             .verticalScroll(scrollState)
                             .fillMaxSize()
-                            .padding(1.dp)
+                            .padding(0.dp)
                             .pointerInput(Unit) {
                                 detectTapGestures {
                                     focusManager.clearFocus()
@@ -305,15 +312,36 @@ private fun ExerciseTabContent(
     val timerStatus by mainViewModel.isRunning.collectAsStateWithLifecycle()
 
     // Chart Placeholder
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(305.dp) // slightly more than chart height
+            .padding(horizontal = 1.dp)
+    ) {
+        // Folder background layer (static shape)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.TopStart)
+                .height(300.dp)
+                .padding(horizontal = 10.dp)
+                .shadow(3.dp, RoundedCornerShape(14.dp), clip = false)
+                .clip(RoundedCornerShape(20.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f))
+        )
 
-    ExerciseTrackerChart(exerciseDataList ?: emptyList())
+        // Main card/chart
+        ExerciseTrackerChart(exerciseDataList ?: emptyList())
+    }
+
+
 
     // Progress Bar Placeholder
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(350.dp)
-            .background(MaterialTheme.colorScheme.secondaryContainer),
+            .height(450.dp)
+            .background(MaterialTheme.colorScheme.surfaceVariant),
         //contentAlignment = Alignment.Center
     ){
         ExerciseProgressSection(
@@ -322,63 +350,39 @@ private fun ExerciseTabContent(
         )
     }
     Spacer(modifier = Modifier.height(3.dp))
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(500.dp)
-            .shadow(elevation = 7.dp, clip = false)
-            .clip(RoundedCornerShape(15.dp))
             .background(
-                color = MaterialTheme.colorScheme.surfaceVariant,
+                color = MaterialTheme.colorScheme.tertiaryContainer,
             )
-            .padding(3.dp)
-    ){
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                )
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize()
         ) {
-            Box(
-                modifier = Modifier.fillMaxSize()
-            ){
-                Image(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(
-                            RoundedCornerShape(
-                                topStart = 15.dp, topEnd = 15.dp,
-                                bottomStart = 0.dp, bottomEnd = 0.dp
-                            )
-                        ),
-                    painter = painterResource(id = R.drawable.background_exercise_timer),
-                    contentDescription = null
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+            ) {
+                Text(
+                    "Start Today's Exercise",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
                 )
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(7.dp)
-                ) {
-                    Text(
-                        "Start Today's Exercise",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    ExerciseTimer(
-                        onTimerStopped = {
-                            mainViewModel.saveExerciseData(it)
-                            elapsedTime = it.timeElapsed
-                        },
-                        time = time,
-                        exerciseName = exerciseName,
-                        updateExerciseName = { mainViewModel.onExerciseNameChange(it) },
-                        clearTimerState = { mainViewModel.clearTimerState() },
-                        isTimerRunning = timerStatus
-                    )
-                    Spacer(modifier = Modifier.height(5.dp))
-                }
+                Spacer(modifier = Modifier.height(8.dp))
+                ExerciseTimer(
+                    onTimerStopped = {
+                        mainViewModel.saveExerciseData(it)
+                        elapsedTime = it.timeElapsed
+                    },
+                    time = time,
+                    exerciseName = exerciseName,
+                    updateExerciseName = { mainViewModel.onExerciseNameChange(it) },
+                    clearTimerState = { mainViewModel.clearTimerState() },
+                    isTimerRunning = timerStatus
+                )
+                Spacer(modifier = Modifier.height(5.dp))
             }
         }
     }
@@ -455,41 +459,75 @@ private fun SleepTabContent(
             )
         }
     }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(700.dp)
+            .shadow(elevation = 7.dp, clip = false)
+            .clip(RoundedCornerShape(15.dp))
+            .background(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+            )
+            .padding(3.dp)
+    ){
+        Box(modifier = Modifier.fillMaxSize()){
 
-    Text(
-        text ="Log Today Sleep",
-        fontSize = 20.sp,
-        fontWeight = FontWeight.Bold
-    )
-    Spacer(modifier = Modifier.height(8.dp))
-    if(!hasLoggedToday){
-        SleepTracker(
-            saveSleepData = {
-                mainViewModel.logSleepData(it)
-            }
-        )
-        Spacer(modifier = Modifier.height(190.dp))
-    }else{
-        Box(
-            modifier = Modifier.fillMaxWidth(),
-            contentAlignment = Alignment.Center
-        ) {
+        /*    Image(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(
+                        RoundedCornerShape(
+                            topStart = 15.dp, topEnd = 15.dp,
+                            bottomStart = 0.dp, bottomEnd = 0.dp
+                        )
+                    ),
+                painter = painterResource(id = R.drawable.sleep__tracker__bg),
+                contentDescription = null
+            )
+            */
+
             Column(
-                horizontalAlignment = Alignment.CenterHorizontally
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.sleeping_icon_for_dissclaimer),
-                    contentDescription = "sleeping",
-                    modifier = Modifier.size(200.dp),
-                    //colorFilter = ColorFilter.tint(color = Color.Unspecified)
-                )
+
                 Text(
-                    text = "You’ve already logged your sleep for today.",
-                    color = Color.Gray,
-                    fontSize = 16.sp,
-                    textAlign = TextAlign.Center
+                    text ="Log Today Sleep",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
                 )
-                Spacer(modifier = Modifier.height(190.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+
+                if(!hasLoggedToday){
+                    SleepTracker(
+                        saveSleepData = {
+                            mainViewModel.logSleepData(it)
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(190.dp))
+                }else{
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Image(
+                                painter = painterResource(id = R.drawable.sleeping_icon_for_dissclaimer),
+                                contentDescription = "sleeping",
+                                modifier = Modifier.size(200.dp),
+                                //colorFilter = ColorFilter.tint(color = Color.Unspecified)
+                            )
+                            Text(
+                                text = "You’ve already logged your sleep for today.",
+                                color = Color.Gray,
+                                fontSize = 16.sp,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(190.dp))
+                        }
+                    }
+                }
             }
         }
     }
@@ -503,18 +541,44 @@ private fun JournalTabContent(
 ) {
 
     // Chart Placeholder
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(380.dp),
+            .height(360.dp) // slightly more than chart height
+            .padding(3.dp)
     ) {
-        JournalHeatmap(
-            entries = journalDataList,
-            onDateClicked = { entries ->
-                onDatePressed(entries)
-            }
+        // Folder background layer (static shape)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.TopStart)
+                .height(300.dp)
+                .padding(horizontal = 10.dp)
+                .shadow(3.dp, RoundedCornerShape(14.dp), clip = false)
+                .clip(RoundedCornerShape(20.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f))
         )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(350.dp)
+                .align(Alignment.BottomCenter)
+                .shadow(7.dp, RoundedCornerShape(15.dp), clip = false)
+                .clip(RoundedCornerShape(15.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .padding(bottom = 2.dp)
+        ){
+            // Main card/chart
+            JournalHeatmap(
+                entries = journalDataList,
+                onDateClicked = { entries ->
+                    onDatePressed(entries)
+                }
+            )
+        }
+
     }
+
     // Progress Bar Placeholder
     Column(
         modifier = Modifier
@@ -547,7 +611,7 @@ private fun ScreenTimeTabContent(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(305.dp) // slightly more than chart height
+            .height(300.dp) // slightly more than chart height
             .padding(horizontal = 6.dp)
     ) {
         // Folder background layer (static shape)
@@ -843,9 +907,8 @@ fun ExerciseProgressSection(
             Box(
                 modifier = Modifier
                     .size(50.dp)
-                    .shadow(elevation = 4.dp, shape = RoundedCornerShape(9.dp))
-                    .background(color = MaterialTheme.colorScheme.secondaryContainer)
-                    ,
+                    .shadow(elevation = 1.dp, shape = RoundedCornerShape(9.dp), clip = true)
+                    .background(color = MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -855,12 +918,12 @@ fun ExerciseProgressSection(
                 )
             }
         }
-        Spacer(modifier = Modifier.height(7.dp))
+        Spacer(modifier = Modifier.height(2.dp))
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp)
-                .shadow(elevation = 3.dp, shape = RoundedCornerShape(13.dp))
+                .shadow(elevation = 2.dp, shape = RoundedCornerShape(13.dp))
                 .background(
                     shape = RoundedCornerShape(13.dp),
                     color = MaterialTheme.colorScheme.primaryContainer
@@ -880,14 +943,13 @@ fun ExerciseProgressSection(
             )
 
         }
-        Spacer(modifier = Modifier.height(5.dp))
+        Spacer(modifier = Modifier.height(1.dp))
 
         Text(
             text = "$currentProgress min / $dailyGoal min",
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.align(Alignment.CenterHorizontally)
         )
-        Spacer(modifier = Modifier.height(10.dp))
 
         // Secondary Progress Bar - Weekly Streak
         Row(
@@ -902,8 +964,8 @@ fun ExerciseProgressSection(
             Box(
                 modifier = Modifier
                     .size(50.dp)
-                    .shadow(elevation = 4.dp, shape = RoundedCornerShape(9.dp))
-                    .background(color = MaterialTheme.colorScheme.surfaceVariant),
+                    .shadow(elevation = 1.dp, shape = RoundedCornerShape(9.dp))
+                    .background(color = MaterialTheme.colorScheme.secondaryContainer),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -913,7 +975,7 @@ fun ExerciseProgressSection(
                 )
             }
         }
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(5.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -940,26 +1002,46 @@ fun WeeklyStreakRow(
     val startOfWeek = today.with(DayOfWeek.MONDAY)
 
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         for (i in 0 until weeklyGoal) {
             val day = startOfWeek.plusDays(i.toLong())
             val isCompleted = completedDates.contains(day)
+            val dayLabel = day.dayOfWeek.name.take(3).capitalize()
 
-            Box(
-                modifier = Modifier
-                    .size(24.dp)
-                    .shadow(elevation = 3.dp, shape = CircleShape)
-                    .clip(CircleShape)
-                    .background(
-                        if (isCompleted)
-                            MaterialTheme.colorScheme.inversePrimary
-                        else
-                            Color.LightGray
-                    )
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Day label
+                Text(
+                    text = dayLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
 
-            )
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Pill indicator
+                Box(
+                    modifier = Modifier
+                        .width(36.dp)
+                        .height(18.dp)
+                        .shadow(
+                            elevation = if (isCompleted) 4.dp else 1.dp,
+                            shape = RoundedCornerShape(50)
+                        )
+                        .clip(RoundedCornerShape(50))
+                        .background(
+                            if (isCompleted)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.surfaceVariant
+                        ),
+                )
+            }
         }
     }
 }
@@ -1019,7 +1101,8 @@ fun SleepAnalysisPlaceHolder(
                     .padding(horizontal = 16.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
+                ),
+                elevation = CardDefaults.elevatedCardElevation(3.dp)
             ) {
                 Row(
                     modifier = Modifier.padding(16.dp),
@@ -1055,58 +1138,91 @@ fun SleepAnalysisPlaceHolder(
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 // Quality Rating
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "QUALITY",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                    Text(
-                        text = "${sleepDataList.last().sleepQuality}/5",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    LinearProgressIndicator(
-                        progress = sleepDataList.last().sleepQuality / 5f,
-                        modifier = Modifier
-                            .width(80.dp)
-                            .height(8.dp)
-                            .padding(top = 4.dp),
-                        color = when (sleepDataList.last().sleepQuality) {
-                            4, 5 -> Color(0xFF4CAF50)
-                            3 -> Color(0xFFFFC107)
-                            else -> Color(0xFFF44336)
-                        }
-                    )
+                Card(
+                    modifier = Modifier
+                        .width(175.dp)
+                        .height(125.dp)
+                        .padding(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    ),
+                    elevation = CardDefaults.elevatedCardElevation(1.dp),
+                    shape = RoundedCornerShape(7.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "QUALITY",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                        Text(
+                            text = "${sleepDataList.last().sleepQuality}/5",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        LinearProgressIndicator(
+                            progress = sleepDataList.last().sleepQuality / 5f,
+                            modifier = Modifier
+                                .width(80.dp)
+                                .height(8.dp)
+                                .padding(top = 4.dp),
+                            color = when (sleepDataList.last().sleepQuality) {
+                                4, 5 -> Color(0xFF4CAF50)
+                                3 -> Color(0xFFFFC107)
+                                else -> Color(0xFFF44336)
+                            }
+                        )
+                    }
                 }
 
                 // Divider
                 Divider(
                     modifier = Modifier
-                        .height(40.dp)
+                        .padding(top = 10.dp)
+                        .height(100.dp)
                         .width(1.dp),
                     color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
                 )
 
                 // Comparison to Average
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "VS YOUR AVERAGE",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                    val avgSleep = sleepDataList.map { it.sleepLength }.average().toFloat()
-                    val diff = sleepDataList.last().sleepLength - avgSleep
-                    Text(
-                        text = "${if (diff >= 0) "+" else ""}${"%.1f".format(diff)}h",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = when {
-                            diff > 0.5 -> Color(0xFF4CAF50)
-                            diff < -0.5 -> Color(0xFFF44336)
-                            else -> MaterialTheme.colorScheme.onSurface
-                        },
-                        fontWeight = FontWeight.Bold
-                    )
+                Card(
+                    modifier = Modifier
+                        .width(175.dp)
+                        .height(125.dp)
+                        .padding(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    ),
+                    elevation = CardDefaults.elevatedCardElevation(1.dp),
+                    shape = RoundedCornerShape(7.dp)
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        Text(
+                            text = "VS YOUR AVERAGE",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                        val avgSleep = sleepDataList.map { it.sleepLength }.average().toFloat()
+                        val diff = sleepDataList.last().sleepLength - avgSleep
+                        Text(
+                            text = "${if (diff >= 0) "+" else ""}${"%.1f".format(diff)}h",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = when {
+                                diff > 0.5 -> Color(0xFF4CAF50)
+                                diff < -0.5 -> Color(0xFFF44336)
+                                else -> MaterialTheme.colorScheme.onSurface
+                            },
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
 
@@ -2335,7 +2451,7 @@ fun animateEllipsis(): State<String> {
 
 
 
-@OptIn(ExperimentalMaterial3Api::class)
+
 @Composable
 fun ExerciseTimer(
     onTimerStopped : (ExerciseData) -> Unit,
@@ -2364,115 +2480,128 @@ fun ExerciseTimer(
             isRunning = false
         }
     }
-
     val infiniteTransition = rememberInfiniteTransition(label = "highlightRotation")
-    val rotationAngle by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "rotationAngle"
-    )
-    val highlightAlpha by animateFloatAsState(
-        targetValue = if (isRunning) 1f else 0f, // Target 1f if running, 0f otherwise
-        animationSpec = tween(durationMillis = 300),
-        label = "highlightAlpha"
-    )
-    val highlightColor = MaterialTheme.colorScheme.inversePrimary
 
 
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.fillMaxWidth()) {
-
-        Column(
-            modifier = Modifier
-                .shadow(
-                    elevation = 2.dp, shape = RoundedCornerShape(13.dp)
-                )
-                .background(
-                    color = MaterialTheme.colorScheme.tertiaryContainer,
-                    shape = RoundedCornerShape(13.dp)
-                )
-                .padding(13.dp)
-        ) {
-            OutlinedTextField(
-                value = exerciseName,
-                onValueChange = { updateExerciseName(it) },
-                label = { Text("Enter Exercise Name") },
-                singleLine = true,
-                readOnly = isRunning,
-                modifier = Modifier.fillMaxWidth()
+    Column {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Image(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(
+                        RoundedCornerShape(
+                            topStart = 15.dp, topEnd = 15.dp,
+                            bottomStart = 0.dp, bottomEnd = 0.dp
+                        )
+                    ),
+                painter = painterResource(id = R.drawable.background_exercise_timer),
+                contentDescription = null
             )
-            Spacer(modifier = Modifier.height(27.dp))
-        }
-        Spacer(modifier = Modifier.height(46.dp))
-        val displayTime = if (time < 60) "$time s" else "${time / 60}m ${time % 60}s"
 
-        TimerContainer(
-            time = displayTime,
-            glowWhenRunning = true
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Box(
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Button(
-                    modifier = Modifier.align(Alignment.Center),
-                    elevation = ButtonDefaults.elevatedButtonElevation(5.dp),
-                    enabled = exerciseName.isNotBlank(),
-                    onClick = {
-                        if (isRunning) {
-                            stopTimerService(context)
-                            isRunning = false
-                        } else {
+                Column(
+                    modifier = Modifier
+                        .shadow(
+                            elevation = 2.dp, shape = RoundedCornerShape(13.dp)
+                        )
+                        .background(
+                            color = MaterialTheme.colorScheme.tertiaryContainer,
+                            shape = RoundedCornerShape(13.dp)
+                        )
+                        .padding(13.dp)
+                ) {
+                    OutlinedTextField(
+                        value = exerciseName,
+                        onValueChange = { updateExerciseName(it) },
+                        label = { Text("Enter Exercise Name") },
+                        singleLine = true,
+                        readOnly = isRunning,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(27.dp))
+                }
+                Spacer(modifier = Modifier.height(46.dp))
+                val displayTime = if (time < 60) "$time s" else "${time / 60}m ${time % 60}s"
 
-                            // Check for Notification Permission on Android 13+
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                if (ContextCompat.checkSelfPermission(
-                                        context,
-                                        Manifest.permission.POST_NOTIFICATIONS
-                                    )
-                                    != PackageManager.PERMISSION_GRANTED
-                                ) {
-                                    permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                                } else {
-                                    startTimerService(context)
-                                    isRunning = true
-                                }
+                TimerContainer(
+                    time = displayTime,
+                    glowWhenRunning = isTimerRunning
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
+        Spacer(modifier = Modifier.height(10.dp))
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .fillMaxHeight()
+            .background(MaterialTheme.colorScheme.tertiaryContainer)
+    ) {
+        Box(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Button(
+                modifier = Modifier.align(Alignment.Center),
+                elevation = ButtonDefaults.elevatedButtonElevation(5.dp),
+                enabled = exerciseName.isNotBlank(),
+                onClick = {
+                    if (isRunning) {
+                        stopTimerService(context)
+                        isRunning = false
+                    } else {
+
+                        // Check for Notification Permission on Android 13+
+                        if (SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            if (ContextCompat.checkSelfPermission(
+                                    context,
+                                    Manifest.permission.POST_NOTIFICATIONS
+                                )
+                                != PackageManager.PERMISSION_GRANTED
+                            ) {
+                                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                             } else {
                                 startTimerService(context)
                                 isRunning = true
                             }
+                        } else {
+                            startTimerService(context)
+                            isRunning = true
                         }
+                    }
+                }
+            ) {
+                Text(if (isRunning) "Stop" else "Start")
+            }
+            if (!isRunning && time != 0) {
+                Button(
+                    modifier = Modifier.align(Alignment.CenterEnd),
+                    elevation = ButtonDefaults.elevatedButtonElevation(2.dp),
+                    onClick = {
+                        val loggedExercise = ExerciseData(
+                            exerciseName = exerciseName,
+                            timeElapsed = time.toFloat(),
+                            exerciseDate = LocalDate.now().toString()
+                        )
+                        onTimerStopped(loggedExercise)
+                        clearTimerState()
                     }
                 ) {
-                    Text(if (isRunning) "Stop" else "Start")
+                    Text(text = "Log Time")
                 }
-                if (!isRunning && time != 0){
-                    Button(
-                        modifier = Modifier.align(Alignment.CenterEnd),
-                        elevation = ButtonDefaults.elevatedButtonElevation(5.dp),
-                        onClick = {
-                            val loggedExercise = ExerciseData(
-                                exerciseName = exerciseName,
-                                timeElapsed = time.toFloat(),
-                                exerciseDate = LocalDate.now().toString()
-                            )
-                            onTimerStopped(loggedExercise)
-                            clearTimerState()
-                        }
-                    ) {
-                        Text(text = "Log Time")
+                Button(
+                    modifier = Modifier.align(Alignment.CenterStart),
+                    elevation = ButtonDefaults.elevatedButtonElevation(2.dp),
+                    onClick = {
+                        clearTimerState()
                     }
+                ) {
+                    Text(text = "Reset")
                 }
+
             }
         }
     }
@@ -2568,16 +2697,35 @@ fun TimerContainer(
                 contentAlignment = Alignment.Center
             ) {
                 content()
-
-                Icon(
-                    painter = painterResource(id = R.drawable.baseline_directions_run_24),
-                    contentDescription = "Running Icon",
-                    tint = Color.DarkGray.copy(alpha = 0.75f),
-                    modifier = Modifier
-                        .size(24.dp)
-                        .align(Alignment.BottomCenter)
-                        .offset(y = (-10).dp)
-                )
+                val context = LocalContext.current
+                val imageLoader = ImageLoader.Builder(context)
+                    .components(fun ComponentRegistry.Builder.() {
+                        add(ImageDecoderDecoder.Factory())
+                    })
+                    .build()
+                if (glowWhenRunning){
+                    AsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .data(R.drawable.runnin_man_gif)
+                            .build(),
+                        contentDescription = null,
+                        imageLoader = imageLoader,
+                        modifier = Modifier
+                            .size(24.dp)
+                            .align(Alignment.BottomCenter)
+                            .offset(y = (-10).dp)
+                    )
+                }else{
+                    Icon(
+                        painter = painterResource(id = R.drawable.baseline_directions_run_24),
+                        contentDescription = "Running Icon",
+                        tint = Color.DarkGray.copy(alpha = 0.75f),
+                        modifier = Modifier
+                            .size(24.dp)
+                            .align(Alignment.BottomCenter)
+                            .offset(y = (-10).dp)
+                    )
+                }
             }
         }
     }

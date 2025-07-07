@@ -383,9 +383,9 @@ fun MoodEntryLogger(
      val moodIcons = listOf(
         MoodIconData(R.drawable.angry_icon,"angry"),
         MoodIconData(R.drawable.bandss_icon, "bandss af"),
-        MoodIconData(R.drawable.aristotle_icon, "im saying"),
+       // MoodIconData(R.drawable.aristotle_icon, "im saying"),
         MoodIconData(R.drawable.nowayyy_icon, "aint no way"),
-        MoodIconData(R.drawable.smartguy_icon, "nerdd"),
+       // MoodIconData(R.drawable.smartguy_icon, "nerdd"),
         MoodIconData(R.drawable.stoned_icon, "normalll"),
         MoodIconData(R.drawable.duhh_icon, "duhh"),
         MoodIconData(R.drawable.tearss_icon, "crying"),
@@ -405,6 +405,16 @@ fun MoodEntryLogger(
          MoodIconData(R.drawable.insp_cookie, "inspectorCookie"),
          MoodIconData(R.drawable.zoomzoomzoom, "lockin"),
          MoodIconData(R.drawable.general_ra, "general"),
+         MoodIconData(R.drawable.sleep_wud, "denger"),
+         MoodIconData(R.drawable.noodle_goat, "noodleGoat"),
+         MoodIconData(R.drawable.first_tuch, "lessgo"),
+         MoodIconData(R.drawable.mr_him, "sipper"),
+         MoodIconData(R.drawable.present_father, "presentFather"),
+         MoodIconData(R.drawable.explora, "explora"),
+         MoodIconData(R.drawable.lover_man, "loverMan"),
+         MoodIconData(R.drawable.yeatt, "AH"),
+         MoodIconData(R.drawable.darwin, "letsSee"),
+         MoodIconData(R.drawable.spit_it, "spitIt"),
      )
 
 
