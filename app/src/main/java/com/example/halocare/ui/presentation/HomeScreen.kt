@@ -216,7 +216,7 @@ fun HomeScreen(
         ) {
             Column(
                 modifier = Modifier
-                    .padding(top = 7.dp)
+                    .padding(top = 2.dp)
                     .verticalScroll(scrollState)
             ) {
                 var isDaytimeColor by remember { mutableStateOf(false) }
@@ -226,10 +226,10 @@ fun HomeScreen(
                         state = pagerState,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(280.dp),
-                        contentPadding = PaddingValues(start = 30.dp, end = 30.dp),
+                            .height(260.dp),
+                        contentPadding = PaddingValues(start = 4.dp, end = 4.dp),
                         //     beyondViewportPageCount = 1,
-                        pageSpacing = 0.dp
+                        pageSpacing = 15.dp
                     ) { page ->
                         UserDashboardCard(
                             imageRes = images[page],
@@ -271,42 +271,20 @@ fun HomeScreen(
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(10.dp))
                 CentreCircleDivider(
-                    modifier = Modifier.padding(horizontal = 30.dp)
+                    modifier = Modifier.padding(horizontal = 0.dp)
                 )
-                Spacer(modifier = Modifier.height(16.dp))
-                Column(modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 33.dp, end = 33.dp))
-                {
-                    if (weatherData != null){
-                        DashboardWeatherCard(
-                            weatherData = weatherData!!,
-                            onClick = {
-                                mainViewModel.getHourlyWeather("Lagos")
-                                showBottomSheet = true
-                                isDaytimeColor = it
-                            }
-                        )
-                    }else{
-                        WeatherCard()
-                    }
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-                CentreCircleDivider(
-                    modifier = Modifier.padding(horizontal = 30.dp)
-                )
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Column(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(2),
                         modifier = Modifier
-                            .height(400.dp)
+                            .height(310.dp)
                             .padding(1.dp),
-                        contentPadding = PaddingValues(15.dp),
+                        contentPadding = PaddingValues(7.dp),
                         horizontalArrangement = Arrangement.spacedBy(5.dp),
                         verticalArrangement = Arrangement.spacedBy(5.dp)
 
@@ -323,7 +301,7 @@ fun HomeScreen(
                                 colors = CardDefaults.cardColors(
                                     containerColor = MaterialTheme.colorScheme.primaryContainer
                                 ),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                             ) {
                                 Column(
                                     modifier = Modifier
@@ -344,6 +322,28 @@ fun HomeScreen(
                         }
                     }
                 }
+                Spacer(modifier = Modifier.height(3.dp))
+                CentreCircleDivider()
+                Spacer(modifier = Modifier.height(10.dp))
+                Column(modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 7.dp, end = 7.dp))
+                {
+                    if (weatherData != null){
+                        DashboardWeatherCard(
+                            weatherData = weatherData!!,
+                            onClick = {
+                                mainViewModel.getHourlyWeather("Lagos")
+                                showBottomSheet = true
+                                isDaytimeColor = it
+                            }
+                        )
+                    }else{
+                        WeatherCard()
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
                 Spacer(modifier = Modifier.height(350.dp))
                 if (showBottomSheet){
                     HourlyWeatherBottomSheet(
@@ -365,7 +365,6 @@ fun UserDashboardCard(
 ) {
     Card(
         modifier = modifier
-            .fillMaxWidth()
             .height(250.dp),
         shape = RoundedCornerShape(20.dp),
         elevation = CardDefaults.cardElevation(4.dp)
@@ -420,8 +419,8 @@ fun UserDashboardCard(
 fun CentreCircleDivider(
     modifier: Modifier = Modifier,
     lineColor: Color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
-    lineThickness: Dp = 3.dp,
-    circleRadius: Dp = 6.dp,
+    lineThickness: Dp = 2.dp,
+    circleRadius: Dp = 3.dp,
     circleColor: Color = MaterialTheme.colorScheme.primary
 ){
     Row(
@@ -859,7 +858,7 @@ fun DashboardWeatherCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(250.dp)
+            .height(280.dp)
             .clickable { onClick(isDaytime) },
         colors = CardDefaults.cardColors(
             containerColor = if (isDaytime)
@@ -868,7 +867,7 @@ fun DashboardWeatherCard(
                 MaterialTheme.colorScheme.secondaryContainer
         ),
         shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier

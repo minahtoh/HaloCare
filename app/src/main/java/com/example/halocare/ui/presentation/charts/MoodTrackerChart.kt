@@ -3,10 +3,12 @@ package com.example.halocare.ui.presentation.charts
 import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.EaseInOut
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandIn
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.Canvas
@@ -378,6 +380,7 @@ private fun groupEntriesByMinuteBucket(
 @Composable
 fun GroupedMoodEntry(
     entriesInGroup: List<HaloMoodEntry>,
+    key : Any?,
     position: Offset,
     isSelected: Boolean,
     iconSize : Dp = 30.dp,
@@ -390,7 +393,6 @@ fun GroupedMoodEntry(
 
     val iconWidthPx = with(density) { iconSize.toPx() }
 
-
     val startOffsetXDp = with(density) { (position.x - iconWidthPx / 2).toDp() }
     val startOffsetYDp = with(density) { (position.y - iconWidthPx / 2f).toDp() }
 
@@ -398,16 +400,22 @@ fun GroupedMoodEntry(
     val selectionShape = RoundedCornerShape(8.dp)
     val selectionColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
 
+
+    var hasAppeared by remember(key) { mutableStateOf(false) }
+
+    LaunchedEffect(key) {
+        hasAppeared = true
+    }
+
     AnimatedVisibility(
-        visible = true,
-        enter = fadeIn(animationSpec = tween(durationMillis = 1000, easing = LinearOutSlowInEasing)) +
-                scaleIn(
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessMedium
-                    ),
-                    initialScale = 0.3f
-                ),
+        visible = hasAppeared,
+        enter = scaleIn(
+            initialScale = 0.2f,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioLowBouncy, // the bounciest
+                stiffness = Spring.StiffnessLow // smooth & dramatic
+            )
+        ) + fadeIn(animationSpec = tween(300))
     ) {
         Box(
             contentAlignment = Alignment.TopStart,
@@ -579,7 +587,8 @@ fun MoodChart(
             iconSpacing = iconSpacing,
             isSelected = false,
             selectedEntry = currentSelectedEntry,
-            onEntryClick = clickHandler
+            onEntryClick = clickHandler,
+            key = entries.firstOrNull()?.id ?: entries.hashCode()
         )
     },
     markerContent: @Composable (HaloMoodEntry, Offset) -> Unit = { entry, position ->

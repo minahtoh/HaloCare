@@ -92,7 +92,6 @@ class MainViewModel @Inject constructor(
 
             if (intent?.action == ExerciseTimerService.BROADCAST_ACTION_STOPPED) {
                 val elapsedTimed = intent.getIntExtra(ExerciseTimerService.EXTRA_ELAPSED_TIME, 0)
-
                 _isRunning.value = false
                 Log.d("RunningTimer", "onReceive: isrunnning status $isRunning")
             }

@@ -76,6 +76,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -611,7 +612,7 @@ private fun ScreenTimeTabContent(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(300.dp) // slightly more than chart height
+            .height(305.dp) // slightly more than chart height
             .padding(horizontal = 6.dp)
     ) {
         // Folder background layer (static shape)
@@ -1256,9 +1257,26 @@ fun SleepTracker(
     var loggedToday by remember { mutableStateOf(false) }
     var showSlider by remember { mutableStateOf(false) }
     var manualSleepSliderValue by remember { mutableStateOf(6f) }
+    var showSavingDialog by remember { mutableStateOf(false) }
 
     val sleepOptions = listOf("Less than 5 hours", "About 5 hours", "More than 8 hours", "About 8 hours")
     val sleepQualityIcons = listOf("😢", "😕", "😐", "🙂", "😴")
+
+    if (showSavingDialog){
+        AnimatedSaveDialog(
+            loadingText = "Logging Sleep Data",
+            successText = "Sleep Data Saved"
+        ) {
+            val sleepData = SleepData(
+                dayLogged = LocalDate.now().format(DateTimeFormatter.ISO_DATE),
+                sleepQuality = sleepQuality,
+                sleepLength = getSleepLengthInHours(selectedSleepOption, manualSleepSliderValue, showSlider)
+            )
+            saveSleepData(sleepData)
+            showSavingDialog = false
+            loggedToday = true
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -1352,13 +1370,7 @@ fun SleepTracker(
 
         Button(
             onClick = {
-                val sleepData = SleepData(
-                    dayLogged = LocalDate.now().format(DateTimeFormatter.ISO_DATE),
-                    sleepQuality = sleepQuality,
-                    sleepLength = getSleepLengthInHours(selectedSleepOption, manualSleepSliderValue, showSlider)
-                )
-                saveSleepData(sleepData)
-                loggedToday = true
+                showSavingDialog = true
             },
             enabled = !loggedToday,
             modifier = Modifier
@@ -1964,110 +1976,6 @@ private fun getDailyAffirmation(): String {
     )
     return affirmations.random()
 }
-@Composable
-fun JournalInputWithLimit(
-    journalEntry: String,
-    onJournalChange: (String) -> Unit,
-    maxCharacters: Int = 150
-) {
-    val annotatedText = buildAnnotatedString {
-        val normalText = journalEntry.take(maxCharacters)
-        val overflowText = journalEntry.drop(maxCharacters)
-
-        append(normalText)
-        if (overflowText.isNotEmpty()) {
-            withStyle(SpanStyle(color = Color.Red)) {
-                append(overflowText)
-            }
-        }
-    }
-
-    Column {
-        BasicTextField(
-            value = journalEntry,
-            onValueChange = onJournalChange,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(150.dp)
-                .background(
-                    MaterialTheme.colorScheme.secondaryContainer,
-                    shape = MaterialTheme.shapes.medium
-                )
-                .padding(12.dp),
-            textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
-            decorationBox = { innerTextField ->
-                Box(modifier = Modifier.fillMaxSize()) {
-                    if (journalEntry.isEmpty()) {
-                        Text(
-                            text = "Enter your journal...",
-                            style = MaterialTheme.typography.bodyLarge.copy(
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                            )
-                        )
-                    }
-                    innerTextField()
-                }
-            },
-            visualTransformation = {
-                TransformedText(annotatedText, OffsetMapping.Identity)
-            }
-        )
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 4.dp),
-            horizontalArrangement = Arrangement.End
-        ) {
-            val overLimit = journalEntry.length > maxCharacters
-            Text(
-                text = "${journalEntry.length}/$maxCharacters",
-                style = MaterialTheme.typography.bodySmall.copy(
-                    color = if (overLimit) Color.Red else MaterialTheme.colorScheme.onSurface
-                )
-            )
-        }
-    }
-}
-
-@Composable
-fun JournalTypeSelector(
-    selectedType: String,
-    onTypeSelected: (String) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceAround,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        JournalTypeIcon(
-            icon = R.drawable.scroll_or_parchment_typ,
-            type = "scroll",
-            selectedType = selectedType,
-            onTypeSelected = onTypeSelected
-        )
-        JournalTypeIcon(
-            icon = R.drawable.sheet_of_paper_ic_typ,
-            type = "notebook",
-            selectedType = selectedType,
-            onTypeSelected = onTypeSelected
-        )
-        JournalTypeIcon(
-            icon =  R.drawable.sticky_note_ic,
-            type = "sticky_note",
-            selectedType = selectedType,
-            onTypeSelected = onTypeSelected
-        )
-        JournalTypeIcon(
-            icon = R.drawable.open_journal_book_1_ic_typ,
-            type = "open_book",
-            selectedType = selectedType,
-            onTypeSelected = onTypeSelected
-        )
-    }
-}
 
 @Composable
 fun JournalTypeIcon(
@@ -2465,6 +2373,7 @@ fun ExerciseTimer(
     var isRunning by remember { mutableStateOf(isTimerRunning) }
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
+    var showSavingDialog by remember{ mutableStateOf(false)}
 
 
 
@@ -2485,6 +2394,21 @@ fun ExerciseTimer(
 
     Column {
         Box(modifier = Modifier.fillMaxSize()) {
+            if (showSavingDialog){
+                AnimatedSaveDialog(
+                    loadingText = "Logging exercise time",
+                    successText = "Saved"
+                ) {
+                    val loggedExercise = ExerciseData(
+                        exerciseName = exerciseName,
+                        timeElapsed = time.toFloat(),
+                        exerciseDate = LocalDate.now().toString()
+                    )
+                    onTimerStopped(loggedExercise)
+                    clearTimerState()
+                    showSavingDialog = false
+                }
+            }
             Image(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -2581,13 +2505,7 @@ fun ExerciseTimer(
                     modifier = Modifier.align(Alignment.CenterEnd),
                     elevation = ButtonDefaults.elevatedButtonElevation(2.dp),
                     onClick = {
-                        val loggedExercise = ExerciseData(
-                            exerciseName = exerciseName,
-                            timeElapsed = time.toFloat(),
-                            exerciseDate = LocalDate.now().toString()
-                        )
-                        onTimerStopped(loggedExercise)
-                        clearTimerState()
+                        showSavingDialog = true
                     }
                 ) {
                     Text(text = "Log Time")
@@ -2724,6 +2642,74 @@ fun TimerContainer(
                             .size(24.dp)
                             .align(Alignment.BottomCenter)
                             .offset(y = (-10).dp)
+                    )
+                }
+            }
+        }
+    }
+}
+@Composable
+fun AnimatedSaveDialog(
+    loadingText: String = "Saving",
+    successText: String = "Saved!",
+    successIcon: ImageVector = Icons.Default.CheckCircle,
+    durationMillis: Int = 2000,
+    successDurationMillis: Int = 1000,
+    onFinished: () -> Unit
+) {
+    var isSaving by remember { mutableStateOf(true) }
+    val animatedEllipsis by animateEllipsis()
+
+    // Automatically transition to success, then finish
+    LaunchedEffect(Unit) {
+        delay(durationMillis.toLong())
+        isSaving = false
+        delay(successDurationMillis.toLong())
+        onFinished()
+    }
+
+    Dialog(onDismissRequest = {}) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.8f)
+                .height(200.dp)
+                .background(
+                    MaterialTheme.colorScheme.secondaryContainer,
+                    shape = RoundedCornerShape(16.dp)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                if (isSaving) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(48.dp),
+                        color = MaterialTheme.colorScheme.tertiaryContainer
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = loadingText,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Text(
+                            text = animatedEllipsis,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                } else {
+                    Icon(
+                        imageVector = successIcon,
+                        contentDescription = "Success",
+                        tint = Color(0xFF4CAF50),
+                        modifier = Modifier.size(64.dp)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = successText,
+                        style = MaterialTheme.typography.bodyMedium
                     )
                 }
             }
