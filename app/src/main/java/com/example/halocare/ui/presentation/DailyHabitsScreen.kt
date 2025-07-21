@@ -114,10 +114,21 @@ import com.example.halocare.ui.models.ExerciseData
 import com.example.halocare.ui.models.JournalEntry
 import com.example.halocare.ui.models.ScreenTimeEntry
 import com.example.halocare.ui.models.SleepData
+import com.example.halocare.ui.presentation.charts.AnimatedText
 import com.example.halocare.ui.presentation.charts.HaloCharts
 import com.example.halocare.ui.presentation.charts.JournalHeatmap
+import com.example.halocare.ui.presentation.charts.NotebookBackground
+import com.example.halocare.ui.presentation.charts.NotebookJournalView
+import com.example.halocare.ui.presentation.charts.OpenBookBackground
+import com.example.halocare.ui.presentation.charts.OpenBookJournalView
 import com.example.halocare.ui.presentation.charts.ScreenTimePieChart
+import com.example.halocare.ui.presentation.charts.ScrollBackground
+import com.example.halocare.ui.presentation.charts.ScrollJournalView
 import com.example.halocare.ui.presentation.charts.SleepTrackerChart
+import com.example.halocare.ui.presentation.charts.StickyNoteBackground
+import com.example.halocare.ui.presentation.charts.StickyNoteJournalView
+import com.example.halocare.ui.presentation.charts.formatTextWithLineBreaks
+import com.example.halocare.ui.presentation.charts.toJournalType
 import com.example.halocare.viewmodel.MainViewModel
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
@@ -464,10 +475,8 @@ private fun SleepTabContent(
         modifier = Modifier
             .fillMaxWidth()
             .height(700.dp)
-            .shadow(elevation = 7.dp, clip = false)
-            .clip(RoundedCornerShape(15.dp))
             .background(
-                color = MaterialTheme.colorScheme.surfaceVariant,
+                color = MaterialTheme.colorScheme.secondaryContainer,
             )
             .padding(3.dp)
     ){
@@ -498,7 +507,7 @@ private fun SleepTabContent(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
-                if(!hasLoggedToday){
+                if(hasLoggedToday){
                     SleepTracker(
                         saveSleepData = {
                             mainViewModel.logSleepData(it)
@@ -584,17 +593,43 @@ private fun JournalTabContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(350.dp)
+            .height(300.dp)
             .background(MaterialTheme.colorScheme.secondaryContainer),
         //contentAlignment = Alignment.Center
     ) {
         JournalStreakProgress(journalDataList)
     }
 
+    // Affirmation Card
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Today's Affirmation",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = getDailyAffirmation(), // Replace with your affirmation logic
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.primaryContainer)
+            .shadow(elevation = 1.dp, shape = RoundedCornerShape(9.dp))
+            .background(MaterialTheme.colorScheme.secondaryContainer)
     ) {
         JournalingTracker(
             saveJournal = {
@@ -1281,6 +1316,10 @@ fun SleepTracker(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(horizontal = 7.dp)
+            .shadow(elevation = 2.dp, shape = RoundedCornerShape(7.dp))
+            .clip(RoundedCornerShape(7.dp))
+            .background(color = MaterialTheme.colorScheme.surfaceVariant)
             .padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -1303,7 +1342,15 @@ fun SleepTracker(
                             showSlider = false
                             selectedSleepOption = option
                         },
-                        label = { Text(option, fontSize = 14.sp) }
+                        label = { Text(option, fontSize = 14.sp) },
+                        colors = FilterChipDefaults.elevatedFilterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                        ),
+                        elevation = FilterChipDefaults.elevatedFilterChipElevation(
+                            pressedElevation = 2.dp
+                        ),
+                        modifier = Modifier.height(30.dp)
                     )
                 }
             }
@@ -1340,10 +1387,10 @@ fun SleepTracker(
             }
         }
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(9.dp))
 
         Text("Rate Sleep Quality", style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(9.dp))
 
         Row(
             horizontalArrangement = Arrangement.SpaceEvenly,
@@ -1355,7 +1402,7 @@ fun SleepTracker(
                         .size(50.dp)
                         .clip(CircleShape)
                         .background(
-                            if (sleepQuality == index) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                            if (sleepQuality == index) MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
                             else Color.Transparent
                         )
                         .clickable { sleepQuality = index },
@@ -1366,7 +1413,7 @@ fun SleepTracker(
             }
         }
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(27.dp))
 
         Button(
             onClick = {
@@ -1375,8 +1422,8 @@ fun SleepTracker(
             enabled = !loggedToday,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(85.dp)
-                .padding(horizontal = 35.dp, vertical = 10.dp),
+                .height(70.dp)
+                .padding(horizontal = 75.dp, vertical = 10.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = if (loggedToday) Color.Gray else MaterialTheme.colorScheme.primary
             )
@@ -1771,7 +1818,21 @@ fun JournalingTracker(
             showLoadingDialog = false
         }
     }
-
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(6.dp)
+    ) {
+        // Journal Type Selector
+        Text(
+            text = "Select Journal Style",
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier
+                .align(Alignment.Start)
+                .padding(start = 7.dp),
+            fontWeight = FontWeight.Bold
+        )
+    }
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -1779,41 +1840,12 @@ fun JournalingTracker(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Affirmation Card
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant
-            )
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "Today's Affirmation",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = getDailyAffirmation(), // Replace with your affirmation logic
-                    style = MaterialTheme.typography.bodyLarge,
-                    textAlign = TextAlign.Center
-                )
-            }
-        }
-
-        // Journal Type Selector
-        Text(
-            text = "Select Journal Style",
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.align(Alignment.Start)
-        )
 
         FlowRow(
             modifier = Modifier
                 .fillMaxWidth()
+                .shadow(elevation = 2.dp, shape = RoundedCornerShape(7.dp))
+                .background(color = MaterialTheme.colorScheme.surfaceVariant)
                 .padding(5.dp),
             horizontalArrangement = Arrangement.Center,
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -1846,94 +1878,111 @@ fun JournalingTracker(
                                 )
                             }
                         },
-                        modifier = Modifier.padding(bottom = 2.dp)
+                        modifier = Modifier.padding(bottom = 2.dp),
+                        colors = FilterChipDefaults.elevatedFilterChipColors(
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                            selectedContainerColor = MaterialTheme.colorScheme.primary
+                        ),
+                        elevation = FilterChipDefaults.elevatedFilterChipElevation(
+                            pressedElevation = 2.dp
+                        )
                     )
                 }
             }
         }
 
-        // Journal Input
         Text(
             text = "What are you grateful for today?",
             style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.align(Alignment.Start)
+            modifier = Modifier
+                .align(Alignment.Start)
+                .padding(start = 3.dp),
+            fontWeight = FontWeight.Bold
         )
 
+        // Journal Input
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .shadow(
-                    elevation = 1.dp,
-                    shape = MaterialTheme.shapes.medium
-                )
-                .border(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
-                    shape = MaterialTheme.shapes.medium
-                )
-                .padding(12.dp)
+                .shadow(elevation = 3.dp, shape = RoundedCornerShape(9.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .padding(8.dp)
         ) {
-            Box(
+            Column(
                 modifier = Modifier
-                    .height(270.dp)
-                    .background(
-                        MaterialTheme.colorScheme.secondaryContainer,
+                    .fillMaxWidth()
+                    .shadow(
+                        elevation = 1.dp,
+                        shape = MaterialTheme.shapes.medium
                     )
-                    .padding(4.dp)
+                    .border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
+                        shape = MaterialTheme.shapes.medium
+                    )
+                    .padding(12.dp)
             ) {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    TextField(
-                        value = journalEntry,
-                        onValueChange = {
-                            if (it.length <= maxCharacters.second * 1.1) journalEntry = it
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        textStyle = MaterialTheme.typography.bodyLarge,
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            disabledContainerColor = Color.Transparent,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent
-                        ),
-                        placeholder = {
-                            Text(
-                                text = when (selectedJournalType) {
-                                    "scroll" -> "Brief reflections..."
-                                    "notebook" -> "Detailed thoughts..."
-                                    else -> "Jot down your ideas..."
-                                },
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        },
-                        maxLines = when (selectedJournalType) {
-                            "sticky_note" -> 3
-                            else -> 6
-                        }
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                }
-                Row(
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Bottom,
+                        .height(270.dp)
+                        .background(
+                            MaterialTheme.colorScheme.secondaryContainer,
+                        )
+                        .padding(4.dp)
                 ) {
-                    Text(
-                        text = "${maxCharacters.second - journalEntry.length}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = charCountColor,
-                        modifier = Modifier.padding(start = 4.dp)
-                    )
-                    Text(
-                        text = "${journalEntry.length}/${maxCharacters.second}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = charCountColor
-                    )
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        TextField(
+                            value = journalEntry,
+                            onValueChange = {
+                                if (it.length <= maxCharacters.second * 1.1) journalEntry = it
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            textStyle = MaterialTheme.typography.bodyLarge,
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                disabledContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent
+                            ),
+                            placeholder = {
+                                Text(
+                                    text = when (selectedJournalType) {
+                                        "scroll" -> "Brief reflections..."
+                                        "notebook" -> "Detailed thoughts..."
+                                        else -> "Jot down your ideas..."
+                                    },
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            },
+                            maxLines = when (selectedJournalType) {
+                                "sticky_note" -> 3
+                                else -> 6
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .align(Alignment.BottomCenter),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Bottom,
+                    ) {
+                        Text(
+                            text = "${maxCharacters.second - journalEntry.length}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = charCountColor,
+                            modifier = Modifier.padding(start = 4.dp)
+                        )
+                        Text(
+                            text = "${journalEntry.length}/${maxCharacters.second}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = charCountColor
+                        )
+                    }
                 }
             }
-
         }
 
         // Submit Button
@@ -2035,125 +2084,32 @@ fun JournalViewDialog(
             ) { index ->
 
                 val currentJournal = journalEntries[index]
+                val journalType = currentJournal.journalType.toJournalType()
 
-                val journalBackground = when (currentJournal.journalType.lowercase()) {
-                    "scroll" -> painterResource(id = R.drawable.scroll_bg)
-                    "notebook" -> painterResource(id = R.drawable.paper_bg)
-                    "sticky_note" -> painterResource(id = R.drawable.sticky_note_bg)
-                    "open_book" -> painterResource(id = R.drawable.open_journal_am_bg_f)
-                    else -> painterResource(id = R.drawable.journal_scroll_bg)
-                }
-
-                val journalFont = when (currentJournal.journalType.lowercase()) {
-                    "scroll" -> FontFamily(Font(R.font.parisienne))
-                    "notebook" -> FontFamily(Font(R.font.patrick_hand))
-                    "sticky_note" -> FontFamily(Font(R.font.architects_daughter))
-                    "open_book" -> FontFamily(Font(R.font.satisfy))
-                    else -> FontFamily(Font(R.font.la_belle_aurore))
-                }
-
-                val backgroundPaddingTop = when (currentJournal.journalType.lowercase()) {
-                    "scroll" -> 150.dp
-                    "notebook" -> 120.dp
-                    "sticky_note" -> 160.dp
-                    "open_book" -> 195.dp
-                    else -> 0.dp
-                }
-
-                val backgroundPaddingStart = when (currentJournal.journalType.lowercase()) {
-                    "notebook" -> 20.dp
-                    "scroll" -> 5.dp
-                    else -> 0.dp
-                }
-
-                val backgroundPaddingEnd = when (currentJournal.journalType.lowercase()) {
-                    "open_book" -> 0.dp
-                    else -> 0.dp
-                }
-
-                val textColor = when (currentJournal.journalType.lowercase()) {
-                    "notebook" -> Color.Blue.copy(alpha = 0.5f)
-                    "scroll" -> Color.DarkGray.copy(alpha = 0.7f)
-                    else -> Color.DarkGray
-                }
-
-                val fontSize = when (currentJournal.journalType.lowercase()) {
-                    "notebook" -> 15.sp
-                    "open_book" -> 13.sp
-                    else -> 17.sp
-                }
-
-                val lineHeight = when (currentJournal.journalType.lowercase()) {
-                    "notebook" -> 15.sp
-                    "open_book" -> 15.sp
-                    else -> 25.sp
-                }
-
-                val dateTextPadding = when (currentJournal.journalType.lowercase()) {
-                    "scroll" -> 130.dp
-                    "notebook" -> 85.dp
-                    "sticky_note" -> 160.dp
-                    else -> 0.dp
-                }
-
-                Box(
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    // Background
-                    Image(
-                        painter = journalBackground,
-                        contentDescription = "Journal Background",
-                        modifier = Modifier
-                            .height(600.dp)
-                            .width(450.dp)
-                            .clip(RoundedCornerShape(16.dp)),
+                when (journalType) {
+                    is ScrollBackground -> ScrollJournalView(
+                        entryText = currentJournal.entryText,
+                        date = currentJournal.date.toString(),
+                        modifier = Modifier.fillMaxSize()
                     )
 
-                    // Foreground Text
-                    Box(
-                        modifier = Modifier
-                            .height(600.dp)
-                            .width(450.dp)
-                            .padding(32.dp)
-                            .padding(
-                                top = backgroundPaddingTop,
-                                start = backgroundPaddingStart,
-                                end = backgroundPaddingEnd
-                            )
-                    ) {
-                        if (currentJournal.journalType == "open_book"){
-                            TwoColumnNotebookText(
-                                fullText = currentJournal.entryText,
-                                date = currentJournal.date.toString() + ".",
-                                font = journalFont,
-                                maxCharsPerColumn = 100
-                            )
-                        } else{
-                            Text(
-                                text = currentJournal.entryText,
-                                style = TextStyle(
-                                    fontFamily = journalFont,
-                                    fontSize = fontSize,
-                                    lineHeight = lineHeight,
-                                    fontWeight = FontWeight.Bold,
-                                    color = textColor
-                                )
-                            )
-                            Text(
-                                text = "${currentJournal.date}.",
-                                style = TextStyle(
-                                    fontFamily = journalFont,
-                                    fontSize = fontSize,
-                                    lineHeight = lineHeight,
-                                    fontWeight = FontWeight.Bold,
-                                    color = textColor
-                                ),
-                                modifier = Modifier
-                                    .align(Alignment.BottomEnd)
-                                    .padding(bottom = dateTextPadding, end = 5.dp)
-                            )
-                        }
-                    }
+                    is NotebookBackground -> NotebookJournalView(
+                        entryText = currentJournal.entryText,
+                        date = currentJournal.date.toString(),
+                        modifier = Modifier.fillMaxSize()
+                    )
+
+                    is StickyNoteBackground -> StickyNoteJournalView(
+                        entryText = currentJournal.entryText,
+                        date = currentJournal.date.toString(),
+                        modifier = Modifier.fillMaxSize()
+                    )
+
+                    is OpenBookBackground -> OpenBookJournalView(
+                        entryText = currentJournal.entryText,
+                        date = currentJournal.date.toString(),
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
             }
 
@@ -2262,22 +2218,38 @@ fun TwoColumnNotebookText(
     val secondHalf = fullText.substring(midpoint)
 
     Row(modifier = modifier.fillMaxWidth()) {
-        Text(
-            text = "$date\n$firstHalf",
+        // Main text positioned absolutely
+        AnimatedText(
+            text =  formatTextWithLineBreaks("$date\n$firstHalf",55),
+            style = TextStyle(
+                fontFamily = font,
+                fontSize = 11.sp,
+                lineHeight = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Blue.copy(alpha = 0.5f)
+            ),
             modifier = Modifier
                 .weight(1f)
                 .padding(end = 8.dp),
-            style = textStyle.copy(fontFamily = font, fontSize = 15.sp, fontWeight = FontWeight.Bold),
-            lineHeight = 16.sp
+            delayPerChar = 50L, // Adjust speed here
+            startDelay = 800L // Wait for background animation
         )
-        Text(
-            text = secondHalf,
+        AnimatedText(
+            text =  formatTextWithLineBreaks(secondHalf,55),
+            style = TextStyle(
+                fontFamily = font,
+                fontSize = 11.sp,
+                lineHeight = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Blue.copy(alpha = 0.5f)
+            ),
             modifier = Modifier
                 .weight(1f)
-                .padding(start = 18.dp),
-            style = textStyle.copy(fontFamily = font, fontSize = 15.sp, fontWeight = FontWeight.Bold),
-            lineHeight = 16.sp
+                .padding(start = 1.dp),
+            delayPerChar = 50L, // Adjust speed here
+            startDelay = 2000L // Wait for background animation
         )
+
     }
 }
 

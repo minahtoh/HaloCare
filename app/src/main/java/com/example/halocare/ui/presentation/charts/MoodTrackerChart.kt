@@ -6,6 +6,7 @@ import androidx.compose.animation.core.EaseInOut
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandIn
@@ -47,6 +48,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -402,20 +404,17 @@ fun GroupedMoodEntry(
 
 
     var hasAppeared by remember(key) { mutableStateOf(false) }
+    var iconsAppeared by remember(key) { mutableStateOf(false) }
 
     LaunchedEffect(key) {
         hasAppeared = true
+        delay(100) // Small delay before starting icon animations
+        iconsAppeared = true
     }
 
     AnimatedVisibility(
         visible = hasAppeared,
-        enter = scaleIn(
-            initialScale = 0.2f,
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioLowBouncy, // the bounciest
-                stiffness = Spring.StiffnessLow // smooth & dramatic
-            )
-        ) + fadeIn(animationSpec = tween(300))
+        enter = scaleIn(initialScale = 0.1f) + fadeIn()
     ) {
         Box(
             contentAlignment = Alignment.TopStart,
@@ -427,7 +426,6 @@ fun GroupedMoodEntry(
                         selectionShape
                     ) else Modifier
                 )
-
                 .padding(horizontal = 4.dp, vertical = 8.dp)
 
         ) {
@@ -439,10 +437,19 @@ fun GroupedMoodEntry(
                 horizontalAlignment = Alignment.CenterHorizontally
             )
             {
+                val iconScale by animateFloatAsState(
+                    targetValue = if (iconsAppeared) 1f else 0f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioLowBouncy,
+                        stiffness = Spring.StiffnessLow
+                    ),
+                )
+
                 entriesInGroup.forEach { entry ->
                     Box(
                         modifier = Modifier
                             .size(iconSize)
+                            .scale(iconScale)
                             .clickable(
                                 onClick = { onEntryClick(entry) },
                                 indication = rememberRipple(

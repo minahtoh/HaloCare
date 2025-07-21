@@ -218,7 +218,7 @@ fun HaloCareNavHost(
             composable(route = HomeScreen.route) {
                 HomeScreen(
                     onProfileClick = { navHostController.navigateSingleTopTo(ProfileScreen.route) },
-                    onCategoryClick = { navHostController.navigateSingleTopTo(TelehealthScreen.route) },
+                    onCategoryClick = { navHostController.navigateSingleTopTo(PediatricDevelopmentScreen.route) },
                     authViewModel = authViewModel,
                     scrollState = scrollState,
                     mainViewModel = mainViewModel

@@ -343,14 +343,6 @@ fun LogMedicationDialog(
 }
 
 
-fun generateDoses(frequency: Int): List<LocalTime> {
-    return when (frequency) {
-        1 -> listOf(LocalTime.of(8, 0)) // Once daily → 8 AM
-        2 -> listOf(LocalTime.of(8, 0), LocalTime.of(20, 0)) // Twice daily → 8 AM, 8 PM
-        3 -> listOf(LocalTime.of(6, 0), LocalTime.of(14, 0), LocalTime.of(20, 0)) // Thrice → 6 AM, 2 PM, 8 PM
-        else -> emptyList() // Should not happen
-    }
-}
 
 
 @Composable
@@ -971,35 +963,66 @@ fun MedicationBottomSheet(day: LocalDate, medications: List<Medication>, onDismi
         containerColor = MaterialTheme.colorScheme.primaryContainer
     ) {
         Column(modifier = Modifier.padding(start = 30.dp)) {
-            Text(
-                text ="Medications for ${day.dayOfMonth} ${day.month.name.capitalize()}",
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-            )
-            Spacer(modifier = Modifier.height(13.dp))
-          //  Divider(modifier = Modifier.height(7.dp).width(150.dp).padding(start = 17.dp))
-            medications.forEach { medication ->
-                Row(
+            if (medications.isEmpty()){
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 8.dp, horizontal = 15.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(vertical = 8.dp,),
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(16.dp)
-                            .background(Color(medication.color), shape = CircleShape)
+                    Text(
+                        text ="Medications for ${day.dayOfMonth} ${day.month.name.capitalize()}",
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = medication.name, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold))
-                    if (medication.dosage == medication.frequency){
-                        Icon(painter = painterResource(id = R.drawable.baseline_verified_24),
-                            contentDescription = "Completed",
-                            modifier = Modifier.size(25.dp)
+                    Spacer(modifier = Modifier.height(13.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp, horizontal = 15.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.baseline_do_not_disturb_24),
+                            contentDescription = null
+                        )
+                        Text(
+                            text = "No medications available",
+                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
                         )
                     }
                 }
+                Spacer(modifier = Modifier.height(75.dp))
+            }else{
+                Text(
+                    text ="Medications for ${day.dayOfMonth} ${day.month.name.capitalize()}",
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                )
+                Spacer(modifier = Modifier.height(13.dp))
+
+                medications.forEach { medication ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp, horizontal = 15.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(16.dp)
+                                .background(Color(medication.color), shape = CircleShape)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = medication.name, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold))
+                        if (medication.dosage == medication.frequency){
+                            Icon(painter = painterResource(id = R.drawable.baseline_verified_24),
+                                contentDescription = "Completed",
+                                modifier = Modifier.size(25.dp)
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(100.dp))
             }
-            Spacer(modifier = Modifier.height(100.dp))
         }
     }
 }

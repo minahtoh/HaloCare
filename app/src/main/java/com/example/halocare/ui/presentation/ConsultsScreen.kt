@@ -105,13 +105,13 @@ fun ConsultsScreen(
             Column(
                 modifier = Modifier
                     .padding(paddingValues)
-                    .padding(10.dp)
+                    .padding(4.dp)
                     .verticalScroll(scrollState)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
+                        .padding(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
@@ -139,7 +139,7 @@ fun ConsultsScreen(
                     modifier = Modifier.fillMaxWidth()
                 ){
                     when{
-                        upcomingAppointments == null ->{
+                        upcomingAppointments == null -> {
                             items(5){
                                 UpcomingAppointmentCard(appointment = null)
                             }
@@ -186,7 +186,7 @@ fun ConsultsScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
+                        .padding(6.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(

@@ -48,6 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -72,6 +73,15 @@ fun RegisterScreen(
     var password by remember { mutableStateOf("") }
     val uiState by authViewModel.authState.collectAsState()
     val context = LocalContext.current
+    val statusBarController = rememberStatusBarController()
+    val statusBarColor = MaterialTheme.colorScheme.surface
+
+    LaunchedEffect(key1 = true){
+        statusBarController.updateStatusBar(
+            color = statusBarColor,
+            darkIcons = true
+        )
+    }
 
 
     Surface(
@@ -98,11 +108,11 @@ fun RegisterScreen(
                 IntroCard(
                     modifier = Modifier.fillMaxWidth()
                 )
+                Spacer(modifier = Modifier.height(25.dp))
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(24.dp),
-                    verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
 
@@ -153,7 +163,7 @@ fun RegisterScreen(
                         shape = RoundedCornerShape(30.dp)
                     )
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(60.dp))
 
                     Button(
                         onClick = {
@@ -163,8 +173,8 @@ fun RegisterScreen(
                                 password = password
                             )
                         },
-                        modifier = Modifier.fillMaxWidth(),
-                        elevation = ButtonDefaults.buttonElevation(5.dp)
+                        modifier = Modifier.height(55.dp).fillMaxWidth().padding(horizontal = 30.dp),
+                        elevation = ButtonDefaults.buttonElevation(3.dp)
                     ) {
                         Text("Sign Up")
                     }
@@ -187,13 +197,14 @@ fun RegisterScreen(
 @Preview(widthDp = 320)
 @Composable
 fun IntroCard(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    elevation: Dp = 15.dp
 ){
     Surface(
         modifier = modifier,
         color = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp),
-        shadowElevation = 15.dp
+        shadowElevation = elevation
     ){
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,

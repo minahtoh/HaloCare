@@ -4,25 +4,39 @@ import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.core.EaseInOutCubic
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -52,6 +66,8 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SheetState
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -62,17 +78,23 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -83,6 +105,7 @@ import com.example.halocare.ui.models.Professional
 import com.example.halocare.viewmodel.LoadingState
 import com.example.halocare.viewmodel.MainViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.util.Calendar
 
@@ -94,6 +117,8 @@ fun AppointmentsScreen(
     navigateToConsultsScreen : () -> Unit
     //onConfirmAppointment: (Professional, LocalDate) -> Unit = {}
 ) {
+    val statusBarController = rememberStatusBarController()
+    val statusBarColor = MaterialTheme.colorScheme.tertiaryContainer
     val context = LocalContext.current
     var selectedSpecialty by remember { mutableStateOf<String?>(null) }
     var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
@@ -115,7 +140,11 @@ fun AppointmentsScreen(
     val bookingLoadingState by mainViewModel.appointmentBookingState.collectAsState()
 
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(true) {
+        statusBarController.updateStatusBar(
+            color = statusBarColor,
+            darkIcons = true
+        )
         mainViewModel.toastMessage.collect { message ->
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         }
@@ -125,14 +154,14 @@ fun AppointmentsScreen(
         topBar = {
             AppointmentsTopBar()
         },
-        containerColor = MaterialTheme.colorScheme.secondaryContainer
+        containerColor = MaterialTheme.colorScheme.tertiaryContainer
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp)
+                .padding(6.dp)
         ) {
             AppointmentBookingDialog(
                 loadingState = bookingLoadingState,
@@ -145,7 +174,11 @@ fun AppointmentsScreen(
                 }
             )
             // 🔹 1. Specialty Dropdown
-            Text("Select Specialty", style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = "Select Specialty",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
             Spacer(Modifier.height(8.dp))
             DropdownSelector(
                 options = availableSpecialtiesList ?: emptyList(),
@@ -159,7 +192,11 @@ fun AppointmentsScreen(
 
             // 🔹 2. Date Picker
             Spacer(Modifier.height(16.dp))
-            Text("Select Date", style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = "Select Date",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
             Spacer(Modifier.height(8.dp))
             DatePickerButton(
                 selectedDate = selectedDate,
@@ -171,7 +208,11 @@ fun AppointmentsScreen(
 
             // 🔹 3. Available Professionals List
             Spacer(Modifier.height(16.dp))
-            Text("Available Professionals", style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = "Available Professionals",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
             Spacer(Modifier.height(8.dp))
 
             sortedProfessionals.forEach { professional ->
@@ -200,30 +241,21 @@ fun AppointmentsScreen(
                 )
             }
             selectedProfessional?.let {
-                ModalBottomSheet(
-                    onDismissRequest = { selectedProfessional = null },
-                    sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-                ) {
-                    ProfessionalDetailSheet(professional = it)
-                    Button(
-                        onClick = {
-                            if (selectedDate == null){
-                                Toast.makeText(
-                                    context,
-                                    "Select a date for your appointment!",
-                                    Toast.LENGTH_SHORT).show()
-                                return@Button
-                            }
+                AnimatedProfessionalBottomSheet(
+                    professional = it,
+                    selectedDate = selectedDate.toString(),
+                    onDismiss = {  selectedProfessional = null  },
+                    onBookAppointment = {
+                        if (selectedDate == null){
+                        Toast.makeText(
+                            context,
+                            "Select a date for your appointment!",
+                            Toast.LENGTH_SHORT).show()
+                    } else{
                             showDialog = true
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                            .padding(bottom = 10.dp)
-                    ) {
-                        Text("Book Appointment")
+                        }
                     }
-                }
+                )
             }
         }
 
@@ -248,6 +280,7 @@ fun DropdownSelector(
 
         DropdownMenu(
             expanded = expanded,
+            modifier = Modifier.fillMaxWidth(),
             onDismissRequest = { expanded = false }
         ) {
             options.forEach { specialty ->
@@ -541,15 +574,15 @@ fun ProfessionalListCard(
     if (triggered) isSelected = false
     Card(
         modifier = Modifier
-            .padding(12.dp)
+            .padding(2.dp)
             .fillMaxWidth()
             .clickable { onClick() },
         elevation = CardDefaults.cardElevation(6.dp),
         colors = CardDefaults.cardColors(
             containerColor = when {
-                !isEnabled -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f) // Faded if unavailable
+                !isEnabled -> MaterialTheme.colorScheme.surfaceVariant // Faded if unavailable
                 isSelected -> MaterialTheme.colorScheme.primary
-                else -> MaterialTheme.colorScheme.inversePrimary
+                else -> MaterialTheme.colorScheme.tertiaryContainer
             }
         )
     ) {
@@ -585,7 +618,7 @@ fun ProfessionalDetailSheet(
 ) {
     Column(
         modifier = Modifier
-            .padding(24.dp)
+            .padding(4.dp)
             .fillMaxWidth()
     ) {
         AsyncImage(
@@ -610,24 +643,6 @@ fun ProfessionalDetailSheet(
         Text(text = "Languages: ${professional.language.joinToString(", ")}")
         Text(text = "Rating: ${professional.rating}")
         Text(text = "Consultation Fee: ₦${professional.consultationPrice}")
-
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(text = "Next Available Dates:")
-        LazyRow {
-            items(professional.availableDates) { date ->
-                Box(
-                    modifier = Modifier
-                        .padding(end = 8.dp)
-                        .background(
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                            RoundedCornerShape(8.dp)
-                        )
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                ) {
-                    Text(text = date, fontSize = 12.sp)
-                }
-            }
-        }
 
         Spacer(modifier = Modifier.height(20.dp))
     }
@@ -714,4 +729,269 @@ fun LoadingDots() {
         fontSize = 18.sp,
         fontWeight = FontWeight.Medium
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AnimatedProfessionalBottomSheet(
+    professional: Professional?,
+    selectedDate: String?,
+    onDismiss: () -> Unit,
+    onBookAppointment: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (professional != null) {
+        val bottomSheetState = rememberModalBottomSheetState(
+            skipPartiallyExpanded = true
+        )
+
+        ModalBottomSheet(
+            onDismissRequest = onDismiss,
+            sheetState = bottomSheetState,
+            modifier = modifier,
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+           // windowInsets = WindowInsets(0),
+           // dragHandle = null
+        ) {
+            ProfessionalBottomSheetContent(
+                professional = professional,
+                selectedDate = selectedDate,
+                onBookAppointment = onBookAppointment,
+                bottomSheetState = bottomSheetState
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ProfessionalBottomSheetContent(
+    professional: Professional,
+    selectedDate: String?,
+    onBookAppointment: () -> Unit,
+    bottomSheetState: SheetState,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val screenHeight = configuration.screenHeightDp.dp
+    val scope = rememberCoroutineScope()
+
+    // Simple boolean to track if we want to show expanded content
+    var showExpandedContent by remember { mutableStateOf(false) }
+
+    // Animated height transition
+    val targetHeight by animateDpAsState(
+        targetValue = if (showExpandedContent) screenHeight * 0.7f else screenHeight * 0.4f,
+        animationSpec = tween(durationMillis = 300, easing = EaseInOutCubic),
+        label = "bottomSheetHeight"
+    )
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(targetHeight) // Animated height that smoothly transitions
+            .padding(16.dp)
+    ) {
+        // Professional header
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top
+        ) {
+            Spacer(modifier = Modifier.width(1.dp))
+
+            // Initial ProfessionalDetailSheet with swipe gesture and transition
+            AnimatedVisibility(
+                visible = !showExpandedContent,
+                exit = fadeOut(animationSpec = tween(200)) + slideOutVertically(
+                    targetOffsetY = { -it },
+                    animationSpec = tween(200)
+                ),
+                modifier = Modifier.weight(1f)
+            ) {
+                var dragOffset by remember { mutableStateOf(0f) }
+                var isDragging by remember { mutableStateOf(false) }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .offset(y = dragOffset.dp)
+                        .pointerInput(Unit) {
+                            detectDragGestures(
+                                onDragStart = { _ ->
+                                    isDragging = true
+                                    dragOffset = 0f
+                                },
+                                onDragEnd = {
+                                    if (dragOffset < -80f) { // Higher threshold - need to drag at least 80dp up
+                                        showExpandedContent = true
+                                        scope.launch {
+                                            bottomSheetState.expand()
+                                        }
+                                    } else {
+                                        // Snap back if not dragged enough
+                                        dragOffset = 0f
+                                    }
+                                    isDragging = false
+                                },
+                                onDrag = { _, dragAmount ->
+                                    // Only allow upward dragging (negative values)
+                                    if (dragAmount.y < 0) {
+                                        dragOffset =
+                                            (dragOffset + dragAmount.y / density).coerceAtMost(0f)
+                                    }
+                                }
+                            )
+                        }
+                        .clickable {
+                            showExpandedContent = true
+                            scope.launch {
+                                bottomSheetState.expand()
+                            }
+                        }
+                ) {
+                    Column(modifier = Modifier
+                        .height(300.dp)
+                        .fillMaxWidth()) {
+                        ProfessionalDetailSheet(professional = professional)
+                    }
+                }
+            }
+
+            // Expand icon - still clickable as alternative
+            if (!showExpandedContent) {
+                IconButton(
+                    onClick = {
+                        showExpandedContent = true
+                        scope.launch {
+                            bottomSheetState.expand()
+                        }
+                    }
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.baseline_expand_less_24),
+                        contentDescription = "Expand",
+                        modifier = Modifier.rotate(180f)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(1.dp))
+
+        // Expandable content
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            AnimatedVisibility(
+                visible = showExpandedContent,
+                enter = fadeIn(animationSpec = tween(300)) + expandVertically(
+                    animationSpec = tween(
+                        300
+                    )
+                ),
+                exit = fadeOut(animationSpec = tween(300)) + shrinkVertically(
+                    animationSpec = tween(
+                        300
+                    )
+                )
+            ) {
+                Column {
+                    // Professional details
+                    Column(
+                        modifier = Modifier
+                            .padding(4.dp)
+                            .fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceAround,
+                            verticalAlignment = Alignment.Bottom
+                        ) {
+                            Column {
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    text = professional.name,
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Text(text = professional.specialty, color = Color.Gray)
+                                Text(text = professional.location, fontSize = 12.sp)
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
+                            AsyncImage(
+                                model = professional.picture,
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(200.dp)
+                                    .clip(RoundedCornerShape(15)),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(text = "Bio", fontWeight = FontWeight.SemiBold)
+                        Text(text = professional.bio, fontSize = 14.sp)
+
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(text = "Languages: ${professional.language.joinToString(", ")}")
+                        Text(text = "Rating: ${professional.rating}")
+                        Text(text = "Consultation Fee: ₦${professional.consultationPrice}")
+
+                        Spacer(modifier = Modifier.height(20.dp))
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Additional info
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = "About",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Experienced ${professional.specialty.lowercase()} with ${professional.rating} of practice. Specializes in comprehensive care and patient-centered treatment approaches.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(36.dp))
+                }
+            }
+        }
+
+        // Bottom button - always visible
+
+        Row(modifier = Modifier.fillMaxWidth()) {
+            Button(
+                onClick = {
+                    if (selectedDate == null) {
+                        Toast.makeText(
+                            context,
+                            "Select a date for your appointment!",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        return@Button
+                    }
+                    onBookAppointment()
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(55.dp)
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
+            ) {
+                Text("Book Appointment")
+            }
+        }
+        Spacer(modifier = Modifier.height(5.dp))
+    }
 }
