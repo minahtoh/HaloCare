@@ -63,6 +63,13 @@ fun HealthTrackingScreen(onCategoryClick: (String) -> Unit) {
                 imageRes = R.drawable.baseline_medication_24,
                 onClick = { onCategoryClick(MedicationScreen.route) }
             )
+            CategoryCard(
+                title = "Pediatric Dev Tracker",
+                subtitle = "Next: 8:00 AM",
+                color = Color(0xdda2B6B7),
+                imageRes = R.drawable.ped_dev_tracker_ic,
+                onClick = { onCategoryClick(PediatricDevelopmentScreen.route) }
+            )
         }
     }
 }
@@ -84,7 +91,9 @@ fun CategoryCard(
         elevation = CardDefaults.elevatedCardElevation(5.dp)
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
@@ -139,10 +148,10 @@ fun HealthTrackingTopBar(){
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    HaloCareStatisticsIcon(
-                        contentColor = MaterialTheme.colorScheme.primary,
-                        size = 30.dp
-                    )
+                    Icon(
+                        modifier = Modifier.size(30.dp),
+                        painter = painterResource(id = R.drawable.health_tracking_ic),
+                        contentDescription = null )
                 }
             }
 

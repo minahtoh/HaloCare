@@ -91,7 +91,7 @@ fun ConsultsScreen(
                     onBackPressed
                 )
             },
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer
         ) { paddingValues ->
 
             LaunchedEffect(true ){
@@ -164,7 +164,7 @@ fun ConsultsScreen(
 
                 Row(
                     modifier = Modifier
-                        .height(150.dp)
+                        .height(110.dp)
                         .fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.End
@@ -303,17 +303,16 @@ fun ConsultationsTopBar(
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 shape = CircleShape,
                 shadowElevation = 5.dp,
-                modifier = Modifier.size(30.dp)
+                modifier = Modifier.size(40.dp)
             ) {
                 Column(
                     modifier = Modifier.fillMaxSize(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(
-                        text = "...",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.surfaceTint,
-                    )
+                    Icon(
+                        modifier = Modifier.size(30.dp),
+                        painter = painterResource(id = R.drawable.consults),
+                        contentDescription = null )
                 }
             }
         }
@@ -345,13 +344,16 @@ fun UserAppointmentCard(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(64.dp)
-                    .clip(CircleShape).addForShimmer(appointment)
+                    .clip(CircleShape)
+                    .addForShimmer(appointment)
             )
 
             Spacer(modifier = Modifier.width(12.dp))
 
             Column(
-                modifier = Modifier.weight(1f).addForShimmer(appointment)
+                modifier = Modifier
+                    .weight(1f)
+                    .addForShimmer(appointment)
             ) {
                 Text(
                     text = appointment?.professionalName ?: "                ",
@@ -407,12 +409,13 @@ fun UpcomingAppointmentCard(
     modifier = modifier
         .fillMaxWidth()
         .height(280.dp)  // Fixed height
-        .padding(horizontal = 16.dp, vertical = 8.dp),
+        .padding(horizontal = 9.dp, vertical = 8.dp),
     elevation = CardDefaults.cardElevation(4.dp),
     shape = RoundedCornerShape(12.dp)
 ) {
     Column(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
             .padding(16.dp)
     ) {
         Row(
@@ -439,15 +442,16 @@ fun UpcomingAppointmentCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = appointment?.occupation ?:"                         ",
+                    text = appointment?.occupation ?:"",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(Modifier.weight(1f))  // Push status to bottom
-                StatusPill(appointment?.status ?:"                        ",
-                appointment)
+                if(appointment != null){
+                    StatusPill(appointment.status , appointment)
+                }
             }
             Spacer(
                 Modifier
@@ -464,7 +468,7 @@ fun UpcomingAppointmentCard(
                     )
                 } else{
                     Text(
-                        text = "             ",
+                        text = "                  ",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier
@@ -482,13 +486,15 @@ fun UpcomingAppointmentCard(
         )
 
         Row(
-            modifier = Modifier.fillMaxWidth().height(48.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .addForShimmer(appointment),
             horizontalArrangement = Arrangement.spacedBy(80.dp)
         ) {
             Column(
                 modifier = Modifier
                     .height(48.dp)
-                    .addForShimmer(appointment)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (appointment != null) {
@@ -502,13 +508,13 @@ fun UpcomingAppointmentCard(
                         Box(
                             modifier = Modifier
                                 .size(20.dp)
-                                .addForShimmer(null)
+                              //  .addForShimmer(null)
                         )
                     }
 
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        text = appointment?.date ?: "                         ",
+                        text = appointment?.date ?: "",
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
@@ -525,13 +531,13 @@ fun UpcomingAppointmentCard(
                         Box(
                             modifier = Modifier
                                 .size(20.dp)
-                                .addForShimmer(null)
+              //                  .addForShimmer(null)
                         )
                     }
 
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        text = appointment?.time ?: "                         ",
+                        text = appointment?.time ?: "",
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
@@ -565,8 +571,8 @@ fun UpcomingAppointmentCard(
         // Note
         appointment?.note?.takeIf { it.isNotBlank() }?.let { note ->
             Column(modifier = Modifier
-                .height(40.dp)
-                .addForShimmer(appointment)) {
+                .height(40.dp))
+            {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(3.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -591,7 +597,6 @@ fun UpcomingAppointmentCard(
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
             modifier = Modifier
                 .height(24.dp)
-                .addForShimmer(appointment)
             )
         }
     }
@@ -629,8 +634,8 @@ private fun formatTimestamp(timestamp: Long): String {
         .format(Date(timestamp))
 }
 @Composable
-fun Modifier.addForShimmer(appointment: Appointment?): Modifier {
-    return if (appointment == null) {
+fun <T> Modifier.addForShimmer(data: T?): Modifier {
+    return if (data == null) {
         this.then(Modifier.shimmerEffect())
     } else {
         this

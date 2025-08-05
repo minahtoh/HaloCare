@@ -5,6 +5,12 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.util.Log
+import androidx.compose.runtime.collectAsState
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.preferencesDataStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
@@ -42,6 +48,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -86,15 +93,16 @@ class MainViewModel @Inject constructor(
     private val _exerciseDataList = MutableStateFlow<List<ExerciseData>?>(null)
     val exerciseDataList = _exerciseDataList.asStateFlow()
     private val _isRunning = MutableStateFlow(false)
-    val isRunning: StateFlow<Boolean> = _isRunning
+    val isRunning: StateFlow<Boolean> = _isRunning.asStateFlow()
     val timerReceiver = object : BroadcastReceiver() {
         override fun onReceive(receivedContext: Context?, intent: Intent?) {
-
             if (intent?.action == ExerciseTimerService.BROADCAST_ACTION_STOPPED) {
-                val elapsedTimed = intent.getIntExtra(ExerciseTimerService.EXTRA_ELAPSED_TIME, 0)
                 _isRunning.value = false
-                Log.d("RunningTimer", "onReceive: isrunnning status $isRunning")
             }
+            if (intent?.action == ExerciseTimerService.ACTION_START_SERVICE) {
+                _isRunning.value = true
+            }
+
         }
     }
 
@@ -139,7 +147,10 @@ class MainViewModel @Inject constructor(
         _currentUserId.value = currentUser?.uid ?: ""
     }
     private fun registerReceiver() {
-        val filter = IntentFilter(ExerciseTimerService.BROADCAST_ACTION_STOPPED)
+        val filter = IntentFilter().apply {
+            addAction(ExerciseTimerService.BROADCAST_ACTION_STOPPED)
+            addAction(ExerciseTimerService.ACTION_START_SERVICE)
+        }
 
         LocalBroadcastManager.getInstance(getApplication(context)).registerReceiver(timerReceiver, filter)
     }
@@ -196,7 +207,7 @@ class MainViewModel @Inject constructor(
     fun bookUserAppointment(userId: String, appointment: Appointment){
         viewModelScope.launch {
             _appointmentBookingLoadingState.value = LoadingState.LOADING
-            delay(1500)
+            delay(4500)
             val result = mainRepository.bookUserAppointment(userId, appointment)
             result.onSuccess {
                 _appointmentBookingLoadingState.value = LoadingState.SUCCESSFUL
@@ -413,4 +424,23 @@ class MainRepository @Inject constructor(
     suspend fun updateMedication(medication: Medication) = medicationsDao.updateMedication(medication)
     suspend fun deleteMedication(medication: Medication) = medicationsDao.deleteMedication(medication)
     suspend fun saveMedication(medication: Medication) = medicationsDao.insertMedication(medication)
+}
+
+
+
+@Singleton
+class SettingsRepository @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
+    private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "user_settings")
+    private val DARK_MODE_KEY = booleanPreferencesKey("dark_mode")
+
+    suspend fun setDarkMode(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[DARK_MODE_KEY] = enabled
+        }
+    }
+
+    val darkModeFlow: Flow<Boolean> = context.dataStore.data
+        .map { prefs -> prefs[DARK_MODE_KEY] ?: false }
 }

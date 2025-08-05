@@ -40,6 +40,7 @@ class ExerciseTimerService: Service() {
         const val NOTIFICATION_ID = 1
         const val CHANNEL_ID = "ExerciseTimerChannel"
         const val ACTION_STOP_SERVICE = "STOP_SERVICE"
+        const val ACTION_START_SERVICE = "START_SERVICE"
         const val EXTRA_ELAPSED_TIME = "elapsed_time"
         const val BROADCAST_ACTION_STOPPED = "EXERCISE_TIMER_STOPPED"
     }
@@ -70,10 +71,11 @@ class ExerciseTimerService: Service() {
                 stopSelf()
                 return START_NOT_STICKY
             }
-            else -> {
+            ACTION_START_SERVICE -> {
                 startTimerIfNotRunning()
                 return START_STICKY
             }
+            else -> { return START_STICKY}
         }
     }
 
@@ -88,7 +90,8 @@ class ExerciseTimerService: Service() {
                 currentTime++
                 // Update repository (which persists periodically)
                 timerRepository.updateTimeAndPersist(currentTime)
-                timerRepository.isTimerRunning(isTimerRunning())
+                timerRepository.isTimerRunning(true)
+                sendStartBroadcast()
                 // Update notification
                 val notification = getNotification("Exercise Timer: ${formatTime(currentTime)}")
                 getSystemService(NotificationManager::class.java)?.notify(NOTIFICATION_ID, notification)
@@ -120,6 +123,10 @@ class ExerciseTimerService: Service() {
             putExtra(EXTRA_ELAPSED_TIME, currentTime)
         }
         Log.d("ExerciseTimerService", "Sending stop broadcast with time: $currentTime")
+        LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
+    }
+    private fun sendStartBroadcast() {
+        val intent = Intent(ACTION_START_SERVICE)
         LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
     }
 

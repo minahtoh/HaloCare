@@ -2,12 +2,17 @@ package com.example.halocare.ui.presentation
 
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.EaseInOutCubic
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -24,6 +29,7 @@ import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -49,7 +55,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -59,6 +67,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -102,6 +112,10 @@ import coil.compose.AsyncImage
 import com.example.halocare.R
 import com.example.halocare.ui.models.Appointment
 import com.example.halocare.ui.models.Professional
+import com.example.halocare.ui.utils.ConfirmActionDialog
+import com.example.halocare.ui.utils.HaloCareToast
+import com.example.halocare.ui.utils.ToastHost
+import com.example.halocare.ui.utils.rememberToastState
 import com.example.halocare.viewmodel.LoadingState
 import com.example.halocare.viewmodel.MainViewModel
 import kotlinx.coroutines.delay
@@ -120,6 +134,8 @@ fun AppointmentsScreen(
     val statusBarController = rememberStatusBarController()
     val statusBarColor = MaterialTheme.colorScheme.tertiaryContainer
     val context = LocalContext.current
+    val toastState = rememberToastState()
+
     var selectedSpecialty by remember { mutableStateOf<String?>(null) }
     var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
     val availableSpecialties by mainViewModel.availableSpecialties.collectAsState()
@@ -134,7 +150,7 @@ fun AppointmentsScreen(
     }.reversed()
 
     var selectedProfessional by remember { mutableStateOf<Professional?>(null) }
-    var showDialog by remember { mutableStateOf(false) }
+//    var showDialog by remember { mutableStateOf(false) }
     var showBookButton by remember { mutableStateOf(false) }
     val currentUserId by mainViewModel.currentUserId.collectAsState()
     val bookingLoadingState by mainViewModel.appointmentBookingState.collectAsState()
@@ -146,7 +162,7 @@ fun AppointmentsScreen(
             darkIcons = true
         )
         mainViewModel.toastMessage.collect { message ->
-            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            toastState.show(message)
         }
     }
 
@@ -155,112 +171,126 @@ fun AppointmentsScreen(
             AppointmentsTopBar()
         },
         containerColor = MaterialTheme.colorScheme.tertiaryContainer
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
-                .padding(6.dp)
-        ) {
-            AppointmentBookingDialog(
-                loadingState = bookingLoadingState,
-                onDismiss = {},
-                onComplete = { isSuccessful ->
-                    if (isSuccessful){
-                        navigateToConsultsScreen()
-                        mainViewModel.resetBookingState()
-                    }
-                }
-            )
-            // 🔹 1. Specialty Dropdown
-            Text(
-                text = "Select Specialty",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(Modifier.height(8.dp))
-            DropdownSelector(
-                options = availableSpecialtiesList ?: emptyList(),
-                selectedOption = selectedSpecialty,
-                onOptionSelected = {
-                    selectedSpecialty = it
-                    showBookButton = false
-                    selectedProfessional = null
-                }
-            )
+        ) { paddingValues ->
 
-            // 🔹 2. Date Picker
-            Spacer(Modifier.height(16.dp))
-            Text(
-                text = "Select Date",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(Modifier.height(8.dp))
-            DatePickerButton(
-                selectedDate = selectedDate,
-                onDateSelected = {
-                    selectedDate = it
-                    showBookButton = false
-                }
-            )
+        Box {
+            ToastHost(toastState = toastState, modifier = Modifier.align(Alignment.BottomCenter))
+            Box(
+                Modifier.fillMaxSize()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                        .verticalScroll(rememberScrollState())
+                        .padding(6.dp)
+                ) {
+                    var showDialog by remember { mutableStateOf(false) }
 
-            // 🔹 3. Available Professionals List
-            Spacer(Modifier.height(16.dp))
-            Text(
-                text = "Available Professionals",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(Modifier.height(8.dp))
-
-            sortedProfessionals.forEach { professional ->
-                val isAvailable = selectedDate?.let { professional.isAvailable(it) } ?: true
-                ProfessionalListCard(
-                    professional = professional,
-                    isEnabled = isAvailable,
-                    triggered = !showBookButton,
-                    onClick = {
-                        if (isAvailable) {
-                            selectedProfessional = professional
-                            showBookButton = !showBookButton
+                    AppointmentBookingDialog(
+                        loadingState = bookingLoadingState,
+                        onDismiss = {},
+                        onComplete = { isSuccessful ->
+                            if (isSuccessful){
+                                navigateToConsultsScreen()
+                                mainViewModel.resetBookingState()
+                            }
                         }
-                    }
-                )
-            }
+                    )
 
-            if (showDialog && selectedProfessional != null) {
-                AppointmentConfirmationDialog(
-                    professional = selectedProfessional!!,
-                    selectedDate = selectedDate,
-                    onDismiss = { showDialog = false },
-                    onAppointmentSubmitted = {
-                        appointment -> mainViewModel.bookUserAppointment(currentUserId, appointment)
-                    }
-                )
-            }
-            selectedProfessional?.let {
-                AnimatedProfessionalBottomSheet(
-                    professional = it,
-                    selectedDate = selectedDate.toString(),
-                    onDismiss = {  selectedProfessional = null  },
-                    onBookAppointment = {
-                        if (selectedDate == null){
-                        Toast.makeText(
-                            context,
-                            "Select a date for your appointment!",
-                            Toast.LENGTH_SHORT).show()
-                    } else{
-                            showDialog = true
+                    // 🔹 1. Specialty Dropdown
+                    Text(
+                        text = "Select Specialty",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    DropdownSelector(
+                        options = availableSpecialtiesList ?: emptyList(),
+                        selectedOption = selectedSpecialty,
+                        onOptionSelected = {
+                            selectedSpecialty = it
+                            showBookButton = false
+                            selectedProfessional = null
                         }
+                    )
+
+                    // 🔹 2. Date Picker
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        text = "Select Date",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    DatePickerButton(
+                        selectedDate = selectedDate,
+                        onDateSelected = {
+                            selectedDate = it
+                            showBookButton = false
+                        }
+                    )
+
+                    // 🔹 3. Available Professionals List
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        text = "Available Professionals",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(8.dp))
+
+                    sortedProfessionals.forEach { professional ->
+                        val isAvailable = selectedDate?.let { professional.isAvailable(it) } ?: true
+                        ProfessionalListCard(
+                            professional = professional,
+                            isEnabled = isAvailable,
+                            triggered = !showBookButton,
+                            onClick = {
+                                if (isAvailable) {
+                                    selectedProfessional = professional
+                                    showBookButton = !showBookButton
+                                } else {
+                                    toastState.show(
+                                        message = "Professional not available for selected date!",
+                                        icon = Icons.Default.Clear
+                                    )
+                                }
+                            }
+                        )
                     }
-                )
+
+                    if (showDialog && selectedProfessional != null) {
+                        AppointmentConfirmationDialog(
+                            professional = selectedProfessional!!,
+                            selectedDate = selectedDate,
+                            onDismiss = { showDialog = false },
+                            onAppointmentSubmitted = { appointment ->
+                                mainViewModel.bookUserAppointment(currentUserId, appointment)
+                            }
+                        )
+                    }
+                    selectedProfessional?.let {
+                        AnimatedProfessionalBottomSheet(
+                            professional = it,
+                            selectedDate = selectedDate.toString(),
+                            onDismiss = { selectedProfessional = null },
+                            onBookAppointment = {
+                                if (selectedDate == null) {
+                                    toastState.show(message = "Select a date for your appointment!")
+                                } else {
+                                    showDialog = true
+                                }
+                            }
+                        )
+                    }
+                }
             }
         }
 
-    }
+        }
 }
+
 
 @Composable
 fun DropdownSelector(
@@ -269,29 +299,33 @@ fun DropdownSelector(
     onOptionSelected: (String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center
+    ) {
+        Box {
+            OutlinedButton(
+                onClick = { expanded = true },
+                modifier = Modifier.fillMaxWidth()// Fixed width button
+            ) {
+                Text(text = selectedOption ?: "Select Specialty")
+            }
 
-    Box(modifier = Modifier.fillMaxWidth()) {
-        OutlinedButton(
-            onClick = { expanded = true },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(text = selectedOption ?: "Select Specialty")
-        }
-
-        DropdownMenu(
-            expanded = expanded,
-            modifier = Modifier.fillMaxWidth(),
-            onDismissRequest = { expanded = false }
-        ) {
-            options.forEach { specialty ->
-                DropdownMenuItem(
-                    text = { Text(specialty) },
-                    onClick = {
-                        onOptionSelected(specialty)
-                        expanded = false
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
+            DropdownMenu(
+                modifier = Modifier.fillMaxWidth(),
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                options.forEach { specialty ->
+                    DropdownMenuItem(
+                        text = { Text(specialty) },
+                        onClick = {
+                            onOptionSelected(specialty)
+                            expanded = false
+                        },
+                        modifier = Modifier.width(350.dp)
+                    )
+                }
             }
         }
     }
@@ -614,7 +648,8 @@ fun ProfessionalListCard(
 
 @Composable
 fun ProfessionalDetailSheet(
-    professional: Professional
+    professional: Professional,
+   // isDragging: Boolean
 ) {
     Column(
         modifier = Modifier
@@ -645,6 +680,27 @@ fun ProfessionalDetailSheet(
         Text(text = "Consultation Fee: ₦${professional.consultationPrice}")
 
         Spacer(modifier = Modifier.height(20.dp))
+        if (true) {
+            val infiniteTransition = rememberInfiniteTransition()
+
+            val alpha by infiniteTransition.animateFloat(
+                initialValue = 0.3f,
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1000),
+                    repeatMode = RepeatMode.Reverse
+                )
+            )
+
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowUp,
+                contentDescription = "Drag up",
+                tint = MaterialTheme.colorScheme.primary.copy(alpha = alpha),
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .size(24.dp)
+            )
+        }
     }
 }
 
@@ -745,13 +801,16 @@ fun AnimatedProfessionalBottomSheet(
             skipPartiallyExpanded = true
         )
 
+        val scope = rememberCoroutineScope()
+
+
         ModalBottomSheet(
             onDismissRequest = onDismiss,
             sheetState = bottomSheetState,
             modifier = modifier,
             containerColor = MaterialTheme.colorScheme.tertiaryContainer
-           // windowInsets = WindowInsets(0),
-           // dragHandle = null
+            // windowInsets = WindowInsets(0),
+            // dragHandle = null
         ) {
             ProfessionalBottomSheetContent(
                 professional = professional,
@@ -885,9 +944,9 @@ private fun ProfessionalBottomSheetContent(
         ) {
             AnimatedVisibility(
                 visible = showExpandedContent,
-                enter = fadeIn(animationSpec = tween(300)) + expandVertically(
+                enter = fadeIn(animationSpec = tween(500)) + expandVertically(
                     animationSpec = tween(
-                        300
+                        500
                     )
                 ),
                 exit = fadeOut(animationSpec = tween(300)) + shrinkVertically(
@@ -910,10 +969,36 @@ private fun ProfessionalBottomSheetContent(
                         ) {
                             Column {
                                 Spacer(modifier = Modifier.height(16.dp))
-                                Text(
-                                    text = professional.name,
-                                    style = MaterialTheme.typography.titleMedium
-                                )
+
+                                // Name with qualification badge
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        text = professional.name,
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+
+                                    // Qualification Badge
+                                    Box(
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .background(
+                                                color = MaterialTheme.colorScheme.primary,
+                                                shape = CircleShape
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = getQualificationText(professional.specialty),
+                                            color = MaterialTheme.colorScheme.onPrimary,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+
                                 Text(text = professional.specialty, color = Color.Gray)
                                 Text(text = professional.location, fontSize = 12.sp)
                                 Spacer(modifier = Modifier.height(8.dp))
@@ -937,10 +1022,8 @@ private fun ProfessionalBottomSheetContent(
                         Text(text = "Rating: ${professional.rating}")
                         Text(text = "Consultation Fee: ₦${professional.consultationPrice}")
 
-                        Spacer(modifier = Modifier.height(20.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
                     }
-
-                    Spacer(modifier = Modifier.height(16.dp))
 
                     // Additional info
                     Card(
@@ -949,7 +1032,7 @@ private fun ProfessionalBottomSheetContent(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant
                         )
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(modifier = Modifier.padding(14.dp)) {
                             Text(
                                 text = "About",
                                 style = MaterialTheme.typography.titleMedium,
@@ -961,6 +1044,34 @@ private fun ProfessionalBottomSheetContent(
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+                    // Available Dates Section
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp)
+                    ) {
+                        Text(
+                            text = "Available Dates",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        )
+
+                        // Date Pills
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            contentPadding = PaddingValues(horizontal = 4.dp)
+                        ) {
+                            items(professional.availableDates) { date ->
+                                DatePill(
+                                    date = date,
+                                    onClick = { /* Handle date selection */ }
+                                )
+                            }
                         }
                     }
 
@@ -993,5 +1104,40 @@ private fun ProfessionalBottomSheetContent(
             }
         }
         Spacer(modifier = Modifier.height(5.dp))
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DatePill(
+    date: String,
+    onClick: () -> Unit
+) {
+    FilterChip(
+        onClick = onClick,
+        label = {
+            Text(
+                text = date,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+            )
+        },
+        selected = false,
+        colors = FilterChipDefaults.filterChipColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            labelColor = MaterialTheme.colorScheme.onSurface
+        ),
+        border = FilterChipDefaults.filterChipBorder(
+            borderColor = MaterialTheme.colorScheme.outline
+        )
+    )
+}
+private fun getQualificationText(specialty: String): String {
+    return when (specialty.lowercase()) {
+        "physiotherapist" -> "PT"
+        "nutritionist" -> "Psy"
+        "occupational therapist" -> "OT"
+        else -> "DR"
     }
 }

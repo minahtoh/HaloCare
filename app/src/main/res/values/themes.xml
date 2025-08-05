@@ -2,4 +2,21 @@
 <resources>
 
     <style name="Theme.HaloCare" parent="android:Theme.Material.Light.NoActionBar" />
+
+
+
+    <style name="Theme.HaloCare.Starting" parent="Theme.SplashScreen">
+        <!-- Background color that matches app -->
+        <item name="windowSplashScreenBackground">#FF171D1E</item>
+
+        <!-- Icon for system splash -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/halocare_ic_nt</item>
+
+        <!-- System animation duration -->
+        <item name="windowSplashScreenAnimationDuration">500</item>
+
+        <!-- Post splash theme -->
+        <item name="postSplashScreenTheme">@style/Theme.HaloCare</item>
+    </style>
+
 </resources>

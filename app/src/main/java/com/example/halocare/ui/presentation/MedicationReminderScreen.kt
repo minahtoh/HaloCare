@@ -2,6 +2,10 @@ package com.example.halocare.ui.presentation
 
 import android.app.AlarmManager
 import android.app.PendingIntent
+
+import androidx.compose.material.ripple.rememberRipple
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import android.app.TimePickerDialog
 import android.content.Context
 import android.content.Intent
@@ -29,11 +33,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.ui.draw.rotate
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
@@ -82,6 +89,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -100,7 +108,8 @@ import java.util.Calendar
 @Preview(widthDp = 320, heightDp = 720)
 @Composable
 fun MedicationReminderScreen(
-    mainViewModel: MainViewModel
+    mainViewModel: MainViewModel,
+    onBackIconClick : () -> Unit
 ) {
     val statusBarController = rememberStatusBarController()
     val statusBarColor = MaterialTheme.colorScheme.tertiaryContainer
@@ -125,7 +134,9 @@ fun MedicationReminderScreen(
     }
 
     Scaffold(
-        topBar = { MedicationReminderTopBar() },
+        topBar = { MedicationReminderTopBar(
+            onBackIconClick = {onBackIconClick()}
+        ) },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { showAddDialog = true },
@@ -151,9 +162,12 @@ fun MedicationReminderScreen(
                 MedicationCalendar(medicationSchedule = medicationSchedule)
             }
             Spacer(modifier = Modifier.height(5.dp))
-           // MedicationList()
-            Column {
-                // **TabRow for switching views**
+
+
+            Column(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                // Tab Row
                 TabRow(
                     selectedTabIndex = selectedTab,
                     containerColor = MaterialTheme.colorScheme.secondaryContainer
@@ -169,36 +183,61 @@ fun MedicationReminderScreen(
                         text = { Text("All Medications") }
                     )
                 }
-                // **Filter medication list based on tab selection**
-                val medicationsToShow = if (selectedTab == 0) {
-                    medicationSchedule[today].orEmpty() // Today's Doses
-                } else {
-                    medicationSchedule.values.flatten().distinctBy { it.name } // All Medications
-                }
 
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .fillMaxHeight()
-                        .background(
-                            color = MaterialTheme.colorScheme.inversePrimary,
-                        )
-                ) {
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Medication filtering logic
+                val todayMeds = medicationSchedule[today].orEmpty()
+                val allMeds = medicationSchedule.values.flatten().distinctBy { it.name }
+
+                val medicationsToShow = if (selectedTab == 0) todayMeds else allMeds
+
+                if (medicationsToShow.isNotEmpty()) {
                     LazyColumn(
-                       modifier = Modifier.padding(top = 3.dp)
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
                     ) {
                         items(medicationsToShow) { medication ->
                             MedicationCard(
                                 medication = medication,
                                 isForToday = selectedTab == 0
                             ) {
-                                // Open Dose Logging Dialog on click
                                 selectedMedication = medication
                             }
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+                    }
+                } else {
+                    // Empty state UI
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Default.AddCircle,
+                                contentDescription = "Add Medication",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(64.dp)
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = if (selectedTab == 0)
+                                    "No doses scheduled for today."
+                                else
+                                    "No medications found.\nStart by adding one.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                textAlign = TextAlign.Center,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
                         }
                     }
                 }
             }
+
             // **Show Dose Logging Dialog when a medication is selected**
             selectedMedication?.let { medication ->
                 LogMedicationDialog(
@@ -229,23 +268,83 @@ fun MedicationReminderScreen(
     }
 }
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MedicationReminderTopBar() {
-    TopAppBar(
-        title = {
+fun MedicationReminderTopBar(
+    onBackIconClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .height(75.dp)
+            .shadow(
+                elevation = 2.dp,
+            )
+            .background(MaterialTheme.colorScheme.tertiaryContainer)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 20.dp, bottom = 20.dp, start = 20.dp, end = 20.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Back Button
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = CircleShape,
+                shadowElevation = 2.dp,
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .clickable (
+                        onClick = {onBackIconClick()},
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = rememberRipple(bounded = true)
+                    )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowRight,
+                    contentDescription = "Back",
+                    modifier = Modifier
+                        .rotate(180f)
+                        .padding(8.dp),
+                    tint = MaterialTheme.colorScheme.surfaceTint
+                )
+            }
+
+            // Title
             Text(
                 text = "Medication Reminder",
-                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                modifier = Modifier.padding(10.dp)
-            )},
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-            titleContentColor = MaterialTheme.colorScheme.onTertiaryContainer
-        ),
-        modifier = Modifier.shadow(elevation = 7.dp)
-    )
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.secondary,
+                fontWeight = FontWeight.Bold
+            )
+
+            // Right-side Icon
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = CircleShape,
+                shadowElevation = 2.dp,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.baseline_medication_24),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+        }
+    }
 }
+
+
 
 @Composable
 fun LogMedicationDialog(
@@ -921,7 +1020,26 @@ fun MedicationCalendar(medicationSchedule: Map<LocalDate, List<Medication>>) {
                             )
                             .padding(start = 3.dp, end = 3.dp)
                     ) {
-                        Text("${dayIndex + 1}", fontWeight = FontWeight.Bold, fontSize = 14.sp) // ✅ Fixed
+                        val isToday = date == today
+
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .padding(2.dp)
+                                .background(
+                                    color = if (isToday) MaterialTheme.colorScheme.tertiary else Color.Transparent,
+                                    shape = CircleShape
+                                )
+                                .padding(horizontal = 7.dp, vertical = 1.dp)
+                        ) {
+                            Text(
+                                text = "${dayIndex + 1}",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = if (isToday) Color.White else Color.Unspecified
+                            )
+                        }
+
 
                         if (medications.isNotEmpty()) {
                             Column(
@@ -962,12 +1080,12 @@ fun MedicationBottomSheet(day: LocalDate, medications: List<Medication>, onDismi
         onDismissRequest = onDismiss,
         containerColor = MaterialTheme.colorScheme.primaryContainer
     ) {
-        Column(modifier = Modifier.padding(start = 30.dp)) {
+        Column(modifier = Modifier.padding(start = 14.dp)) {
             if (medications.isEmpty()){
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 8.dp,),
+                        .padding(vertical = 8.dp),
                 ) {
                     Text(
                         text ="Medications for ${day.dayOfMonth} ${day.month.name.capitalize()}",

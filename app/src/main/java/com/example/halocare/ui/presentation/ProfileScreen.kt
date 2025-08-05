@@ -121,7 +121,11 @@ fun ProfileScreen(
         Box(
             modifier = Modifier.fillMaxSize()
         ) {
-            AnimatedLoadingDialog(uiState = profileState) {
+            AnimatedLoadingDialog(
+                uiState = profileState,
+                loadingPrompt = "Updating profile...",
+                successPrompt = "Profile updated successfully!"
+            ) {
                 if (profileState is AuthUiState.Success){
                     authViewModel.resetAuthState()
                     authViewModel.refreshUserStatus(loggedUser.uid)

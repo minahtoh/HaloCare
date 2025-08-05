@@ -1,7 +1,10 @@
 package com.example.halocare.ui.presentation
 
 
+import android.util.Log
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDp
 import androidx.compose.animation.core.animateFloat
@@ -33,6 +36,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -56,17 +60,24 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.example.halocare.R
 import com.example.halocare.ui.models.User
 import com.example.halocare.viewmodel.AuthUiState
 import com.example.halocare.viewmodel.AuthViewModel
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.common.api.ApiException
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.GoogleAuthProvider
 import kotlinx.coroutines.delay
 
 
@@ -90,6 +101,26 @@ fun LoginScreen(
             darkIcons = true
         )
     }
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        try {
+            val account = task.getResult(ApiException::class.java)
+            val idToken = account.idToken
+            if (idToken != null) {
+                viewModel.loginUserWithGoogle(idToken)
+                Log.d("OAuth", "ID token is $idToken")
+            } else {
+                Log.w("OAuth", "ID token is null")
+            }
+        } catch (e: ApiException) {
+            Log.e("OAuth", "Google Sign-In failed w - ${e.localizedMessage}", e)
+        }
+    }
+
+
     Surface(
         color = MaterialTheme.colorScheme.surface,
         modifier = modifier.fillMaxSize()
@@ -97,7 +128,11 @@ fun LoginScreen(
         Box(
             modifier = Modifier.fillMaxWidth()
         ) {
-            AnimatedLoadingDialog(uiState = loginState) {
+            AnimatedLoadingDialog(
+                uiState = loginState,
+                loadingPrompt = "Logging in...",
+                successPrompt = "Login Successful!",
+            ) {
                 if (loginState is AuthUiState.Success){
                     viewModel.resetAuthState()
                    // val loggedUser = (loginState as AuthUiState.Success<User>).data
@@ -121,7 +156,7 @@ fun LoginScreen(
                 Column(
                     modifier = Modifier.padding(10.dp)
                 ) {
-                    Spacer(modifier = Modifier.height(30.dp))
+                    Spacer(modifier = Modifier.height(90.dp))
                     Surface(
                         color = MaterialTheme.colorScheme.tertiaryContainer,
                         shape = RoundedCornerShape(15.dp),
@@ -148,6 +183,9 @@ fun LoginScreen(
                                 shape = RoundedCornerShape(25.dp)
                             )
                             Spacer(modifier = Modifier.height(8.dp))
+
+                            var passwordVisible by remember { mutableStateOf(false) }
+
                             OutlinedTextField(
                                 value = password,
                                 onValueChange = { password = it },
@@ -155,7 +193,19 @@ fun LoginScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
                                 shape = RoundedCornerShape(25.dp),
-                                visualTransformation = PasswordVisualTransformation()
+                                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                trailingIcon = {
+                                    val image = if (passwordVisible)
+                                        R.drawable.outline_remove_red_eye_24
+                                    else
+                                        R.drawable.baseline_remove_red_eye_24
+
+                                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                        Icon(
+                                            painter = painterResource(id = image),
+                                            contentDescription = "Toggle password visibility")
+                                    }
+                                }
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Row(
@@ -203,7 +253,12 @@ fun LoginScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        GoogleSignInSectionWithCustomIcon(onGoogleSignInClick = { /*TODO*/ })
+                        GoogleSignInSectionWithCustomIcon(
+                            onGoogleSignInClick = {
+                                val signinIntent = viewModel.provideGoogleSignInClient(context).signInIntent
+                                launcher.launch(signinIntent)
+                            }
+                        )
 
                         Spacer(modifier = Modifier.height(16.dp))
 
@@ -334,6 +389,8 @@ fun HaloCareLoginDialog(
         }
     }
 }
+
+
 @Composable
 fun GoogleSignInSectionWithCustomIcon(
     onGoogleSignInClick: () -> Unit,

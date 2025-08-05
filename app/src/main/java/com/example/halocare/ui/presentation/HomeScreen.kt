@@ -1,5 +1,6 @@
 package com.example.halocare.ui.presentation
 
+import androidx.annotation.DrawableRes
 import androidx.collection.emptyLongSet
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -22,6 +23,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.scrollable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -74,6 +76,7 @@ import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -114,6 +117,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.modifier.modifierLocalConsumer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -152,8 +156,8 @@ fun HomeScreen(
     val statusBarController = rememberStatusBarController()
     val statusBarColor = MaterialTheme.colorScheme.inversePrimary
     val features = listOf(
-        "Development Tracker", "Medication Reminder", "Health Insights",
-        "Symptom Checker"
+        "Development Tracker", "Health News", "Market Place",
+        "Habits Tracking"
     )
     val icons = listOf(
         Icons.Default.Favorite, Icons.Default.DateRange, Icons.Default.ShoppingCart,
@@ -329,18 +333,13 @@ fun HomeScreen(
                     .fillMaxWidth()
                     .padding(start = 7.dp, end = 7.dp))
                 {
-                    if (weatherData != null){
-                        DashboardWeatherCard(
-                            weatherData = weatherData!!,
-                            onClick = {
-                                mainViewModel.getHourlyWeather("Lagos")
-                                showBottomSheet = true
-                                isDaytimeColor = it
-                            }
+                    DashboardWeatherCard(
+                        weatherData = weatherData!!,
+                        onClick = {
+                            mainViewModel.getHourlyWeather("Lagos")
+                            showBottomSheet = true
+                            isDaytimeColor = it },
                         )
-                    }else{
-                        WeatherCard()
-                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -478,8 +477,7 @@ fun HaloCareBottomBarCurved(
                 .height(160.dp),
             contentAlignment = Alignment.BottomCenter
         ) {
-            val outlineColor = MaterialTheme.colorScheme.inversePrimary
-            val borderColor = MaterialTheme.colorScheme.secondary
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -598,30 +596,41 @@ private fun NavController.navigateSingleTopTo(route: String,popBackStack: Boolea
 fun BottomNavItem(
     icon: @Composable () -> Unit,
     label: String,
-    isSelected : Boolean,
-    onClick: () -> Unit) {
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
     Box(
         modifier = Modifier
             .width(65.dp)
-            .height(90.dp)
-            .padding(1.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent)
-            .clickable(onClick = onClick),
+            .height(90.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            IconButton(onClick = onClick) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(
+                        if (isSelected) MaterialTheme.colorScheme.tertiary.copy(alpha = 0.3f)
+                        else Color.Transparent
+                    )
+                    .clickable(
+                        onClick = onClick,
+                        indication = rememberRipple(bounded = true),
+                        interactionSource = remember { MutableInteractionSource() }
+                    )
+                    .padding(8.dp)
+            ) {
                 icon()
             }
+
+            // Label
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
                 textAlign = TextAlign.Center,
                 color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Gray
-
             )
         }
     }
@@ -849,19 +858,20 @@ private fun WeatherDetailItem(
 
 @Composable
 fun DashboardWeatherCard(
-    weatherData: WeatherResponse,
-    onClick: (Boolean) -> Unit
+    weatherData: WeatherResponse?,
+    onClick: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val current = weatherData.current
-    val isDaytime = current.isDay
-
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(280.dp)
-            .clickable { onClick(isDaytime) },
+            .addForShimmer(weatherData)
+            .clickable(enabled = weatherData != null) {
+                weatherData?.let { onClick(it.current.isDay) }
+            },
         colors = CardDefaults.cardColors(
-            containerColor = if (isDaytime)
+            containerColor = if (weatherData?.current?.isDay == true)
                 MaterialTheme.colorScheme.primaryContainer
             else
                 MaterialTheme.colorScheme.secondaryContainer
@@ -869,80 +879,236 @@ fun DashboardWeatherCard(
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
+        if (weatherData != null) {
+            WeatherContent(weatherData = weatherData)
+        } else {
+            WeatherLoadingContent()
+        }
+    }
+}
+
+@Composable
+private fun WeatherContent(weatherData: WeatherResponse) {
+    val current = weatherData.current
+    val isDaytime = current.isDay
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        // Top Row: Location + Time + Icon
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top
         ) {
-            // Top Row: Location + Time + Icon
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Column {
-                    Text(
-                        text = weatherData.location.name,
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Text(
-                        text = weatherData.location.localtime,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                    )
-                }
-
-                Icon(
-                    painter = painterResource(
-                        id = if (isDaytime)
-                            R.drawable.baseline_wb_sunny_24
-                        else R.drawable.baseline_nights_stay_24
-                    ),
-                    contentDescription = null,
-                    tint = if (isDaytime) Color.Yellow else Color.Cyan,
-                    modifier = Modifier.size(28.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Temperature (centered)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Column {
                 Text(
-                    text = "${current.tempCelsius}°C",
-                    style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.ExtraBold),
+                    text = weatherData.location.name,
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
-                Spacer(modifier = Modifier.width(8.dp))
-                Image(
-                    painter = rememberAsyncImagePainter(current.condition.icon),
-                    contentDescription = current.condition.text,
-                    modifier = Modifier.size(32.dp)
+                Text(
+                    text = weatherData.location.localtime,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                 )
             }
 
-            Text(
-                text = current.condition.text,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
+            Icon(
+                painter = painterResource(
+                    id = if (isDaytime)
+                        R.drawable.baseline_wb_sunny_24
+                    else R.drawable.baseline_nights_stay_24
+                ),
+                contentDescription = null,
+                tint = if (isDaytime) Color.Yellow else Color.Cyan,
+                modifier = Modifier.size(28.dp)
             )
+        }
 
-            Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-            // Bottom Weather Metrics
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                WeatherMetric(icon = R.drawable.baseline_air_24, value = "${current.windSpeed} km/h", label = "Wind")
-                WeatherMetric(icon = R.drawable.baseline_cloud_24, value = "${current.cloudCoverage}%", label = "Clouds")
-                WeatherMetric(icon = R.drawable.baseline_water_drop_24, value = "${current.precipitationMm} mm", label = "Rain")
+        // Temperature (centered)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "${current.tempCelsius}°C",
+                style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.ExtraBold),
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            AsyncImage(
+                model = current.condition.icon,
+                contentDescription = current.condition.text,
+                modifier = Modifier.size(32.dp)
+            )
+        }
+
+        Text(
+            text = current.condition.text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            modifier = Modifier.align(Alignment.CenterHorizontally)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Bottom Weather Metrics
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            WeatherMetric(
+                icon = R.drawable.baseline_air_24,
+                value = "${current.windSpeed} km/h",
+                label = "Wind"
+            )
+            WeatherMetric(
+                icon = R.drawable.baseline_cloud_24,
+                value = "${current.cloudCoverage}%",
+                label = "Clouds"
+            )
+            WeatherMetric(
+                icon = R.drawable.baseline_water_drop_24,
+                value = "${current.precipitationMm} mm",
+                label = "Rain"
+            )
+        }
+    }
+}
+
+@Composable
+private fun WeatherLoadingContent() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        // Top Row Skeleton
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top
+        ) {
+            Column {
+                Box(
+                    modifier = Modifier
+                        .width(120.dp)
+                        .height(24.dp)
+                        .background(
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                            RoundedCornerShape(4.dp)
+                        )
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Box(
+                    modifier = Modifier
+                        .width(80.dp)
+                        .height(16.dp)
+                        .background(
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                            RoundedCornerShape(4.dp)
+                        )
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .background(
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                        CircleShape
+                    )
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Temperature Skeleton
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(100.dp)
+                    .height(48.dp)
+                    .background(
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                        RoundedCornerShape(8.dp)
+                    )
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .background(
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                        CircleShape
+                    )
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Condition text skeleton
+        Box(
+            modifier = Modifier
+                .width(80.dp)
+                .height(16.dp)
+                .background(
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                    RoundedCornerShape(4.dp)
+                )
+                .align(Alignment.CenterHorizontally)
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Bottom metrics skeleton
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            repeat(3) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .background(
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                                CircleShape
+                            )
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Box(
+                        modifier = Modifier
+                            .width(40.dp)
+                            .height(12.dp)
+                            .background(
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                                RoundedCornerShape(4.dp)
+                            )
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Box(
+                        modifier = Modifier
+                            .width(30.dp)
+                            .height(10.dp)
+                            .background(
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                                RoundedCornerShape(4.dp)
+                            )
+                    )
+                }
             }
         }
     }
@@ -1181,7 +1347,6 @@ private fun VerticalShimmerWeatherCard(
 
     Card(
         shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(4.dp),
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -1370,7 +1535,7 @@ fun FeatureGridItem(
                 )
         ) {
             Icon(
-                imageVector = feature.icon,
+                painter = painterResource(feature.icon.drawableRes),
                 contentDescription = feature.name,
                 tint = MaterialTheme.colorScheme.onSecondaryContainer,
                 modifier = Modifier.size(24.dp)
@@ -1385,6 +1550,7 @@ fun FeatureGridItem(
         )
     }
 }
+
 @Composable
 fun PointerTriangle(modifier: Modifier = Modifier) {
     val triangleColor = MaterialTheme.colorScheme.surface
@@ -1405,18 +1571,30 @@ fun PointerTriangle(modifier: Modifier = Modifier) {
 
 // Sample feature list
 val featureList = listOf(
-    Feature("Health", Icons.Filled.Favorite),
-    Feature("Weather", Icons.Filled.Warning),
-    Feature("News", Icons.Filled.List),
-    Feature("Schedule", Icons.Filled.DateRange),
-    Feature("Community", Icons.Filled.Place),
-    Feature("Pediatrics", Icons.Filled.Person),
-    Feature("Mood", Icons.Filled.ThumbUp),
-    Feature("Daily Habits", Icons.Filled.CheckCircle),
-    Feature("Settings", Icons.Filled.Settings)
+    Feature("Exercise Tracker",  FeatureIconType.EXERCISE),
+    Feature("Journal", FeatureIconType.JOURNAL),
+    Feature("Health News", FeatureIconType.HEALTH_NEWS),
+    Feature("Medications", FeatureIconType.MEDICATIONS),
+    Feature("New Appointment", FeatureIconType.APPOINTMENT),
+    Feature("Development Tracker", FeatureIconType.DEVELOPMENT),
+    Feature("Mood Tracker", FeatureIconType.MOOD),
+    Feature("Sleep Tracker", FeatureIconType.SLEEP),
+    Feature("Screen Time", FeatureIconType.SCREENTIME)
 )
 
-data class Feature(val name: String, val icon: ImageVector, val route: String = AppointmentsScreen.route)
+data class Feature(val name: String, val icon: FeatureIconType, val route: String = AppointmentsScreen.route)
+
+enum class FeatureIconType(@DrawableRes val drawableRes: Int) {
+    EXERCISE(R.drawable.exercise_tracker),
+    JOURNAL(R.drawable.journal),
+    HEALTH_NEWS(R.drawable.health_news_ic),
+    MEDICATIONS(R.drawable.yes_meds_ic),
+    APPOINTMENT(R.drawable.baseline_add_circle_24),
+    DEVELOPMENT(R.drawable.ped_dev_tracker_ic),
+    MOOD(R.drawable.mood_tracker),
+    SLEEP(R.drawable.sleep_tracker),
+    SCREENTIME(R.drawable.screentime)
+}
 
 // ---- Shimmer Effect Helper ---- //
 @Composable

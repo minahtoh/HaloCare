@@ -1,11 +1,17 @@
 package com.example.halocare.viewmodel
 
+import android.content.Context
 import android.util.Log
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.halocare.R
 import com.example.halocare.database.UserDao
 import com.example.halocare.ui.models.User
 import com.example.halocare.ui.presentation.UiState
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInClient
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.firebase.auth.AuthResult
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
@@ -20,19 +26,20 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import com.example.halocare.BuildConfig
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(private val authRepository: AuthRepository) : ViewModel() {
-
     private val _authState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
     val authState: StateFlow<AuthUiState> = _authState
     private var _haloCareUserState = MutableStateFlow<UiState<User>>(UiState.Idle)
     val haloCareUserState = _haloCareUserState.asStateFlow()
     private var _haloCareUser = MutableStateFlow(User())
     val haloCareUser = _haloCareUser.asStateFlow()
+
 
     fun registerUser(
         name: String,
@@ -84,21 +91,47 @@ class AuthViewModel @Inject constructor(private val authRepository: AuthReposito
         }
     }
 
+    fun provideGoogleSignInClient(context: Context): GoogleSignInClient {
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(BuildConfig.GOOGLE_CLIENT_ID) // from google-services.json
+            .requestEmail()
+            .build()
+
+        return GoogleSignIn.getClient(context, gso)
+    }
+
     fun loginUserWithGoogle(idToken: String) {
         viewModelScope.launch {
             _authState.value = AuthUiState.Loading
             try {
                 val result = authRepository.loginWithGoogle(idToken)
-                result?.user?.let {
-                    _authState.value = AuthUiState.Success(it)
+                Log.d("OAUTH", "loginUserWithGoogle: ATTEMPTED")
+                result?.user?.let { firebaseUser ->
+                    val userDoc = authRepository.getFirebaseInstance().collection("users").document(firebaseUser.uid).get().await()
+
+                    if (!userDoc.exists()) {
+                        // ✨ Create new user entry in Firestore
+                        val user = User(
+                            uid = firebaseUser.uid,
+                            email = firebaseUser.email ?: "",
+                            name = firebaseUser.displayName ?: "Anonymous"
+                        )
+                        authRepository.getFirebaseInstance()
+                            .collection("users").document(firebaseUser.uid).set(user).await()
+                    }
+                    fetchUser(firebaseUser.uid)
+                    _authState.value = AuthUiState.Success(firebaseUser)
                 } ?: run {
                     _authState.value = AuthUiState.Error("Google Sign-In failed.")
                 }
             } catch (e: Exception) {
                 _authState.value = AuthUiState.Error(e.message ?: "An error occurred.")
+                Log.d("OAUTH", "loginUserWithGoogle: eRROR ${e.message}")
             }
         }
     }
+
+
 
     private fun fetchUser(userId: String) {
         viewModelScope.launch {
@@ -162,14 +195,17 @@ class AuthRepository @Inject constructor(
 
     suspend fun loginWithGoogle(idToken: String): AuthResult? {
         val credential = GoogleAuthProvider.getCredential(idToken, null)
-        return  auth.signInWithCredential(credential).await()
+        return FirebaseAuth.getInstance().signInWithCredential(credential).await()
     }
+
+
 
     fun logout() {
         auth.signOut()
     }
 
     fun getCurrentUser() = auth.currentUser
+    fun getFirebaseInstance() = firestore
 
     suspend fun saveUserToFirestore(user: User): Result<Boolean> {
         return try {

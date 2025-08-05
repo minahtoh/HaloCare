@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
@@ -90,7 +91,11 @@ fun RegisterScreen(
         Box(
             modifier = Modifier.fillMaxSize()
         ) {
-            AnimatedLoadingDialog(uiState = uiState) {
+            AnimatedLoadingDialog(
+                uiState = uiState,
+                loadingPrompt = "Registering user",
+                successPrompt = "User successfully created!"
+            ) {
                 if (uiState is AuthUiState.Success){
                     authViewModel.resetAuthState()
                     onSignUpSuccess()
@@ -228,14 +233,15 @@ fun IntroCard(
 @Composable
 fun AnimatedLoadingDialog(
     uiState: AuthUiState,  // Tracks loading, success, or error
-    onDismiss: () -> Unit
+    loadingPrompt: String,
+    successPrompt: String,
+    onDismiss: () -> Unit,
 ) {
     if (uiState is AuthUiState.Idle) return // Don't show if idle
 
     Dialog(onDismissRequest = {
         if(uiState != AuthUiState.Loading) onDismiss()
     }) {
-        val transition = rememberInfiniteTransition()
 
         val scale by animateFloatAsState(
             targetValue = if (uiState is AuthUiState.Loading) 1f else 1.2f,
@@ -245,7 +251,8 @@ fun AnimatedLoadingDialog(
 
         Box(
             modifier = Modifier
-                .fillMaxWidth()
+                .width(280.dp)
+                .height(200.dp)
                 .padding(16.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .background(Color.White)
@@ -283,8 +290,8 @@ fun AnimatedLoadingDialog(
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = when (uiState) {
-                        is AuthUiState.Loading -> "Processing..."
-                        is AuthUiState.Success -> "Success!"
+                        is AuthUiState.Loading -> loadingPrompt
+                        is AuthUiState.Success -> successPrompt
                         is AuthUiState.Error -> uiState.message
                         else -> ""
                     },

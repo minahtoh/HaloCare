@@ -7,8 +7,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -118,12 +120,27 @@ fun JournalHeatmap(
                         else -> Color(0xFF4CAF50)
                     }
 
+                    val isToday = date == today
+
                     Box(
                         modifier = Modifier
                             .size(46.dp)
                             .padding(4.dp)
-                            .background(color, shape = CircleShape)
-                            .shadow(elevation = 17.dp, shape = CircleShape)
+                            .then(
+                                if (isToday) {
+                                    Modifier
+                                        .border(
+                                            BorderStroke(2.dp, Color.Black),
+                                            shape = RoundedCornerShape(4.dp)
+                                        )
+                                        .background(color, shape = RoundedCornerShape(4.dp))
+                                        .shadow(elevation = 17.dp, shape = RoundedCornerShape(4.dp))
+                                } else {
+                                    Modifier
+                                        .background(color, shape = CircleShape)
+                                        .shadow(elevation = 17.dp, shape = CircleShape)
+                                }
+                            )
                             .clickable {
                                 val entriesForDay = entries.filter { it.date.dayOfMonth == day + 1 }
                                 onDateClicked(entriesForDay)
@@ -135,6 +152,7 @@ fun JournalHeatmap(
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
+
                 }
             }
         }
@@ -230,6 +248,16 @@ fun ScrollJournalView(
     modifier: Modifier = Modifier
 ) {
     var textVisible by remember { mutableStateOf(false) }
+    val totalEntryAnimDuration = entryText.length * 50L + 1500L
+    var showDateText by remember { mutableStateOf(false) }
+
+    LaunchedEffect(entryText) {
+        showDateText = false
+        delay(totalEntryAnimDuration)
+        showDateText = true
+    }
+
+
 
     LaunchedEffect(Unit) {
         delay(300) // Wait for background to settle
@@ -248,12 +276,11 @@ fun ScrollJournalView(
                 .align(Alignment.Center),
         )
 
-        // Animated text appearing like ink flowing
         AnimatedVisibility(
             visible = textVisible,
-            enter = fadeIn(animationSpec = tween(2000)) + slideInVertically(
-                animationSpec = tween(2000),
-                initialOffsetY = { 50 }
+            enter = fadeIn(animationSpec = tween(1500)) + expandVertically(
+                animationSpec = tween(1500),
+                expandFrom = Alignment.Top
             )
         ) {
             Box(
@@ -280,18 +307,22 @@ fun ScrollJournalView(
                 )
 
                 // Date positioned absolutely
-                Text(
-                    text = "$date.",
-                    style = TextStyle(
-                        fontFamily = FontFamily(Font(R.font.parisienne)),
-                        fontSize = 18.sp,
-                        lineHeight = 25.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.DarkGray
-                    ),
-                    modifier = Modifier
-                        .offset(x = 210.dp, y = 650.dp)
-                )
+                if (showDateText) {
+                    AnimatedText(
+                        text = "$date.",
+                        style = TextStyle(
+                            fontFamily = FontFamily(Font(R.font.parisienne)),
+                            fontSize = 18.sp,
+                            lineHeight = 25.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.DarkGray
+                        ),
+                        modifier = Modifier
+                            .offset(x = 210.dp, y = 650.dp),
+                        delayPerChar = 160L,
+                        startDelay = 0L
+                    )
+                }
             }
         }
     }
@@ -304,6 +335,14 @@ fun NotebookJournalView(
     modifier: Modifier = Modifier
 ) {
     var textVisible by remember { mutableStateOf(false) }
+    val totalEntryAnimDuration = entryText.length * 50L + 1500L
+    var showDateText by remember { mutableStateOf(false) }
+
+    LaunchedEffect(entryText) {
+        showDateText = false
+        delay(totalEntryAnimDuration)
+        showDateText = true
+    }
 
     LaunchedEffect(Unit) {
         delay(200)
@@ -354,18 +393,22 @@ fun NotebookJournalView(
                 )
 
                 // Date positioned absolutely
-                Text(
-                    text = "$date.",
-                    style = TextStyle(
-                        fontFamily = FontFamily(Font(R.font.patrick_hand)),
-                        fontSize = 15.sp,
-                        lineHeight = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Blue.copy(alpha = 0.5f)
-                    ),
-                    modifier = Modifier
-                        .offset(x = 300.dp, y = 675.dp)
-                )
+                if (showDateText) {
+                    AnimatedText(
+                        text = "$date.",
+                        style = TextStyle(
+                            fontFamily = FontFamily(Font(R.font.patrick_hand)),
+                            fontSize = 15.sp,
+                            lineHeight = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color =  Color.Blue.copy(alpha = 0.5f)
+                        ),
+                        modifier = Modifier
+                            .offset(x = 300.dp, y = 675.dp),
+                        delayPerChar = 160L,
+                        startDelay = 0L
+                    )
+                }
             }
         }
     }
@@ -403,6 +446,14 @@ fun StickyNoteJournalView(
     modifier: Modifier = Modifier
 ) {
     var textVisible by remember { mutableStateOf(false) }
+    val totalEntryAnimDuration = entryText.length * 50L + 1000L
+    var showDateText by remember { mutableStateOf(false) }
+
+    LaunchedEffect(entryText) {
+        showDateText = false
+        delay(totalEntryAnimDuration)
+        showDateText = true
+    }
 
     LaunchedEffect(Unit) {
         delay(100)
@@ -453,22 +504,27 @@ fun StickyNoteJournalView(
                 )
 
                 // Date positioned absolutely
-                Text(
-                    text = "$date.",
-                    style = TextStyle(
-                        fontFamily = FontFamily(Font(R.font.architects_daughter)),
-                        fontSize = 17.sp,
-                        lineHeight = 25.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.DarkGray
-                    ),
-                    modifier = Modifier
-                        .offset(x = 250.dp, y = 600.dp)
-                )
+                if (showDateText) {
+                    AnimatedText(
+                        text = "$date.",
+                        style = TextStyle(
+                            fontFamily = FontFamily(Font(R.font.architects_daughter)),
+                            fontSize = 17.sp,
+                            lineHeight = 25.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.DarkGray
+                        ),
+                        modifier = Modifier
+                            .offset(x = 250.dp, y = 600.dp),
+                        delayPerChar = 160L,
+                        startDelay = 0L
+                    )
+                }
             }
         }
     }
 }
+
 @Composable
 fun OpenBookJournalView(
     entryText: String,
@@ -497,9 +553,9 @@ fun OpenBookJournalView(
         // Text appearing like pages turning
         AnimatedVisibility(
             visible = textVisible,
-            enter = fadeIn(animationSpec = tween(2500)) + slideInHorizontally(
-                animationSpec = tween(2500),
-                initialOffsetX = { -it / 4 }
+            enter = fadeIn(animationSpec = tween(1500)) + expandVertically(
+                animationSpec = tween(1500),
+                expandFrom = Alignment.Top
             )
         ) {
             Box(

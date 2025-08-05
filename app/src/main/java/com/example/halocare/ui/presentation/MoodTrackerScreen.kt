@@ -7,6 +7,8 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -61,7 +63,7 @@ fun MoodTrackerScreen(
     onBackIconClick: () -> Unit
 ){
     val statusBarController = rememberStatusBarController()
-    val statusBarColor = MaterialTheme.colorScheme.errorContainer
+    val statusBarColor = MaterialTheme.colorScheme.inversePrimary
 
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
 
@@ -117,12 +119,12 @@ fun MoodTrackerScreen(
         topBar = {
             MoodTrackerTopBar(onBackIconClick)
         },
-        containerColor = MaterialTheme.colorScheme.tertiaryContainer
+        containerColor = MaterialTheme.colorScheme.primaryContainer
     ) { paddingValues ->
         Column(modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
-            .padding(horizontal = 5 .dp, vertical = 5.dp)
+            .padding(horizontal = 5.dp, vertical = 5.dp)
             .verticalScroll(scrollState)
         ) {
 
@@ -227,6 +229,27 @@ fun MoodTrackerScreen(
                 }
             }
 
+            var showDialog by remember { mutableStateOf(false) }
+
+            // Dialog shown when user long-presses the wizard icon
+            if (showDialog) {
+                AlertDialog(
+                    onDismissRequest = { showDialog = false },
+                    confirmButton = {
+                        TextButton(onClick = { showDialog = false }) {
+                            Text("Got it")
+                        }
+                    },
+                    title = { Text("Who is Nimbus the Wise?") },
+                    text = {
+                        Text(
+                            "Nimbus the Wise is a gentle mind-mage who drifts through realms of thought. " +
+                                    "He appears when clouds gather in your heart — offering clarity, calm, and the occasional spark of joy."
+                        )
+                    }
+                )
+            }
+
             // Inspirational Quote Section
             Card(
                 modifier = Modifier
@@ -242,18 +265,27 @@ fun MoodTrackerScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "Gandalf's says",
+                        "Nimbus the Wise",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
 
-                    Icon(
-                        painter = painterResource(id = R.drawable.wzzrd),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(30.dp),
-                        tint = Color.Unspecified
-                    )
+                    Column(modifier = Modifier.pointerInput(Unit) {
+                        detectTapGestures(
+                            onLongPress = {
+                                showDialog = true
+                            }
+                        )
+                    }) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.wzzrd),
+                            contentDescription = "Nimbus the Wise",
+                            modifier = Modifier
+                                .size(30.dp)
+                                ,
+                            tint = Color.Unspecified
+                        )
+                    }
                 }
                 Column(modifier = Modifier.padding(
                     bottom = 16.dp, start = 16.dp, end = 16.dp)) {
@@ -629,10 +661,11 @@ fun MoodTrackerTopBar(
 ) {
     Box(
         modifier = Modifier
+            .height(75.dp)
             .shadow(
-                elevation = 17.dp,
+                elevation = 13.dp,
             )
-            .background(MaterialTheme.colorScheme.errorContainer)
+            .background(MaterialTheme.colorScheme.inversePrimary)
     ) {
         Row(
             modifier = Modifier
@@ -649,8 +682,8 @@ fun MoodTrackerTopBar(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .clickable (
-                        onClick = {onBackIconClick()},
+                    .clickable(
+                        onClick = { onBackIconClick() },
                         interactionSource = remember { MutableInteractionSource() },
                         indication = rememberRipple(bounded = true)
                     )

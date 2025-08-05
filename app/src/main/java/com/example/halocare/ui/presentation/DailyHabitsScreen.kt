@@ -86,6 +86,10 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.material.ripple.rememberRipple
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -96,6 +100,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -129,6 +134,7 @@ import com.example.halocare.ui.presentation.charts.StickyNoteBackground
 import com.example.halocare.ui.presentation.charts.StickyNoteJournalView
 import com.example.halocare.ui.presentation.charts.formatTextWithLineBreaks
 import com.example.halocare.ui.presentation.charts.toJournalType
+import com.example.halocare.ui.utils.ConfirmActionDialog
 import com.example.halocare.viewmodel.MainViewModel
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
@@ -144,7 +150,8 @@ import kotlin.math.roundToInt
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DailyHabitsScreen(
-    mainViewModel: MainViewModel
+    mainViewModel: MainViewModel,
+    onBackIconClick : () -> Unit
 ) {
     val statusBarController = rememberStatusBarController()
     val statusBarColor = MaterialTheme.colorScheme.inversePrimary
@@ -162,7 +169,7 @@ fun DailyHabitsScreen(
     // Pager state for swipe gestures
     val pagerState = rememberPagerState(pageCount = { tabTitles.size })
     val scrollState = rememberScrollState()
-    val topAppBarHeight = 50.dp
+    val topAppBarHeight = 75.dp
 
     val isTopBarVisible by remember { derivedStateOf { scrollState.value < 100 } }
 
@@ -172,7 +179,12 @@ fun DailyHabitsScreen(
         label = "TopBarPull"
     )
     val animatedTopPadding by animateDpAsState(
-        targetValue = if (isTopBarVisible) topAppBarHeight else 0.dp,
+        targetValue = if (isTopBarVisible) 50.dp else 0.dp,
+        animationSpec = tween(durationMillis = 300)
+    )
+
+    val containerHeight by animateDpAsState(
+        targetValue = if (isTopBarVisible) 75.dp  else 50.dp,
         animationSpec = tween(durationMillis = 300)
     )
 
@@ -194,7 +206,7 @@ fun DailyHabitsScreen(
     }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.tertiaryContainer
+        containerColor = MaterialTheme.colorScheme.secondaryContainer
     ) { paddingValues ->
         if (showJournalDialog.value && selectedJournalEntries.value.isNotEmpty()) {
             Box(
@@ -213,29 +225,27 @@ fun DailyHabitsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            Box(modifier = Modifier.wrapContentHeight()) {
-                TopAppBar(
-                    title = { Text("Daily Habits") },
+            val maxContainerHeight = topAppBarHeight + 50.dp
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(containerHeight), // containerHeight = topBar + tab height when visible
+                contentAlignment = Alignment.TopCenter
+            ) {
+                DailyHabitsTopBar(
+                    onBackIconClick = { onBackIconClick() },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(topAppBarHeight)
-                        .graphicsLayer {
-                            translationY = offsetY.toPx()
-                        }
-                        .zIndex(2f),
-                    colors = TopAppBarDefaults.mediumTopAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.inversePrimary
-                    )
+                        .offset { IntOffset(x = 0, y = offsetY.roundToPx()) } // replaces graphicsLayer
                 )
 
                 TabRow(
                     selectedTabIndex = selectedTabIndex,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .graphicsLayer {
-                            translationY = offsetY.toPx() + topAppBarHeight.toPx()
-                        }
-                        .zIndex(1f),
+                        .height(50.dp)
+                        .offset { IntOffset(x = 0, y = (offsetY + topAppBarHeight).roundToPx()) }, // properly placed below top bar
                     containerColor = MaterialTheme.colorScheme.primaryContainer
                 ) {
                     tabTitles.forEachIndexed { index, title ->
@@ -352,8 +362,8 @@ private fun ExerciseTabContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(450.dp)
-            .background(MaterialTheme.colorScheme.surfaceVariant),
+            .height(385.dp)
+            .background(MaterialTheme.colorScheme.secondaryContainer),
         //contentAlignment = Alignment.Center
     ){
         ExerciseProgressSection(
@@ -367,7 +377,7 @@ private fun ExerciseTabContent(
         modifier = Modifier
             .fillMaxWidth()
             .background(
-                color = MaterialTheme.colorScheme.tertiaryContainer,
+                color = MaterialTheme.colorScheme.secondaryContainer,
             )
     ) {
         Box(
@@ -376,6 +386,7 @@ private fun ExerciseTabContent(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .padding(7.dp)
             ) {
                 Text(
                     "Start Today's Exercise",
@@ -398,7 +409,7 @@ private fun ExerciseTabContent(
             }
         }
     }
-    Spacer(modifier = Modifier.height(150.dp))
+    Spacer(modifier = Modifier.height(300.dp))
 }
 
 @Composable
@@ -482,32 +493,21 @@ private fun SleepTabContent(
     ){
         Box(modifier = Modifier.fillMaxSize()){
 
-        /*    Image(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(
-                        RoundedCornerShape(
-                            topStart = 15.dp, topEnd = 15.dp,
-                            bottomStart = 0.dp, bottomEnd = 0.dp
-                        )
-                    ),
-                painter = painterResource(id = R.drawable.sleep__tracker__bg),
-                contentDescription = null
-            )
-            */
-
-            Column(
-                modifier = Modifier.fillMaxWidth()
+                    .padding(top = 5.dp)
             ) {
 
                 Text(
+                    modifier = Modifier.padding(start = 4.dp),
                     text ="Log Today Sleep",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
-                if(hasLoggedToday){
+                if(!hasLoggedToday){
                     SleepTracker(
                         saveSleepData = {
                             mainViewModel.logSleepData(it)
@@ -593,7 +593,7 @@ private fun JournalTabContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(300.dp)
+            .height(280.dp)
             .background(MaterialTheme.colorScheme.secondaryContainer),
         //contentAlignment = Alignment.Center
     ) {
@@ -602,13 +602,17 @@ private fun JournalTabContent(
 
     // Affirmation Card
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().padding(7.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+        ),
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.elevatedCardElevation(1.dp)
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
@@ -928,6 +932,7 @@ fun ExerciseProgressSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .background(color = MaterialTheme.colorScheme.secondaryContainer)
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -938,7 +943,7 @@ fun ExerciseProgressSection(
         ) {
             Text(
                 text = "Daily Exercise Progress",
-                style = MaterialTheme.typography.titleMedium
+                style = MaterialTheme.typography.headlineSmall.copy(fontSize = 18.sp),
             )
             Box(
                 modifier = Modifier
@@ -962,7 +967,7 @@ fun ExerciseProgressSection(
                 .shadow(elevation = 2.dp, shape = RoundedCornerShape(13.dp))
                 .background(
                     shape = RoundedCornerShape(13.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer
+                    color = MaterialTheme.colorScheme.surfaceVariant
                 )
                 .padding(horizontal = 25.dp),
             verticalArrangement = Arrangement.Center
@@ -995,7 +1000,7 @@ fun ExerciseProgressSection(
         ) {
             Text(
                 text = "Weekly Streak",
-                style = MaterialTheme.typography.titleMedium
+                style = MaterialTheme.typography.headlineSmall.copy(fontSize = 18.sp),
             )
             Box(
                 modifier = Modifier
@@ -1022,7 +1027,7 @@ fun ExerciseProgressSection(
         ) {
             Text(
                 text = "🔥 Longest streak: ${getLongestStreak(getCompletedExerciseDates(exerciseList, 50))} days",
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.headlineSmall.copy(fontSize = 16.sp),
                 modifier = Modifier.padding(top = 8.dp)
             )
         }
@@ -1066,7 +1071,7 @@ fun WeeklyStreakRow(
                         .width(36.dp)
                         .height(18.dp)
                         .shadow(
-                            elevation = if (isCompleted) 4.dp else 1.dp,
+                            elevation = if (isCompleted) 2.dp else 1.dp,
                             shape = RoundedCornerShape(50)
                         )
                         .clip(RoundedCornerShape(50))
@@ -1153,7 +1158,7 @@ fun SleepAnalysisPlaceHolder(
                     Spacer(Modifier.width(16.dp))
                     Column {
                         Text(
-                            text = "Last Night's Sleep",
+                            text = "Previous Night's Sleep",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1297,6 +1302,21 @@ fun SleepTracker(
     val sleepOptions = listOf("Less than 5 hours", "About 5 hours", "More than 8 hours", "About 8 hours")
     val sleepQualityIcons = listOf("😢", "😕", "😐", "🙂", "😴")
 
+    var showDialog by remember { mutableStateOf(false) }
+
+    if (showDialog) {
+        ConfirmActionDialog(
+            title = "Sleep Tracker",
+            message = "Save previous night sleep data?",
+            confirmButtonText = "Save",
+            onConfirm = {
+                showSavingDialog = true
+                showDialog = false
+            },
+            onDismiss = { showDialog = false },
+            icon = Icons.Default.CheckCircle)
+    }
+
     if (showSavingDialog){
         AnimatedSaveDialog(
             loadingText = "Logging Sleep Data",
@@ -1417,7 +1437,7 @@ fun SleepTracker(
 
         Button(
             onClick = {
-                showSavingDialog = true
+                showDialog = true
             },
             enabled = !loggedToday,
             modifier = Modifier
@@ -1812,8 +1832,30 @@ fun JournalingTracker(
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
+    var showDialog by remember { mutableStateOf(false) }
+
+    if (showDialog) {
+        ConfirmActionDialog(
+            title = "Journalling",
+            message = "Write your $selectedJournalType page? ",
+            confirmButtonText = "Yes",
+            onConfirm = {
+                showLoadingDialog = true
+                showDialog = false
+            },
+            onDismiss = { showDialog = false },
+            icon = Icons.Default.CheckCircle)
+    }
+
     if (showLoadingDialog) {
         JournalSaveDialog {
+            saveJournal(
+                JournalEntry(
+                    date = LocalDate.now(),
+                    entryText = journalEntry,
+                    journalType = selectedJournalType
+                )
+            )
             journalEntry = ""
             showLoadingDialog = false
         }
@@ -1988,14 +2030,7 @@ fun JournalingTracker(
         // Submit Button
         Button(
             onClick = {
-                saveJournal(
-                    JournalEntry(
-                        date = LocalDate.now(),
-                        entryText = journalEntry,
-                        journalType = selectedJournalType
-                    )
-                )
-                showLoadingDialog = true
+                showDialog = true
             },
             modifier = Modifier
                 .fillMaxWidth()
@@ -2346,6 +2381,20 @@ fun ExerciseTimer(
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
     var showSavingDialog by remember{ mutableStateOf(false)}
+    var showDialog by remember { mutableStateOf(false) }
+
+    if (showDialog) {
+        ConfirmActionDialog(
+            title = "Exercise Tracker",
+            message = "Save $exerciseName for $time?",
+            confirmButtonText = "Log",
+            onConfirm = {
+                showSavingDialog = true
+                showDialog = false
+            },
+            onDismiss = { showDialog = false },
+            icon = Icons.Default.CheckCircle)
+    }
 
 
 
@@ -2384,10 +2433,17 @@ fun ExerciseTimer(
             Image(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .shadow(
+                        elevation = 2.dp,
+                        shape = RoundedCornerShape(
+                            topStart = 5.dp, topEnd = 5.dp,
+                            bottomStart = 5.dp, bottomEnd = 5.dp
+                        )
+                    )
                     .clip(
                         RoundedCornerShape(
-                            topStart = 15.dp, topEnd = 15.dp,
-                            bottomStart = 0.dp, bottomEnd = 0.dp
+                            topStart = 5.dp, topEnd = 5.dp,
+                            bottomStart = 5.dp, bottomEnd = 5.dp
                         )
                     ),
                 painter = painterResource(id = R.drawable.background_exercise_timer),
@@ -2401,7 +2457,7 @@ fun ExerciseTimer(
                 Column(
                     modifier = Modifier
                         .shadow(
-                            elevation = 2.dp, shape = RoundedCornerShape(13.dp)
+                            elevation = 2.dp, shape = RoundedCornerShape(8.dp)
                         )
                         .background(
                             color = MaterialTheme.colorScheme.tertiaryContainer,
@@ -2429,19 +2485,22 @@ fun ExerciseTimer(
                 Spacer(modifier = Modifier.height(16.dp))
             }
         }
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(15.dp))
     }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .fillMaxHeight()
-            .background(MaterialTheme.colorScheme.tertiaryContainer)
+            .background(MaterialTheme.colorScheme.secondaryContainer)
     ) {
         Box(
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 17.dp)
         ) {
             Button(
                 modifier = Modifier.align(Alignment.Center),
+                shape = RoundedCornerShape(5.dp),
                 elevation = ButtonDefaults.elevatedButtonElevation(5.dp),
                 enabled = exerciseName.isNotBlank(),
                 onClick = {
@@ -2475,16 +2534,18 @@ fun ExerciseTimer(
             if (!isRunning && time != 0) {
                 Button(
                     modifier = Modifier.align(Alignment.CenterEnd),
-                    elevation = ButtonDefaults.elevatedButtonElevation(2.dp),
+                    shape = RoundedCornerShape(5.dp),
+                    elevation = ButtonDefaults.elevatedButtonElevation(1.dp),
                     onClick = {
-                        showSavingDialog = true
+                        showDialog = true
                     }
                 ) {
                     Text(text = "Log Time")
                 }
                 Button(
                     modifier = Modifier.align(Alignment.CenterStart),
-                    elevation = ButtonDefaults.elevatedButtonElevation(2.dp),
+                    shape = RoundedCornerShape(5.dp),
+                    elevation = ButtonDefaults.elevatedButtonElevation(1.dp),
                     onClick = {
                         clearTimerState()
                     }
@@ -2501,7 +2562,9 @@ fun ExerciseTimer(
 
 private fun startTimerService(context: Context) {
     Log.d("ExerciseTimer", "Requesting Service Start")
-    val serviceIntent = Intent(context, ExerciseTimerService::class.java)
+    val serviceIntent = Intent(context, ExerciseTimerService::class.java).apply {
+        action = ExerciseTimerService.ACTION_START_SERVICE
+    }
     ContextCompat.startForegroundService(context, serviceIntent)
 }
 
@@ -2688,6 +2751,81 @@ fun AnimatedSaveDialog(
         }
     }
 }
+
+@Composable
+fun DailyHabitsTopBar(
+    onBackIconClick: () -> Unit,
+    modifier : Modifier
+) {
+    Box(
+        modifier = modifier
+            .shadow(
+                elevation = 27.dp,
+            )
+            .background(MaterialTheme.colorScheme.inversePrimary)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 20.dp, bottom = 20.dp, start = 20.dp, end = 20.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Back Button
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = CircleShape,
+                shadowElevation = 2.dp,
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .clickable(
+                        onClick = { onBackIconClick() },
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = rememberRipple(bounded = true)
+                    )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowRight,
+                    contentDescription = "Back",
+                    modifier = Modifier
+                        .rotate(180f)
+                        .padding(8.dp),
+                    tint = MaterialTheme.colorScheme.surfaceTint
+                )
+            }
+
+            // Title
+            Text(
+                text = "Daily Habits",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.secondary,
+                fontWeight = FontWeight.Bold
+            )
+
+            // Right-side Icon
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = CircleShape,
+                shadowElevation = 2.dp,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.daily_habits),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
 
 
 @Preview(showBackground = true)
