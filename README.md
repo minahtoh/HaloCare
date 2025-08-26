@@ -7,7 +7,8 @@ HaloCare is a comprehensive health tech app designed to help users track their h
 ## 🚀 Features  
 - **Health Tracking** – Log daily habits and view progress charts.  
 - **Pediatric Development Tracker** – Monitor baby milestones and receive insights.  
-- **Medication & Appointment Manager** – Set reminders for medications and doctor visits.  
+- **Medication & Appointment Manager** – Set reminders for medications and doctor visits.
+## Coming Soon
 - **Telehealth & Community** – Connect with doctors and join support groups.  
 - **AI Health Assistant** – Get personalized health tips and symptom checks.  
 
@@ -16,9 +17,3 @@ HaloCare is a comprehensive health tech app designed to help users track their h
 - **Backend**: Firebase, Room Database  
 - **APIs**: Retrofit, Firebase Cloud Functions  
 - **Charts & Visualization**: Vico
-
-🔥 Roadmap
- Implement UI screens
- Integrate Firebase authentication
- Develop health tracking features
- Add AI health assistant
