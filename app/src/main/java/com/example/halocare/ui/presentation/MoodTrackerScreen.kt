@@ -85,9 +85,7 @@ fun MoodTrackerScreen(
     val dailyAdvice by mainViewModel.todayAdvice.collectAsState()
     val context = LocalContext.current
 
-    val isTopBarVisible by remember {
-        derivedStateOf { scrollState.value < 50 }  // Adjust threshold as needed
-    }
+
     LaunchedEffect(Unit){
         statusBarController.updateStatusBar(
             color = statusBarColor,
@@ -458,16 +456,16 @@ fun MoodEntryLogger(
          MoodIconData(R.drawable.insp_cookie, "inspectorCookie"),
          MoodIconData(R.drawable.zoomzoomzoom, "lockin"),
          MoodIconData(R.drawable.general_ra, "general"),
-         MoodIconData(R.drawable.sleep_wud, "denger"),
-         MoodIconData(R.drawable.noodle_goat, "noodleGoat"),
-         MoodIconData(R.drawable.first_tuch, "lessgo"),
-         MoodIconData(R.drawable.mr_him, "sipper"),
-         MoodIconData(R.drawable.present_father, "presentFather"),
-         MoodIconData(R.drawable.explora, "explora"),
-         MoodIconData(R.drawable.lover_man, "loverMan"),
-         MoodIconData(R.drawable.yeatt, "AH"),
-         MoodIconData(R.drawable.darwin, "letsSee"),
-         MoodIconData(R.drawable.spit_it, "spitIt"),
+        // MoodIconData(R.drawable.sleep_wud, "denger"),
+        // MoodIconData(R.drawable.noodle_goat, "noodleGoat"),
+        // MoodIconData(R.drawable.first_tuch, "lessgo"),
+        // MoodIconData(R.drawable.mr_him, "sipper"),
+       //  MoodIconData(R.drawable.present_father, "presentFather"),
+      //   MoodIconData(R.drawable.explora, "explora"),
+        // MoodIconData(R.drawable.lover_man, "loverMan"),
+        // MoodIconData(R.drawable.yeatt, "AH"),
+    //     MoodIconData(R.drawable.darwin, "letsSee"),
+        // MoodIconData(R.drawable.spit_it, "spitIt"),
      )
 
 
@@ -653,8 +651,6 @@ data class MoodIconData(
 
 
 
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MoodTrackerTopBar(
     onBackIconClick: () -> Unit
@@ -674,7 +670,6 @@ fun MoodTrackerTopBar(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Back Button
             Surface(
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 shape = CircleShape,
@@ -706,7 +701,6 @@ fun MoodTrackerTopBar(
                 fontWeight = FontWeight.Bold
             )
 
-            // Right-side Icon
             Surface(
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 shape = CircleShape,

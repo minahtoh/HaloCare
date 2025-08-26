@@ -319,6 +319,11 @@ class MainViewModel @Inject constructor(
             mainRepository.updateMedication(medication)
         }
     }
+    fun deleteMedication(medication: Medication){
+        viewModelScope.launch {
+            mainRepository.deleteMedication(medication)
+        }
+    }
 }
 @Singleton
 class MainRepository @Inject constructor(

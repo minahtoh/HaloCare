@@ -10,10 +10,17 @@ import android.app.TimePickerDialog
 import android.content.Context
 import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,26 +49,34 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DismissDirection
+import androidx.compose.material3.DismissState
+import androidx.compose.material3.DismissValue
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SwipeToDismiss
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Tab
@@ -70,6 +85,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDismissState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -81,10 +97,14 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -99,13 +119,14 @@ import com.example.halocare.R
 import com.example.halocare.receivers.MedicationReminderReceiver
 import com.example.halocare.ui.models.Medication
 import com.example.halocare.viewmodel.MainViewModel
+import kotlinx.coroutines.delay
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.util.Calendar
 
-@Preview(widthDp = 320, heightDp = 720)
+//@Preview(widthDp = 320, heightDp = 720)
 @Composable
 fun MedicationReminderScreen(
     mainViewModel: MainViewModel,
@@ -196,14 +217,21 @@ fun MedicationReminderScreen(
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .padding(horizontal = 6.dp, vertical = 0.dp)
                     ) {
                         items(medicationsToShow) { medication ->
-                            MedicationCard(
+                            SwipeToConfirmDeleteContainer(
                                 medication = medication,
-                                isForToday = selectedTab == 0
+                                onDelete = { deletedMedication ->
+                                   mainViewModel.deleteMedication(deletedMedication)
+                                }
                             ) {
-                                selectedMedication = medication
+                                MedicationCard(
+                                    medication = medication,
+                                    isForToday = selectedTab == 0
+                                ) {
+                                    selectedMedication = medication
+                                }
                             }
                             Spacer(modifier = Modifier.height(8.dp))
                         }
@@ -297,8 +325,8 @@ fun MedicationReminderTopBar(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .clickable (
-                        onClick = {onBackIconClick()},
+                    .clickable(
+                        onClick = { onBackIconClick() },
                         interactionSource = remember { MutableInteractionSource() },
                         indication = rememberRipple(bounded = true)
                     )
@@ -444,43 +472,231 @@ fun LogMedicationDialog(
 
 
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MedicationCard(
     medication: Medication,
     isForToday: Boolean = false,
     onClick: () -> Unit = {}
 ) {
+    val isSystemInDarkTheme = isSystemInDarkTheme()
+    val cardColor = Color(medication.color)
+    val surfaceColor = if (isSystemInDarkTheme) {
+        cardColor
+    } else {
+        cardColor.copy(alpha = 0.8f)
+    }
+
+    var showInfoDialog by remember { mutableStateOf(false) }
+
+    val dosesRemaining = medication.frequency - medication.dosesUsedToday
+    val progressPercentage = (medication.dosesUsedToday.toFloat() / medication.frequency.toFloat()).coerceIn(0f, 1f)
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 8.dp, end = 8.dp, bottom = 4.dp)
-            .clickable { if (isForToday) onClick() },
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(Color(medication.color))
+            .padding(start = 1.dp, end = 1.dp, bottom = 0.dp)
+            .combinedClickable(
+                onClick = {
+                    if (isForToday) onClick()
+                },
+                onLongClick = {
+                    showInfoDialog = true
+                }
+            ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (isForToday) 6.dp else 4.dp,
+            pressedElevation = 8.dp
+        ),
+        shape = RoundedCornerShape(7.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = surfaceColor
+        ),
+        border = BorderStroke(
+            width = 1.5.dp,
+            color = cardColor.copy(alpha = 0.4f)
+        )
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+        Column(
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Column {
-                Text(medication.name, style = MaterialTheme.typography.titleMedium)
-                Text("${medication.dosage} mg - ${medication.frequency}x daily",
-                    style = MaterialTheme.typography.bodySmall)
-                Text("Dose remaining: ${medication.frequency - medication.dosesUsedToday}",
-                    style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-            }
-            Switch(
-                checked = medication.isReminderOn,
-                onCheckedChange = {},
-                colors = SwitchDefaults.colors(
-                    checkedTrackColor = MaterialTheme.colorScheme.primary
+            // Main content row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Left content
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Medication icon/indicator
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(
+                                cardColor.copy(alpha = 0.2f),
+                                RoundedCornerShape(12.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.baseline_medication_24),
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    // Medication details
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = medication.name,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "${medication.dosage} mg",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .background(
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                        RoundedCornerShape(6.dp)
+                                    )
+                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                            )
+
+                            Text(
+                                text = "${medication.frequency}x daily",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        // Doses remaining with color coding
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            val remainingColor = when {
+                                dosesRemaining == 0 -> MaterialTheme.colorScheme.error
+                                dosesRemaining == 1 -> Color(0xFFFF9800) // Orange
+                                else -> MaterialTheme.colorScheme.primary
+                            }
+
+                            Icon(
+                                imageVector = when {
+                                    dosesRemaining == 0 -> Icons.Default.CheckCircle
+                                    dosesRemaining <= 1 -> Icons.Default.Warning
+                                    else -> Icons.Default.DateRange
+                                },
+                                contentDescription = null,
+                                tint = Color.Unspecified,
+                                modifier = Modifier.size(16.dp)
+                            )
+
+                            Text(
+                                text = when (dosesRemaining) {
+                                    0 -> "All doses taken"
+                                    1 -> "1 dose remaining"
+                                    else -> "$dosesRemaining doses remaining"
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = remainingColor,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+
+                // Switch with better styling
+                Switch(
+                    checked = medication.isReminderOn,
+                    onCheckedChange = {},
+                    colors = SwitchDefaults.colors(
+                        checkedTrackColor = cardColor.copy(alpha = 0.8f),
+                        checkedThumbColor = cardColor,
+                        uncheckedTrackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                        uncheckedThumbColor = MaterialTheme.colorScheme.outline
+                    )
                 )
+            }
+
+            // Progress indicator for doses taken
+            if (medication.frequency > 0) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Daily Progress",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "${medication.dosesUsedToday}/${medication.frequency}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = cardColor,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    LinearProgressIndicator(
+                        progress = progressPercentage,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(3.dp)),
+                        color = MaterialTheme.colorScheme.tertiary,
+                        trackColor = cardColor
+                    )
+                }
+            }
+
+            // Subtle bottom accent line
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .background(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(
+                                cardColor.copy(alpha = 0.8f),
+                                cardColor.copy(alpha = 0.4f),
+                                Color.Transparent
+                            )
+                        )
+                    )
             )
         }
+    }
+    if (showInfoDialog) {
+        MedicationInfoDialog(
+            medication = medication,
+            onDismiss = { showInfoDialog = false }
+        )
     }
 }
 
@@ -1149,3 +1365,360 @@ fun blendMedicationColors(medications: List<Medication>): Color {
     return Color(medications.firstOrNull()?.color ?: Color.Transparent.toArgb()) // Simplified blending logic
 }
 
+@OptIn( ExperimentalMaterial3Api::class)
+@Composable
+fun SwipeToConfirmDeleteContainer(
+    medication: Medication, // Changed from NotificationData
+    onDelete: (Medication) -> Unit,
+    animationDuration: Int = 500,
+    content: @Composable () -> Unit
+) {
+    var isDeleted by remember { mutableStateOf(false) }
+    var showConfirmDialog by remember { mutableStateOf(false) }
+
+    val state = rememberDismissState(
+        confirmValueChange = { dismissValue ->
+            when (dismissValue) {
+                DismissValue.DismissedToStart -> {
+                    // Stop at 75% and show confirmation
+                    showConfirmDialog = true
+                    false // Don't dismiss yet
+                }
+                else -> false
+            }
+        }
+    )
+    // Reset swipe state when dialog is dismissed
+    LaunchedEffect(showConfirmDialog) {
+        if (!showConfirmDialog) {
+            state.reset()
+        }
+    }
+
+    LaunchedEffect(key1 = isDeleted) {
+        if (isDeleted) {
+            delay(animationDuration.toLong())
+            onDelete(medication)
+        }
+    }
+
+    // Confirmation Dialog
+    if (showConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showConfirmDialog = false },
+            title = { Text("Delete Medication") },
+            text = { Text("Are you sure you want to delete this medication?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showConfirmDialog = false
+                        isDeleted = true
+                    }
+                ) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showConfirmDialog = false }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    AnimatedVisibility(
+        visible = !isDeleted,
+        exit = shrinkVertically(
+            animationSpec = tween(durationMillis = animationDuration),
+            shrinkTowards = Alignment.Top
+        ) + fadeOut()
+    ) {
+        SwipeToDismiss(
+            state = state,
+            directions = setOf(DismissDirection.EndToStart),
+            background = {
+                deleteBackground(swipeDismissState = state)
+            },
+            dismissContent = {
+                content()
+            }
+        )
+    }
+}
+
+@OptIn( ExperimentalMaterial3Api::class)
+@Composable
+fun deleteBackground(
+    swipeDismissState: DismissState
+) {
+    val color = if (swipeDismissState.dismissDirection == DismissDirection.EndToStart) {
+        MaterialTheme.colorScheme.error
+    } else {
+        Color.Transparent
+    }
+
+    val iconAlpha by animateFloatAsState(
+        targetValue = if (swipeDismissState.dismissDirection == DismissDirection.EndToStart) 1f else 0f,
+        label = "iconAlpha"
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(color)
+            .padding(16.dp),
+        contentAlignment = Alignment.CenterEnd
+    ) {
+        Icon(
+            imageVector = Icons.Default.Delete,
+            contentDescription = "Delete",
+            tint = MaterialTheme.colorScheme.onError,
+            modifier = Modifier.alpha(iconAlpha)
+        )
+    }
+}
+@Composable
+fun MedicationInfoDialog(
+    medication: Medication,
+    onDismiss: () -> Unit
+) {
+    val cardColor = Color(medication.color)
+    val formatter = DateTimeFormatter.ofPattern("MMM dd, yyyy")
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp)
+            ) {
+                // Header with medication icon and name
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .background(
+                                cardColor.copy(alpha = 0.2f),
+                                RoundedCornerShape(16.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.baseline_medication_24),
+                            contentDescription = null,
+                            tint = cardColor,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = medication.name,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "${medication.dosage} mg",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = cardColor,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .background(
+                                MaterialTheme.colorScheme.surfaceVariant,
+                                CircleShape
+                            )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Medication Details
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Schedule Information
+                    InfoRow(
+                        icon = painterResource(id = R.drawable.baseline_schedule_24),
+                        iconColor = cardColor,
+                        label = "Schedule",
+                        value = "${medication.frequency} times daily"
+                    )
+
+                    InfoRow(
+                        icon = painterResource(id = R.drawable.baseline_access_alarm_24),
+                        iconColor = cardColor,
+                        label = "First Dose",
+                        value = medication.firstDoseTime.format(DateTimeFormatter.ofPattern("h:mm a"))
+                    )
+
+                    // Daily Progress
+                    InfoRow(
+                        icon = painterResource(id = R.drawable.baseline_trending_up_24),
+                        iconColor = cardColor,
+                        label = "Today's Progress",
+                        value = "${medication.dosesUsedToday} of ${medication.frequency} doses"
+                    )
+
+                    // Reminder Status
+                    InfoRow(
+                        icon = if (medication.isReminderOn) painterResource(id = R.drawable.baseline_notifications_active_24)
+                        else painterResource(id = R.drawable.baseline_notifications_off_24),
+                        iconColor = if (medication.isReminderOn) Color(0xFF4CAF50) else Color(0xFF757575),
+                        label = "Reminders",
+                        value = if (medication.isReminderOn) "Enabled" else "Disabled"
+                    )
+
+                    // Prescription Period
+                    if (medication.prescribedDays.isNotEmpty()) {
+                        InfoRow(
+                            icon = painterResource(id = R.drawable.baseline_date_schedule_24),
+                            iconColor = cardColor,
+                            label = "Prescription Period",
+                            value = "${medication.prescribedDays.size} days"
+                        )
+
+                        // Date range if available
+                        if (medication.prescribedDays.size > 1) {
+                            val sortedDates = medication.prescribedDays.sorted()
+                            InfoRow(
+                                icon = painterResource(id = R.drawable.baseline_date_schedule_24),
+                                iconColor = cardColor,
+                                label = "Date Range",
+                                value = "${sortedDates.first().format(formatter)} - ${sortedDates.last().format(formatter)}"
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Progress Bar
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Daily Progress",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "${(medication.dosesUsedToday.toFloat() / medication.frequency * 100).toInt()}%",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = cardColor,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    LinearProgressIndicator(
+                        progress = (medication.dosesUsedToday.toFloat() / medication.frequency.toFloat()).coerceIn(0f, 1f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .clip(RoundedCornerShape(4.dp)),
+                        color = cardColor,
+                        trackColor = cardColor.copy(alpha = 0.2f)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Close Button
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = cardColor,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = "Close",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun InfoRow(
+    icon: Painter,
+    iconColor: Color,
+    label: String,
+    value: String
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(
+                    iconColor.copy(alpha = 0.15f),
+                    RoundedCornerShape(10.dp)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                painter = icon,
+                contentDescription = null,
+                tint = iconColor,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Medium
+            )
+        }
+    }
+}

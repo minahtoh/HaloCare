@@ -1,18 +1,25 @@
 package com.example.halocare.ui.presentation
 
+import android.content.res.Configuration
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -22,15 +29,21 @@ import com.example.halocare.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HealthTrackingScreen(onCategoryClick: (String) -> Unit) {
+fun HealthTrackingScreen(
+    onCategoryClick: (String) -> Unit,
+    isDarkMode: Boolean
+) {
     val statusBarController = rememberStatusBarController()
     val statusBarColor = MaterialTheme.colorScheme.inversePrimary
+
+    val darkTheme = isDarkMode
 
     LaunchedEffect(Unit){
         statusBarController.updateStatusBar(
             color = statusBarColor,
             darkIcons = true
         )
+        Log.d("HEALTH TRACKING", "HealthTrackingScreen: is it darkmode $darkTheme")
     }
     Scaffold(
         topBar = {
@@ -42,35 +55,55 @@ fun HealthTrackingScreen(onCategoryClick: (String) -> Unit) {
             .fillMaxSize()
             .padding(paddingValues)
             .padding(16.dp)) {
+
+            // Force recomposition when theme changes
+
+            // Alternative: Use MaterialTheme colors directly (recommended)
+            val habitColor = if (darkTheme) Color(0xFF8D6E63) else Color(0xFFFFCC80)
+            val moodColor = if (darkTheme) Color(0xFF5C6BC0) else Color(0xFF90CAF9)
+            val medicationColor = if (darkTheme) Color(0xFF689F38) else Color(0xFFA5D6A7)
+            val devColor = if (darkTheme) Color(0xFF8E24AA) else Color(0xFFE1BEE7)
+
             CategoryCard(
                 title = "Daily Habits",
                 subtitle = "Streak: 5 days",
-                color = Color(0xFFFFCC80),
+                color = habitColor,
                 imageRes = R.drawable.dumbell_icon,
                 onClick = { onCategoryClick(DailyHabitsScreen.route) }
             )
+
             CategoryCard(
                 title = "Mood Tracker",
                 subtitle = "Last Entry: Happy",
-                color = Color(0xFF90CAF9),
+                color = moodColor,
                 imageRes = R.drawable.depressed_icon,
                 onClick = { onCategoryClick(MoodScreen.route) }
             )
+
             CategoryCard(
                 title = "Medication Reminder",
                 subtitle = "Next: 8:00 AM",
-                color = Color(0xFFA5D6A7),
+                color = medicationColor,
                 imageRes = R.drawable.baseline_medication_24,
                 onClick = { onCategoryClick(MedicationScreen.route) }
             )
+
             CategoryCard(
                 title = "Pediatric Dev Tracker",
-                subtitle = "Next: 8:00 AM",
-                color = Color(0xdda2B6B7),
+                subtitle = "Age: 18 months",
+                color = devColor,
                 imageRes = R.drawable.ped_dev_tracker_ic,
                 onClick = { onCategoryClick(PediatricDevelopmentScreen.route) }
             )
         }
+    }
+}
+
+@Composable
+fun rememberIsDarkTheme(): Boolean {
+    val configuration = LocalConfiguration.current
+    return remember(configuration.uiMode) {
+        (configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
     }
 }
 
@@ -112,11 +145,7 @@ fun CategoryCard(
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-fun PreviewHealthTrackingScreen() {
-    HealthTrackingScreen(onCategoryClick = {})
-}
+
 
 @Composable
 fun HealthTrackingTopBar(){

@@ -1,5 +1,6 @@
 package com.example.halocare.ui.presentation
 
+import android.widget.Toast
 import androidx.compose.animation.animateColor
 import androidx.compose.animation.core.animateDp
 import androidx.compose.animation.core.animateFloatAsState
@@ -8,6 +9,7 @@ import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,6 +42,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,31 +53,44 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.halocare.R
+import com.example.halocare.ui.utils.ConfirmActionDialog
+import com.example.halocare.viewmodel.AuthUiState
+import com.example.halocare.viewmodel.AuthViewModel
 import com.example.halocare.viewmodel.SettingsViewModel
 import kotlinx.coroutines.delay
 
-@Preview(widthDp = 320, heightDp = 720)
+//@Preview(widthDp = 320, heightDp = 720)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    settingsViewModel: SettingsViewModel
+    settingsViewModel: SettingsViewModel,
+    authViewModel: AuthViewModel,
+    onLogout : ()-> Unit,
+    onProfileClick : ()-> Unit
 ) {
     val statusBarController = rememberStatusBarController()
-    val statusBarColor = MaterialTheme.colorScheme.inversePrimary
+
+    val loginState by authViewModel.authState.collectAsState()
     var isDarkMode by remember { mutableStateOf(false) }
     var showWelcomeMessage by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
+    var showLogoutDialog by remember { mutableStateOf(false) }
+    var showLogoutLoader by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
+    val statusColor = MaterialTheme.colorScheme.inversePrimary
+    val isSystemInDarkTheme = isSystemInDarkTheme()
 
-    LaunchedEffect(Unit){
+    LaunchedEffect(statusColor, isSystemInDarkTheme) {
         statusBarController.updateStatusBar(
-            color = statusBarColor,
-            darkIcons = true
+            color = statusColor,
+            darkIcons = !isSystemInDarkTheme
         )
     }
     Scaffold(
@@ -122,8 +138,42 @@ fun SettingsScreen(
             )
         }
 
+        if (showLogoutDialog){
+            ConfirmActionDialog(
+                title = "Logout?",
+                message = "Are you sure you want to logout of HaloCare?",
+            onConfirm = {
+                authViewModel.logout()
+                showLogoutDialog = false
+                showLogoutLoader = true
+                        },
+            onDismiss = { showLogoutDialog = false })
+        }
         
         Box(modifier = Modifier.fillMaxSize()) {
+           if(showLogoutLoader){
+               AnimatedLoadingDialog(
+                   uiState = loginState,
+                   loadingPrompt = "Logging out...",
+                   successPrompt = "Successful!",
+               ) {
+                   if (loginState is AuthUiState.Success){
+                       onLogout()
+                       authViewModel.resetAuthState()
+                       showLogoutDialog = false
+                   }
+                   if (loginState is AuthUiState.Error){
+                       val errorMessage = (loginState as AuthUiState.Error).message
+                       Toast.makeText(
+                           context,
+                           "Error $errorMessage",
+                           Toast.LENGTH_SHORT
+                       ).show()
+                       showLogoutDialog = false
+                   }
+               }
+           }
+
             if (showWelcomeMessage) {
                 val alphaAnim by animateFloatAsState(
                     targetValue = 1f,
@@ -185,7 +235,7 @@ fun SettingsScreen(
                     subtitle = "View and edit your profile",
                     icon = Icons.Default.Person
                 ) {
-                    // Navigate to Profile Screen
+                    onProfileClick()
                 }
 
                 SettingItem(
@@ -193,7 +243,7 @@ fun SettingsScreen(
                     subtitle = "Sign out of your account",
                     icon = Icons.Default.ExitToApp
                 ) {
-                    // Handle logout
+                    showLogoutDialog = true
                 }
 
                 Divider(modifier = Modifier.padding(vertical = 12.dp))

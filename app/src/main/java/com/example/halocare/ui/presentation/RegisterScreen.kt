@@ -255,7 +255,7 @@ fun AnimatedLoadingDialog(
                 .height(200.dp)
                 .padding(16.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(Color.White)
+                .background(MaterialTheme.colorScheme.tertiaryContainer)
                 .padding(24.dp),
             contentAlignment = Alignment.Center
         ) {

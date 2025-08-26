@@ -334,7 +334,7 @@ fun HomeScreen(
                     .padding(start = 7.dp, end = 7.dp))
                 {
                     DashboardWeatherCard(
-                        weatherData = weatherData!!,
+                        weatherData = weatherData,
                         onClick = {
                             mainViewModel.getHourlyWeather("Lagos")
                             showBottomSheet = true
@@ -1472,7 +1472,7 @@ fun FeatureGridPopup(
             )
             Card(
                 shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(2.dp),
+                elevation = CardDefaults.cardElevation(1.dp),
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
                     .wrapContentHeight()
@@ -1546,7 +1546,8 @@ fun FeatureGridItem(
             text = feature.name,
             style = MaterialTheme.typography.labelMedium,
             textAlign = TextAlign.Center,
-            maxLines = 1
+            maxLines = 1,
+            fontWeight = FontWeight.Bold
         )
     }
 }
@@ -1575,7 +1576,7 @@ val featureList = listOf(
     Feature("Journal", FeatureIconType.JOURNAL),
     Feature("Health News", FeatureIconType.HEALTH_NEWS),
     Feature("Medications", FeatureIconType.MEDICATIONS),
-    Feature("New Appointment", FeatureIconType.APPOINTMENT),
+    Feature("Appointment", FeatureIconType.APPOINTMENT),
     Feature("Development Tracker", FeatureIconType.DEVELOPMENT),
     Feature("Mood Tracker", FeatureIconType.MOOD),
     Feature("Sleep Tracker", FeatureIconType.SLEEP),

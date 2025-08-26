@@ -166,8 +166,16 @@ class AuthViewModel @Inject constructor(private val authRepository: AuthReposito
     }
 
     fun logout() {
-        authRepository.logout()
-        _authState.value = AuthUiState.Idle
+        viewModelScope.launch {
+            _authState.value = AuthUiState.Loading
+            delay(1500)
+            try {
+                authRepository.logout()
+                _authState.value = AuthUiState.Success(null)
+            } catch (e:Exception){
+                _authState.value = AuthUiState.Error("Failed to logout, check internet connection")
+            }
+        }
     }
 
     fun resetAuthState() {

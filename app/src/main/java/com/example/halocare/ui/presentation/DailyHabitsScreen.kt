@@ -6,8 +6,6 @@ import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.ImageDecoder
-import android.graphics.Shader
 import android.os.Build
 import android.os.Build.VERSION.SDK_INT
 import android.provider.Settings
@@ -21,12 +19,10 @@ import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.ExperimentalAnimationApi
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -35,46 +31,43 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RenderEffect
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -84,28 +77,16 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.material.ripple.rememberRipple
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.material.icons.filled.KeyboardArrowRight
-import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.OffsetMapping
-import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.ComponentRegistry
@@ -161,7 +142,6 @@ fun DailyHabitsScreen(
     val exerciseDataList by mainViewModel.exerciseDataList.collectAsState()
     val sleepDataList by mainViewModel.allSleepData.collectAsState()
     val journalDataList by mainViewModel.allLoggedJournals.collectAsState()
-    val today = remember { LocalDate.now().format(DateTimeFormatter.ISO_DATE) }
     val showJournalDialog = remember { mutableStateOf(false) }
     val selectedJournalEntries = remember { mutableStateOf<List<JournalEntry>>(emptyList()) }
     val screenTimeSummary = remember { mutableStateListOf<ScreenTimeEntry>() }
@@ -513,7 +493,7 @@ private fun SleepTabContent(
                             mainViewModel.logSleepData(it)
                         }
                     )
-                    Spacer(modifier = Modifier.height(190.dp))
+                    Spacer(modifier = Modifier.height(290.dp))
                 }else{
                     Box(
                         modifier = Modifier.fillMaxWidth(),
@@ -534,7 +514,7 @@ private fun SleepTabContent(
                                 fontSize = 16.sp,
                                 textAlign = TextAlign.Center
                             )
-                            Spacer(modifier = Modifier.height(190.dp))
+                            Spacer(modifier = Modifier.height(290.dp))
                         }
                     }
                 }
@@ -554,7 +534,7 @@ private fun JournalTabContent(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(360.dp) // slightly more than chart height
+            .height(370.dp) // slightly more than chart height
             .padding(3.dp)
     ) {
         // Folder background layer (static shape)
@@ -571,7 +551,7 @@ private fun JournalTabContent(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(350.dp)
+                .height(360.dp)
                 .align(Alignment.BottomCenter)
                 .shadow(7.dp, RoundedCornerShape(15.dp), clip = false)
                 .clip(RoundedCornerShape(15.dp))
@@ -593,7 +573,7 @@ private fun JournalTabContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(280.dp)
+            .height(270.dp)
             .background(MaterialTheme.colorScheme.secondaryContainer),
         //contentAlignment = Alignment.Center
     ) {
@@ -612,7 +592,7 @@ private fun JournalTabContent(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(6.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
@@ -1837,7 +1817,7 @@ fun JournalingTracker(
     if (showDialog) {
         ConfirmActionDialog(
             title = "Journalling",
-            message = "Write your $selectedJournalType page? ",
+            message = "Write a page in your ${selectedJournalType.replace("_", " ").capitalize()} ? ",
             confirmButtonText = "Yes",
             onConfirm = {
                 showLoadingDialog = true
@@ -1923,7 +1903,8 @@ fun JournalingTracker(
                         modifier = Modifier.padding(bottom = 2.dp),
                         colors = FilterChipDefaults.elevatedFilterChipColors(
                             containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                            selectedContainerColor = MaterialTheme.colorScheme.primary
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary
                         ),
                         elevation = FilterChipDefaults.elevatedFilterChipElevation(
                             pressedElevation = 2.dp
@@ -2306,7 +2287,7 @@ fun JournalSaveDialog(
     Dialog(onDismissRequest = { /* Block manual dismiss */ }) {
         Box(
             modifier = Modifier
-                .fillMaxWidth(0.8f)
+                .width(270.dp)
                 .height(200.dp)
                 .background(
                     MaterialTheme.colorScheme.secondaryContainer,
@@ -2410,7 +2391,6 @@ fun ExerciseTimer(
             isRunning = false
         }
     }
-    val infiniteTransition = rememberInfiniteTransition(label = "highlightRotation")
 
 
     Column {
@@ -2591,7 +2571,7 @@ fun TimerContainer(
         )
     }
 ) {
-    // Animate rotation for inner snake glow
+
     val infiniteTransition = rememberInfiniteTransition(label = "Snake Inner Rotation")
     val rotationAngle by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -2706,7 +2686,7 @@ fun AnimatedSaveDialog(
     Dialog(onDismissRequest = {}) {
         Box(
             modifier = Modifier
-                .fillMaxWidth(0.8f)
+                .width(280.dp)
                 .height(200.dp)
                 .background(
                     MaterialTheme.colorScheme.secondaryContainer,

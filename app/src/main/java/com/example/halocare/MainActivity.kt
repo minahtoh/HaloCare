@@ -147,7 +147,8 @@ class MainActivity : ComponentActivity() {
                     MainAppContent(
                         settingsViewModel = settingsViewModel,
                         authViewModel = authViewModel,
-                        mainViewModel = mainViewModel
+                        mainViewModel = mainViewModel,
+                        isDarkMode = isDarkMode
                     )
                 }
             }
@@ -182,114 +183,121 @@ fun HaloCareNavHost(
     scrollState: ScrollState,
     authViewModel: AuthViewModel,
     mainViewModel : MainViewModel,
-    settingsViewModel: SettingsViewModel
+    settingsViewModel: SettingsViewModel,
+    isDarkMode: Boolean
 ){
 
     StatusBarProvider {
-        if (true) {
-            NavHost(navController = navHostController, startDestination = LoginScreen.route) {
+        NavHost(navController = navHostController, startDestination = LoginScreen.route) {
 
-                composable(route = LoginScreen.route) {
-                    LoginScreen(
-                        onSignupClick = { navHostController.navigateSingleTopTo(RegisterScreen.route) },
-                        onSuccessfulLogin = {
-                            navHostController.navigateSingleTopTo(HomeScreen.route, true)
-                        },
-                        viewModel = authViewModel
-                    )
-                }
-                composable(route = RegisterScreen.route) {
-                    RegisterScreen(
-                        onSignUpSuccess = {
-                            navHostController.navigateSingleTopTo(
-                                LoginScreen.route,
-                                true
-                            )
-                        },
-                        authViewModel = authViewModel,
-                        onLoginClick = { navHostController.navigateSingleTopTo(LoginScreen.route) }
-                    )
-                }
-                composable(route = ProfileScreen.route) {
-                    ProfileScreen(
-                        onSkip = { navHostController.navigateSingleTopTo(HomeScreen.route, true) },
-                        onContinue = { navHostController.navigateSingleTopTo(HomeScreen.route) },
-                        authViewModel = authViewModel
-                    )
-                }
-                composable(route = HomeScreen.route) {
-                    HomeScreen(
-                        onProfileClick = { navHostController.navigateSingleTopTo(ProfileScreen.route) },
-                        onCategoryClick = {
-                            navHostController.navigateSingleTopTo(
-                                PediatricDevelopmentScreen.route
-                            )
-                        },
-                        authViewModel = authViewModel,
-                        scrollState = scrollState,
-                        mainViewModel = mainViewModel
-                    )
-                }
-                composable(route = ConsultsScreen.route) {
-                    ConsultsScreen(
-                        onBackPressed = { navHostController.navigateUp() },
-                        scrollState = scrollState,
-                        onAppointmentsClick = {
-                            navHostController.navigateSingleTopTo(
-                                AppointmentsScreen.route
-                            )
-                        },
-                        mainViewModel = mainViewModel
-                    )
-                }
-                composable(route = AppointmentsScreen.route) {
-                    AppointmentsScreen(
-                        mainViewModel = mainViewModel,
-                        navigateToConsultsScreen = {
-                            navHostController.navigate(ConsultsScreen.route) {
-                                popUpTo(AppointmentsScreen.route) {
-                                    inclusive = true
-                                }
+            composable(route = LoginScreen.route) {
+                LoginScreen(
+                    onSignupClick = { navHostController.navigateSingleTopTo(RegisterScreen.route) },
+                    onSuccessfulLogin = {
+                        navHostController.navigateSingleTopTo(HomeScreen.route, true)
+                    },
+                    viewModel = authViewModel
+                )
+            }
+            composable(route = RegisterScreen.route) {
+                RegisterScreen(
+                    onSignUpSuccess = {
+                        navHostController.navigateSingleTopTo(
+                            LoginScreen.route,
+                            true
+                        )
+                    },
+                    authViewModel = authViewModel,
+                    onLoginClick = { navHostController.navigateSingleTopTo(LoginScreen.route) }
+                )
+            }
+            composable(route = ProfileScreen.route) {
+                ProfileScreen(
+                    onSkip = { navHostController.navigateSingleTopTo(HomeScreen.route, true) },
+                    onContinue = { navHostController.navigateSingleTopTo(HomeScreen.route) },
+                    authViewModel = authViewModel
+                )
+            }
+            composable(route = HomeScreen.route) {
+                HomeScreen(
+                    onProfileClick = { navHostController.navigateSingleTopTo(ProfileScreen.route) },
+                    onCategoryClick = {
+                        navHostController.navigateSingleTopTo(
+                            PediatricDevelopmentScreen.route
+                        )
+                    },
+                    authViewModel = authViewModel,
+                    scrollState = scrollState,
+                    mainViewModel = mainViewModel
+                )
+            }
+            composable(route = ConsultsScreen.route) {
+                ConsultsScreen(
+                    onBackPressed = { navHostController.navigateUp() },
+                    scrollState = scrollState,
+                    onAppointmentsClick = {
+                        navHostController.navigateSingleTopTo(
+                            AppointmentsScreen.route
+                        )
+                    },
+                    mainViewModel = mainViewModel
+                )
+            }
+            composable(route = AppointmentsScreen.route) {
+                AppointmentsScreen(
+                    mainViewModel = mainViewModel,
+                    navigateToConsultsScreen = {
+                        navHostController.navigate(ConsultsScreen.route) {
+                            popUpTo(AppointmentsScreen.route) {
+                                inclusive = true
                             }
                         }
-                    )
-                }
-                composable(route = HealthTrackingScreen.route) {
-                    HealthTrackingScreen(onCategoryClick = {
-                        navHostController.navigateSingleTopTo(it)
-                    })
-                }
-                composable(route = DailyHabitsScreen.route) {
-                    DailyHabitsScreen(
-                        mainViewModel = mainViewModel,
-                        onBackIconClick = { navHostController.navigateUp() }
-                    )
-                }
-                composable(route = MoodScreen.route) {
-                    MoodTrackerScreen(
-                        mainViewModel = mainViewModel,
-                        onBackIconClick = { navHostController.popBackStack() }
-                    )
-                }
-                composable(route = MedicationScreen.route) {
-                    MedicationReminderScreen(
-                        mainViewModel = mainViewModel,
-                        onBackIconClick = { navHostController.navigateUp() }
-                    )
-                }
-                composable(route = PediatricDevelopmentScreen.route) {
-                    PediatricTrackerScreen(
-                        onBackIconClick = { navHostController.navigateUp() }
-                    )
-                }
-                composable(route = TelehealthScreen.route) {
-                    TelehealthScreen()
-                }
-                composable(route = SettingsScreen.route) {
-                    SettingsScreen(
-                        settingsViewModel = settingsViewModel
-                    )
-                }
+                    }
+                )
+            }
+            composable(route = HealthTrackingScreen.route) {
+                HealthTrackingScreen(
+                    onCategoryClick = {
+                    navHostController.navigateSingleTopTo(it)
+                    },
+                    isDarkMode = isDarkMode
+                )
+            }
+            composable(route = DailyHabitsScreen.route) {
+                DailyHabitsScreen(
+                    mainViewModel = mainViewModel,
+                    onBackIconClick = { navHostController.navigateUp() }
+                )
+            }
+            composable(route = MoodScreen.route) {
+                MoodTrackerScreen(
+                    mainViewModel = mainViewModel,
+                    onBackIconClick = { navHostController.popBackStack() }
+                )
+            }
+            composable(route = MedicationScreen.route) {
+                MedicationReminderScreen(
+                    mainViewModel = mainViewModel,
+                    onBackIconClick = { navHostController.navigateUp() }
+                )
+            }
+            composable(route = PediatricDevelopmentScreen.route) {
+                PediatricTrackerScreen(
+                    onBackIconClick = { navHostController.navigateUp() }
+                )
+            }
+            composable(route = TelehealthScreen.route) {
+                TelehealthScreen()
+            }
+            composable(route = SettingsScreen.route) {
+                SettingsScreen(
+                    settingsViewModel = settingsViewModel,
+                    authViewModel = authViewModel,
+                    onLogout = {
+                        navHostController.navigateSingleTopTo(LoginScreen.route,true)
+                    },
+                    onProfileClick = {navHostController.navigateSingleTopTo(ProfileScreen.route)}
+                )
             }
         }
     }
@@ -316,7 +324,7 @@ fun FeatureGridOverlay(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.05f))
+                    .background(Color.Black.copy(alpha = 0f))
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
@@ -480,7 +488,8 @@ fun CustomSplashContent(
 fun MainAppContent(
     settingsViewModel: SettingsViewModel,
     authViewModel: AuthViewModel,
-    mainViewModel: MainViewModel
+    mainViewModel: MainViewModel,
+    isDarkMode : Boolean
 ) {
     val navHostController = rememberNavController()
     val currentRoute = navHostController.currentBackStackEntryAsState().value?.destination?.route
@@ -549,7 +558,8 @@ fun MainAppContent(
                 scrollState = scrollState,
                 authViewModel = authViewModel,
                 mainViewModel = mainViewModel,
-                settingsViewModel = settingsViewModel
+                settingsViewModel = settingsViewModel,
+                isDarkMode = isDarkMode
             )
 
             FeatureGridOverlay(

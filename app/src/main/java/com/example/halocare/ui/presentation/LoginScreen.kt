@@ -156,11 +156,11 @@ fun LoginScreen(
                 Column(
                     modifier = Modifier.padding(10.dp)
                 ) {
-                    Spacer(modifier = Modifier.height(90.dp))
+                    Spacer(modifier = Modifier.height(70.dp))
                     Surface(
                         color = MaterialTheme.colorScheme.tertiaryContainer,
                         shape = RoundedCornerShape(15.dp),
-                        shadowElevation = 5.dp
+                        shadowElevation = 3.dp
                     ) {
                         Column(
                             modifier = Modifier
@@ -230,7 +230,6 @@ fun LoginScreen(
                                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                                 ),
                                 elevation = ButtonDefaults.buttonElevation(2.dp)
-
                             ) {
                                 Text(
                                     text = "Login",
@@ -280,112 +279,6 @@ fun LoginScreen(
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun HaloCareLoginDialog(
-    uiState: UiState<FirebaseUser>,
-    onDismiss: () -> Unit
-) {
-    if (uiState is UiState.Idle) return  // Hide when idle
-
-    Dialog(onDismissRequest = onDismiss) {
-        val transition = updateTransition(targetState = uiState, label = "loadingTransition")
-
-        val alpha by transition.animateFloat(
-            transitionSpec = { tween(durationMillis = 300) },
-            label = "alpha"
-        ) { state ->
-            if (state is UiState.Loading) 1f else 1f
-        }
-
-        val offsetY by transition.animateDp(
-            transitionSpec = { tween(durationMillis = 300) },
-            label = "offsetY"
-        ) { state ->
-            if (state is UiState.Loading) 0.dp else (-10).dp
-        }
-
-        val offsetYPx = with(LocalDensity.current){offsetY.toPx()}
-
-        val scale by transition.animateFloat(
-            transitionSpec = { tween(durationMillis = 300, easing = FastOutSlowInEasing) },
-            label = "scale"
-        ) { state ->
-            when (state) {
-                is UiState.Loading -> 1f
-                is UiState.Success, is UiState.Error -> 1.2f
-                else -> 1f
-            }
-        }
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color.White)
-                .padding(24.dp)
-                .graphicsLayer(
-                    alpha = alpha,
-                    translationY = offsetYPx,
-                    scaleX = scale,
-                    scaleY = scale
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                when (uiState) {
-                    is UiState.Loading -> {
-                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                    }
-                    is UiState.Success -> {
-                        Icon(
-                            imageVector = Icons.Filled.CheckCircle,
-                            contentDescription = "Success",
-                            tint = Color.Green,
-                            modifier = Modifier
-                                .size(48.dp)
-                                .scale(scale)
-                        )
-                    }
-                    is UiState.Error -> {
-                        Icon(
-                            imageVector = Icons.Filled.Close,
-                            contentDescription = "Error",
-                            tint = Color.Red,
-                            modifier = Modifier
-                                .size(48.dp)
-                                .scale(scale)
-                        )
-                    }
-                    else -> {}
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = when (uiState) {
-                        is UiState.Loading -> "Logging in..."
-                        is UiState.Success -> "Login Success!"
-                        is UiState.Error -> uiState.message
-                        else -> ""
-                    },
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                    textAlign = TextAlign.Center,
-                    color = Color.Black
-                )
-            }
-        }
-    }
-
-    // Auto-dismiss after success/error
-    LaunchedEffect(uiState) {
-        if (uiState is UiState.Success || uiState is UiState.Error) {
-            delay(1500)
-            onDismiss()
         }
     }
 }

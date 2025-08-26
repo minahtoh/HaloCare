@@ -5,8 +5,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.scaleIn
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -14,9 +12,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -52,7 +48,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.halocare.R
 import com.example.halocare.ui.models.JournalEntry
-import com.example.halocare.ui.models.JournalEntryData
 import com.example.halocare.ui.presentation.TwoColumnNotebookText
 import kotlinx.coroutines.delay
 import java.time.LocalDate
@@ -60,7 +55,7 @@ import java.time.LocalDate
 @Preview
 @Composable
 fun JournalHeatmap(
-    entries: List<JournalEntry> = emptyList(), // Use the actual data class now
+    entries: List<JournalEntry> = emptyList(),
     modifier: Modifier = Modifier,
     onDateClicked : (List<JournalEntry>) -> Unit = {}
 ) {
@@ -74,7 +69,7 @@ fun JournalHeatmap(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(350.dp)
+            .height(360.dp)
             .shadow(elevation = 7.dp)
             .background(
                 color = MaterialTheme.colorScheme.surfaceVariant,
@@ -89,21 +84,26 @@ fun JournalHeatmap(
         )
 
         Column(
-            modifier = Modifier.fillMaxWidth()
-                .background(color = MaterialTheme.colorScheme.surfaceTint, shape = RoundedCornerShape(7.dp))
-                .padding(5.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    color = MaterialTheme.colorScheme.surfaceTint,
+                    shape = RoundedCornerShape(7.dp)
+                )
+                .padding(2.dp)
         ) {
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
             text = today.month.name,
             style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(bottom = 8.dp, start = 27.dp))
+            modifier = Modifier.padding(top = 1.dp, start = 17.dp))
 
 
             LazyVerticalGrid(
                 columns = GridCells.Fixed(7),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(300.dp)
+                    .height(360.dp)
             ) {
                 items(startOfMonth) {
                     Spacer(modifier = Modifier.size(36.dp))
@@ -130,7 +130,7 @@ fun JournalHeatmap(
                                 if (isToday) {
                                     Modifier
                                         .border(
-                                            BorderStroke(2.dp, Color.Black),
+                                            BorderStroke(3.dp, MaterialTheme.colorScheme.tertiaryContainer),
                                             shape = RoundedCornerShape(4.dp)
                                         )
                                         .background(color, shape = RoundedCornerShape(4.dp))
