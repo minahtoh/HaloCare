@@ -58,6 +58,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextMeasurer
@@ -70,7 +71,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.halocare.ui.models.HaloMoodEntry
+import com.example.halocare.ui.presentation.responsiveHeight
+import com.example.halocare.ui.presentation.responsiveWidth
 import kotlinx.coroutines.delay
+import responsiveSp
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -115,7 +119,7 @@ fun MoodChartBackground(
     Box(
         modifier = Modifier
             .width(hourWidthPx)
-            .height(400.dp)
+            .height(400.dp.responsiveHeight())
             .background(skyGradient)
     ) {
         Canvas(modifier = Modifier.matchParentSize()) {
@@ -486,7 +490,7 @@ fun DefaultMoodMarker(
     BoxWithConstraints(
         modifier = Modifier.fillMaxWidth(),
     ) {
-        val bubbleWidth = 120.dp
+        val bubbleWidth = 120.dp.responsiveWidth()
         val bubbleWidthPx = with(LocalDensity.current) { bubbleWidth.toPx() }
         val maxWidthPx = with(LocalDensity.current) { maxWidth.toPx() }
 
@@ -553,13 +557,13 @@ fun DefaultMoodMarker(
                 Text(
                     text = entry.gist,
                     color = MaterialTheme.colorScheme.onPrimary,
-                    fontSize = 12.sp,
+                    fontSize = 12.sp.responsiveSp(),
                     maxLines = 4,
                     overflow = TextOverflow.Ellipsis,
                     textAlign = TextAlign.Center,
-                    lineHeight = 14.sp
+                    lineHeight = 14.sp.responsiveSp()
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(4.dp.responsiveHeight()))
                 Text(
                     text = timeString,
                     color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
@@ -578,14 +582,14 @@ fun DefaultMoodMarker(
 fun MoodChart(
     moodEntries: List<HaloMoodEntry>, // Changed data type
     hourRange: IntRange = 0..23,
-    hourWidth: Dp = 150.dp,
-    iconSize: Dp = 30.dp,
+    hourWidth: Dp = 150.dp.responsiveWidth(),
+    iconSize: Dp = 30.dp.responsiveHeight(),
     iconSpacing: Dp = 4.dp,
     skyColors: List<Pair<Int, Color>> = defaultSkyColors,
     vegetationBaseColors: List<Pair<Int, Color>> = defaultVegetationBaseColors,
     vegetationHighlightColors: List<Pair<Int, Color>> = defaultVegetationHighlightColors,
     landscapePoints: List<Float> = defaultLandscapePoints,
-    fixedEntryYPositionPx: Float = 250f,
+    fixedEntryYPositionPx: Float = 250f.responsiveHeight(),
     entryContent: @Composable (List<HaloMoodEntry>, Offset, HaloMoodEntry?, (HaloMoodEntry) -> Unit) -> Unit = { entries, position, currentSelectedEntry, clickHandler ->
         GroupedMoodEntry(
             entriesInGroup = entries,
@@ -742,3 +746,18 @@ val defaultVegetationHighlightColors = listOf(
 
 val defaultLandscapePoints = listOf(0f, 5f, 10f, 7f, 15f, 10f, 5f, 0f)
 
+@Composable
+fun Float.responsiveWidth(): Float {
+    val configuration = LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp
+    val scaleFactor = (screenWidth.toFloat() / 411f).coerceIn(0.8f, 1.2f)
+    return this * scaleFactor
+}
+
+@Composable
+fun Float.responsiveHeight(): Float {
+    val configuration = LocalConfiguration.current
+    val screenHeight = configuration.screenHeightDp
+    val scaleFactor = (screenHeight.toFloat() / 891f).coerceIn(0.8f, 1.2f)
+    return this * scaleFactor
+}

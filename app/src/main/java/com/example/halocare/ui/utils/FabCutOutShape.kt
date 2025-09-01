@@ -29,11 +29,17 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.example.halocare.ui.presentation.responsive
+import com.example.halocare.ui.presentation.responsiveHeight
+import com.example.halocare.ui.presentation.responsiveWidth
 
-class FabCutoutShape : Shape {
+class FabCutoutShape(
+    private val screenWidthDp: Dp
+) : Shape {
     override fun createOutline(
         size: Size,
         layoutDirection: LayoutDirection,
@@ -42,10 +48,13 @@ class FabCutoutShape : Shape {
         val width = size.width
         val height = size.height
 
-        // Convert dp to pixels with density
-        val fabRadius = with(density) { 60.dp.toPx() }
+        // Scale based on screen width ratio (Pixel 6a reference: 411dp)
+        val referenceWidth = 411.dp
+        val scaleFactor = (screenWidthDp / referenceWidth).coerceIn(0.8f, 1.2f)
+
+        val fabRadius = with(density) { (50.dp * scaleFactor).toPx() }
         val fabCenterX = width / 2
-        val fabBottomY = height - (fabRadius * 2) / 3
+        val fabBottomY = height - (fabRadius * 4) / 5
 
         val path = Path().apply {
             moveTo(0f, 0f)
@@ -72,6 +81,8 @@ class FabCutoutShape : Shape {
     }
 }
 
+
+
 @Composable
 fun ConfirmActionDialog(
     title: String,
@@ -84,7 +95,7 @@ fun ConfirmActionDialog(
 ) {
     Dialog(onDismissRequest = onDismiss) {
         Card(
-            modifier = Modifier.size(width = 330.dp, height = 250.dp),
+            modifier = Modifier.size(width = 330.dp.responsiveWidth(), height = 250.dp.responsiveHeight()),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
@@ -114,7 +125,7 @@ fun ConfirmActionDialog(
 
                     Text(
                         text = title,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleMedium.responsive(),
                         textAlign = TextAlign.Center,
                         fontWeight = FontWeight.Bold
                     )
@@ -126,7 +137,7 @@ fun ConfirmActionDialog(
                     horizontalArrangement = Arrangement.Center) {
                     Text(
                         text = message,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodyMedium.responsive(),
                         textAlign = TextAlign.Center,
                         modifier = Modifier.weight(1f, fill = false)
                     )

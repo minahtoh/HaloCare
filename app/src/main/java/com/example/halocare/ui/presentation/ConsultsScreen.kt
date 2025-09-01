@@ -53,6 +53,7 @@ import coil.compose.AsyncImage
 import com.example.halocare.R
 import com.example.halocare.ui.models.Appointment
 import com.example.halocare.viewmodel.MainViewModel
+import responsiveSp
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -64,7 +65,8 @@ fun ConsultsScreen(
     onBackPressed: () -> Unit = {},
     onAppointmentsClick : () -> Unit = {},
     scrollState: ScrollState,
-    mainViewModel : MainViewModel
+    mainViewModel : MainViewModel,
+    isDarkMode : Boolean
 ){
     val statusBarController = rememberStatusBarController()
     val statusBarColor = MaterialTheme.colorScheme.inversePrimary
@@ -97,7 +99,7 @@ fun ConsultsScreen(
             LaunchedEffect(true ){
                 statusBarController.updateStatusBar(
                     color = statusBarColor,
-                    darkIcons = true
+                    darkIcons = isDarkMode
                 )
                 mainViewModel.getUserAppointments(currentUserId)
             }
@@ -116,13 +118,13 @@ fun ConsultsScreen(
                 ) {
                     Text(
                         text = "Upcoming Appointment",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleMedium.responsive(),
                     )
                     Spacer(modifier = Modifier.width(5.dp))
                     Surface(
                         color = MaterialTheme.colorScheme.error,
                         shape = CircleShape,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(20.dp.responsiveHeight())
                     ) {
                         Row(
                             horizontalArrangement = Arrangement.Center,
@@ -130,13 +132,14 @@ fun ConsultsScreen(
                         ) {
                             Text(
                                 text = "${upcomingAppointments?.size ?: "0"}",
-                                style = MaterialTheme.typography.bodySmall
+                                style = MaterialTheme.typography.bodySmall.responsive()
                             )
                         }
                     }
                 }
                 LazyRow(
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center
                 ){
                     when{
                         upcomingAppointments == null -> {
@@ -148,7 +151,7 @@ fun ConsultsScreen(
                             item {
                                 EmptyAppointmentPlaceholder(
                                     title = "No Upcoming Appointments",
-                                    message = "You haven't booked any appointments yet. Once you do, they’ll show up here."
+                                    message = "You haven't booked any appointments yet. \n Once you do, they’ll show up here."
                                 )
                             }
                         }
@@ -164,7 +167,7 @@ fun ConsultsScreen(
 
                 Row(
                     modifier = Modifier
-                        .height(110.dp)
+                        .height(110.dp.responsiveHeight())
                         .fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.End
@@ -179,7 +182,7 @@ fun ConsultsScreen(
                     ) {
                         Text(
                             text = "Book new appointment",
-                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                            style = MaterialTheme.typography.bodyMedium.responsive().copy(fontWeight = FontWeight.Bold)
                         )
                     }
                 }
@@ -191,16 +194,16 @@ fun ConsultsScreen(
                 ) {
                     Text(
                         text = "Past Appointments",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleMedium.responsive(),
                     )
                     Text(
                         text = "See all",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleMedium.responsive(),
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
                 LazyColumn(
-                    modifier = Modifier.height(400.dp)
+                    modifier = Modifier.height(400.dp.responsiveHeight())
                 ) {
                     when{
                         pastAppointments == null ->{
@@ -249,19 +252,20 @@ fun EmptyAppointmentPlaceholder(
             contentDescription = "Empty Icon",
             tint = Color.Gray,
             modifier = Modifier
-                .size(64.dp)
+                .size(64.dp.responsiveHeight())
                 .padding(bottom = 16.dp)
         )
         Text(
             text = title,
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.titleMedium.responsive(),
             fontWeight = FontWeight.Bold
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(8.dp.responsiveHeight()))
         Text(
             text = message,
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodyMedium.responsive(),
             color = Color.Gray,
+            minLines= 2,
             textAlign = TextAlign.Center
         )
     }
@@ -295,7 +299,7 @@ fun ConsultationsTopBar(
             }
             Text(
                 text = "Consultations",
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleLarge.responsive(),
                 color = MaterialTheme.colorScheme.surfaceTint,
                 fontWeight = FontWeight.Bold
             )
@@ -303,14 +307,14 @@ fun ConsultationsTopBar(
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 shape = CircleShape,
                 shadowElevation = 5.dp,
-                modifier = Modifier.size(40.dp)
+                modifier = Modifier.size(40.dp.responsiveHeight())
             ) {
                 Column(
                     modifier = Modifier.fillMaxSize(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Icon(
-                        modifier = Modifier.size(30.dp),
+                        modifier = Modifier.size(30.dp.responsiveHeight()),
                         painter = painterResource(id = R.drawable.consults),
                         contentDescription = null )
                 }
@@ -343,7 +347,7 @@ fun UserAppointmentCard(
                 contentDescription = "${appointment?.professionalName}'s photo",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .size(64.dp)
+                    .size(64.dp.responsiveHeight())
                     .clip(CircleShape)
                     .addForShimmer(appointment)
             )
@@ -393,7 +397,7 @@ fun StatusBadge(status: String) {
         Text(
             text = status,
             color = Color.White,
-            fontSize = 12.sp
+            fontSize = 12.sp.responsiveSp()
         )
     }
 }
@@ -408,7 +412,7 @@ fun UpcomingAppointmentCard(
     Card(
     modifier = modifier
         .fillMaxWidth()
-        .height(280.dp)  // Fixed height
+        .height(280.dp.responsiveHeight())  // Fixed height
         .padding(horizontal = 9.dp, vertical = 8.dp),
     elevation = CardDefaults.cardElevation(4.dp),
     shape = RoundedCornerShape(12.dp)
@@ -420,30 +424,30 @@ fun UpcomingAppointmentCard(
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.height(72.dp)
+            modifier = Modifier.height(72.dp.responsiveHeight())
         ) {
             AsyncImage(
                 model = appointment?.profilePicture,
                 contentDescription = null,
                 modifier = Modifier
-                    .size(56.dp)
+                    .size(56.dp.responsiveWidth())
                     .clip(CircleShape)
                     .addForShimmer(appointment)
             )
-            Spacer(Modifier.width(16.dp))
+            Spacer(Modifier.width(16.dp.responsiveWidth()))
             Column(modifier = Modifier
                 .fillMaxHeight()
                 .addForShimmer(appointment)
             ) {
                 Text(
                     text = appointment?.professionalName ?:"                         ",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleMedium.responsive(),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = appointment?.occupation ?:"",
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodySmall.responsive(),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -455,13 +459,13 @@ fun UpcomingAppointmentCard(
             }
             Spacer(
                 Modifier
-                    .width(16.dp)
+                    .width(16.dp.responsiveWidth())
                     .align(Alignment.Top))
             Column {
                 if (appointment != null){
                     Text(
                         text = "₦${appointment.price}",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleMedium.responsive(),
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier
                             .addForShimmer(appointment)
@@ -469,13 +473,13 @@ fun UpcomingAppointmentCard(
                 } else{
                     Text(
                         text = "                  ",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleMedium.responsive(),
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier
                             .addForShimmer(null)
                     )
                 }
-                Spacer(modifier = Modifier.height(40.dp))
+                Spacer(modifier = Modifier.height(40.dp.responsiveHeight()))
             }
 
         }
@@ -488,13 +492,13 @@ fun UpcomingAppointmentCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(48.dp)
+                .height(48.dp.responsiveHeight())
                 .addForShimmer(appointment),
             horizontalArrangement = Arrangement.spacedBy(80.dp)
         ) {
             Column(
                 modifier = Modifier
-                    .height(48.dp)
+                    .height(48.dp.responsiveHeight())
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (appointment != null) {
@@ -502,12 +506,12 @@ fun UpcomingAppointmentCard(
                             painter = painterResource(id = R.drawable.baseline_calendar_month_24),
                             contentDescription = null,
                             modifier = Modifier
-                                .size(20.dp)
+                                .size(20.dp.responsiveHeight())
                         )
                     } else {
                         Box(
                             modifier = Modifier
-                                .size(20.dp)
+                                .size(20.dp.responsiveHeight())
                               //  .addForShimmer(null)
                         )
                     }
@@ -525,12 +529,12 @@ fun UpcomingAppointmentCard(
                             painter = painterResource(id = R.drawable.baseline_schedule_24),
                             contentDescription = null,
                             modifier = Modifier
-                                .size(20.dp)
+                                .size(20.dp.responsiveHeight())
                         )
                     } else {
                         Box(
                             modifier = Modifier
-                                .size(20.dp)
+                                .size(20.dp.responsiveHeight())
               //                  .addForShimmer(null)
                         )
                     }
@@ -556,7 +560,7 @@ fun UpcomingAppointmentCard(
                         onClick = { onPayClick?.invoke() },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(35.dp),
+                            .height(35.dp.responsiveHeight()),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = Color.White
@@ -571,7 +575,7 @@ fun UpcomingAppointmentCard(
         // Note
         appointment?.note?.takeIf { it.isNotBlank() }?.let { note ->
             Column(modifier = Modifier
-                .height(40.dp))
+                .height(40.dp.responsiveHeight()))
             {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(3.dp),
@@ -583,7 +587,7 @@ fun UpcomingAppointmentCard(
                     )
                     Text(
                         text = note,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodySmall.responsive(),
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -593,10 +597,10 @@ fun UpcomingAppointmentCard(
 
         Text(
             text = if (appointment != null) "Booked on ${formatTimestamp(appointment.bookedAt)}" else "    ",
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.labelSmall.responsive(),
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
             modifier = Modifier
-                .height(24.dp)
+                .height(24.dp.responsiveHeight())
             )
         }
     }
@@ -618,7 +622,7 @@ private fun StatusPill(status: String, appointment: Appointment?) {
     ) {
         Text(
             text = status.uppercase(),
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.labelSmall.responsive(),
             color = when (status.lowercase()) {
                 "confirmed" -> Color.Green
                 "cancelled" -> Color.Red

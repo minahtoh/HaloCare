@@ -17,7 +17,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
@@ -57,6 +59,7 @@ import com.example.halocare.R
 import com.example.halocare.viewmodel.AuthUiState
 import com.example.halocare.viewmodel.AuthViewModel
 import kotlinx.coroutines.delay
+import responsiveSp
 
 
 //@Preview(widthDp = 320, heightDp = 720)
@@ -66,7 +69,8 @@ fun RegisterScreen(
     modifier: Modifier = Modifier,
     onSignUpSuccess : () -> Unit = {},
     onLoginClick : () -> Unit = {},
-    authViewModel: AuthViewModel
+    authViewModel: AuthViewModel,
+    isDarkMode : Boolean
 ){
     var firstName by remember { mutableStateOf("") }
     var lastName by remember { mutableStateOf("") }
@@ -80,7 +84,7 @@ fun RegisterScreen(
     LaunchedEffect(key1 = true){
         statusBarController.updateStatusBar(
             color = statusBarColor,
-            darkIcons = true
+            darkIcons = isDarkMode
         )
     }
 
@@ -109,11 +113,15 @@ fun RegisterScreen(
                     ).show()
                 }
             }
-            Column {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+            ) {
                 IntroCard(
                     modifier = Modifier.fillMaxWidth()
                 )
-                Spacer(modifier = Modifier.height(25.dp))
+                Spacer(modifier = Modifier.height(25.dp.responsiveHeight()))
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -123,41 +131,41 @@ fun RegisterScreen(
 
                     Text(
                         text = "Create your Account",
-                        style = MaterialTheme.typography.headlineSmall,
+                        style = MaterialTheme.typography.headlineSmall.responsive(),
                         color = MaterialTheme.colorScheme.tertiary
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(16.dp.responsiveHeight()))
 
                     OutlinedTextField(
                         value = firstName,
                         onValueChange = { firstName = it },
                         label = { Text("First Name") },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(30.dp)
+                        shape = RoundedCornerShape(30.dp.responsiveHeight())
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(12.dp.responsiveHeight()))
 
                     OutlinedTextField(
                         value = lastName,
                         onValueChange = { lastName = it },
                         label = { Text("Last Name") },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(30.dp)
+                        shape = RoundedCornerShape(30.dp.responsiveHeight())
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(12.dp.responsiveHeight()))
 
                     OutlinedTextField(
                         value = email,
                         onValueChange = { email = it },
                         label = { Text("Email Address") },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(30.dp)
+                        shape = RoundedCornerShape(30.dp.responsiveHeight())
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(12.dp.responsiveHeight()))
 
                     OutlinedTextField(
                         value = password,
@@ -165,10 +173,10 @@ fun RegisterScreen(
                         label = { Text("Password") },
                         visualTransformation = PasswordVisualTransformation(),
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(30.dp)
+                        shape = RoundedCornerShape(30.dp.responsiveHeight())
                     )
 
-                    Spacer(modifier = Modifier.height(60.dp))
+                    Spacer(modifier = Modifier.height(60.dp.responsiveHeight()))
 
                     Button(
                         onClick = {
@@ -178,13 +186,16 @@ fun RegisterScreen(
                                 password = password
                             )
                         },
-                        modifier = Modifier.height(55.dp).fillMaxWidth().padding(horizontal = 30.dp),
+                        modifier = Modifier
+                            .height(55.dp.responsiveHeight())
+                            .fillMaxWidth()
+                            .padding(horizontal = 30.dp),
                         elevation = ButtonDefaults.buttonElevation(3.dp)
                     ) {
                         Text("Sign Up")
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(12.dp.responsiveHeight()))
 
                     TextButton(
                         onClick = {
@@ -218,9 +229,9 @@ fun IntroCard(
             Image(
                 painter = painterResource(id = R.drawable.mobile_app_logo__for_halocare__no_text_),
                 contentDescription = "app_icon",
-                modifier = Modifier.size(150.dp)
+                modifier = Modifier.size(150.dp.responsiveHeight())
             )
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(10.dp.responsiveHeight()))
             Text(
                 text = "Track Your Wellness with us!",
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
@@ -251,8 +262,8 @@ fun AnimatedLoadingDialog(
 
         Box(
             modifier = Modifier
-                .width(280.dp)
-                .height(200.dp)
+                .width(280.dp.responsiveWidth())
+                .height(200.dp.responsiveHeight())
                 .padding(16.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .background(MaterialTheme.colorScheme.tertiaryContainer)
@@ -295,7 +306,7 @@ fun AnimatedLoadingDialog(
                         is AuthUiState.Error -> uiState.message
                         else -> ""
                     },
-                    fontSize = 16.sp,
+                    fontSize = 16.sp.responsiveSp(),
                     fontWeight = FontWeight.Medium,
                     textAlign = TextAlign.Center,
                     color = Color.Black

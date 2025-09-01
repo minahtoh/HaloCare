@@ -26,6 +26,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.halocare.R
+import responsiveSp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,10 +39,10 @@ fun HealthTrackingScreen(
 
     val darkTheme = isDarkMode
 
-    LaunchedEffect(Unit){
+    LaunchedEffect(isDarkMode){
         statusBarController.updateStatusBar(
             color = statusBarColor,
-            darkIcons = true
+            darkIcons = isDarkMode
         )
         Log.d("HEALTH TRACKING", "HealthTrackingScreen: is it darkmode $darkTheme")
     }
@@ -54,7 +55,7 @@ fun HealthTrackingScreen(
         Column(modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
-            .padding(16.dp)) {
+            .padding(16.dp.responsiveHeight())) {
 
             // Force recomposition when theme changes
 
@@ -133,13 +134,13 @@ fun CategoryCard(
                 painter = painterResource(id = imageRes),
                 contentDescription = title,
                 tint = Color.Unspecified,
-                modifier = Modifier.size(40.dp)
+                modifier = Modifier.size(40.dp.responsiveHeight())
             )
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(16.dp.responsiveWidth()))
             Column {
-                Text(text = title, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text(text = title, fontSize = 20.sp.responsiveSp(), fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(text = subtitle, fontSize = 16.sp, color = Color.DarkGray)
+                Text(text = subtitle, fontSize = 16.sp.responsiveSp(), color = Color.DarkGray)
             }
         }
     }
@@ -163,7 +164,7 @@ fun HealthTrackingTopBar(){
         ) {
             Text(
                 text = "Health Tracking",
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleLarge.responsive(),
                 color = MaterialTheme.colorScheme.surfaceTint,
                 fontWeight = FontWeight.Bold
             )
@@ -171,14 +172,14 @@ fun HealthTrackingTopBar(){
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 shape = CircleShape,
                 shadowElevation = 5.dp,
-                modifier = Modifier.size(40.dp)
+                modifier = Modifier.size(40.dp.responsiveHeight())
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
                     Icon(
-                        modifier = Modifier.size(30.dp),
+                        modifier = Modifier.size(30.dp.responsiveHeight()),
                         painter = painterResource(id = R.drawable.health_tracking_ic),
                         contentDescription = null )
                 }

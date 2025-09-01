@@ -3,10 +3,12 @@ package com.example.halocare.ui.presentation
 import androidx.annotation.DrawableRes
 import androidx.collection.emptyLongSet
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -26,6 +28,7 @@ import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
@@ -118,6 +121,7 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.modifier.modifierLocalConsumer
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -140,6 +144,7 @@ import com.example.halocare.viewmodel.LoadingState
 import com.example.halocare.viewmodel.MainViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import responsiveSp
 import kotlin.math.absoluteValue
 
 
@@ -151,7 +156,8 @@ fun HomeScreen(
     onCategoryClick : () -> Unit ={},
     authViewModel: AuthViewModel,
     mainViewModel: MainViewModel,
-    scrollState: ScrollState
+    scrollState: ScrollState,
+    isDarkMode : Boolean
 ) {
     val statusBarController = rememberStatusBarController()
     val statusBarColor = MaterialTheme.colorScheme.inversePrimary
@@ -177,7 +183,10 @@ fun HomeScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Welcome, ${loggedUser.name}") },
+                title = { Text(
+                    "Welcome, ${loggedUser.name}",
+                    style = MaterialTheme.typography.titleLarge.responsive()
+                ) },
                 colors = TopAppBarDefaults.smallTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.inversePrimary,
                     scrolledContainerColor = Color.Transparent
@@ -202,7 +211,7 @@ fun HomeScreen(
         LaunchedEffect(Unit) {
             statusBarController.updateStatusBar(
                 color = statusBarColor,
-                darkIcons = true
+                darkIcons = isDarkMode
             )
             while (true) {
                 delay(3000)
@@ -230,7 +239,7 @@ fun HomeScreen(
                         state = pagerState,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(260.dp),
+                            .height(260.dp.responsiveHeight()),
                         contentPadding = PaddingValues(start = 4.dp, end = 4.dp),
                         //     beyondViewportPageCount = 1,
                         pageSpacing = 15.dp
@@ -275,18 +284,18 @@ fun HomeScreen(
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(10.dp.responsiveHeight()))
                 CentreCircleDivider(
                     modifier = Modifier.padding(horizontal = 0.dp)
                 )
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(6.dp.responsiveHeight()))
                 Column(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(2),
                         modifier = Modifier
-                            .height(310.dp)
+                            .height(310.dp.responsiveHeight())
                             .padding(1.dp),
                         contentPadding = PaddingValues(7.dp),
                         horizontalArrangement = Arrangement.spacedBy(5.dp),
@@ -297,8 +306,8 @@ fun HomeScreen(
                             Card(
                                 modifier = Modifier
                                     //.padding(8.dp)
-                                    .width(150.dp)
-                                    .height(145.dp)
+                                    .width(150.dp.responsiveWidth())
+                                    .height(145.dp.responsiveHeight())
                                     .clickable {
                                         onCategoryClick()
                                     },
@@ -319,8 +328,12 @@ fun HomeScreen(
                                         contentDescription = features[index],
                                         tint = MaterialTheme.colorScheme.primary
                                     )
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(features[index], fontWeight = FontWeight.Bold)
+                                    Spacer(modifier = Modifier.height(8.dp.responsiveHeight()))
+                                    Text(
+                                        features[index],
+                                        fontWeight = FontWeight.Bold,
+                                        style = MaterialTheme.typography.bodyMedium.responsive()
+                                    )
                                 }
                             }
                         }
@@ -328,7 +341,8 @@ fun HomeScreen(
                 }
                 Spacer(modifier = Modifier.height(3.dp))
                 CentreCircleDivider()
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(10.dp.responsiveHeight()))
+                Spacer(modifier = Modifier.height(16.dp.responsiveHeight()))
                 Column(modifier = Modifier
                     .fillMaxWidth()
                     .padding(start = 7.dp, end = 7.dp))
@@ -342,8 +356,8 @@ fun HomeScreen(
                         )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-                Spacer(modifier = Modifier.height(350.dp))
+
+                Spacer(modifier = Modifier.height(350.dp.responsiveHeight()))
                 if (showBottomSheet){
                     HourlyWeatherBottomSheet(
                         hourlyWeatherList = hourlyWeatherData?.forecast?.days?.get(0)?.hourly,
@@ -364,7 +378,7 @@ fun UserDashboardCard(
 ) {
     Card(
         modifier = modifier
-            .height(250.dp),
+            .height(250.dp.responsiveHeight()),
         shape = RoundedCornerShape(20.dp),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
@@ -402,12 +416,12 @@ fun UserDashboardCard(
                 Text(
                     text = "Vitamin D",
                     color = Color.White,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
+                    style = MaterialTheme.typography.bodyLarge.responsive().copy(fontWeight = FontWeight.Bold)
                 )
                 Text(
                     text = "20% Off",
                     color = Color.White,
-                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold)
+                    style = MaterialTheme.typography.headlineSmall.responsive().copy(fontWeight = FontWeight.SemiBold)
                 )
             }
         }
@@ -456,13 +470,37 @@ fun CentreCircleDivider(
         )
     }
 }
-
 @Composable
 fun HaloCareBottomBarCurved(
     navController: NavController,
     isVisible: Boolean,
     onFabClick: () -> Unit
 ) {
+
+    val referenceHeight = 780f
+
+// Usage in your composable:
+    val configuration = LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp.dp
+
+    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+    val scaleFactor = screenHeight.value / referenceHeight
+
+    // Reference dimensions
+    val containerHeightRef = 160.dp
+    val boxHeightRef = 105.dp
+    val fabSizeRef = 55.dp
+    val fabOffsetRef = 30.dp
+    val iconSizeRef = 30.dp
+
+    // Scaled dimensions
+    val containerHeight = containerHeightRef * scaleFactor
+    val boxHeight = boxHeightRef * scaleFactor
+    val fabSize = fabSizeRef * scaleFactor
+    val fabOffset = fabOffsetRef * scaleFactor
+    val iconSize = iconSizeRef * scaleFactor
+
+    val fabCutoutShape = FabCutoutShape(screenWidth) // Make cutout proportional to FAB
 
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
 
@@ -474,92 +512,55 @@ fun HaloCareBottomBarCurved(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(160.dp),
+                .height(containerHeight),
             contentAlignment = Alignment.BottomCenter
         ) {
 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(110.dp)
+                    .height(boxHeight)
                     .graphicsLayer {
                         shadowElevation = 20f
-                        shape = FabCutoutShape()
+                        shape = fabCutoutShape
                         clip = true
                     }
                     .background(MaterialTheme.colorScheme.inversePrimary)
-                    .border(2.dp, Color.Black.copy(alpha = 0.1f), FabCutoutShape())
+                    .border(2.dp, Color.Black.copy(alpha = 0.1f), fabCutoutShape)
             )
-
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(110.dp)
-                    .padding(10.dp),
+                    .height(boxHeight)
+                    .padding(horizontal = 10.dp.responsiveWidth()),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 BottomNavItem(
-                    icon = {
-                        HaloCareHomeIcon(
-                            size = 30.dp,
-                            // isSelected = true,
-                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                            backgroundColor = MaterialTheme.colorScheme.secondaryContainer
-                        )
-                    },
+                    icon = { HaloCareHomeIcon(size = iconSize, contentColor = MaterialTheme.colorScheme.onSecondaryContainer, backgroundColor = MaterialTheme.colorScheme.secondaryContainer) },
                     label = "Home",
                     isSelected = currentRoute == HomeScreen.route,
-                    onClick = {
-                        navController.navigateSingleTopTo(HomeScreen.route)
-                    }
+                    onClick = { navController.navigateSingleTopTo(HomeScreen.route) }
                 )
                 BottomNavItem(
-                    icon = {
-                        Image(
-                            painter = painterResource(id = R.drawable.baseline_healing_24),
-                            contentDescription = null,
-                            modifier = Modifier.size(30.dp),
-                            colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSecondaryContainer)
-                        )
-                    },
+                    icon = { Image(painter = painterResource(id = R.drawable.baseline_healing_24), contentDescription = null, modifier = Modifier.size(iconSize), colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSecondaryContainer)) },
                     label = "Consults",
                     isSelected = currentRoute == ConsultsScreen.route,
-                    onClick = {
-                        navController.navigateSingleTopTo(ConsultsScreen.route)
-                    }
+                    onClick = { navController.navigateSingleTopTo(ConsultsScreen.route) }
                 )
-                Spacer(Modifier.width(60.dp)) // Space for FAB
+                Spacer(Modifier.width(fabSize)) // space for FAB
                 BottomNavItem(
-                    icon = {
-                        Image(
-                            painter = painterResource(id = R.drawable.baseline_monitor_heart_24),
-                            contentDescription = null,
-                            modifier = Modifier.size(30.dp),
-                            colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSecondaryContainer)
-                        )
-                    },
+                    icon = { Image(painter = painterResource(id = R.drawable.baseline_monitor_heart_24), contentDescription = null, modifier = Modifier.size(iconSize), colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSecondaryContainer)) },
                     label = "Health Tracking",
                     isSelected = currentRoute == HealthTrackingScreen.route,
-                    onClick = {
-                        navController.navigateSingleTopTo(HealthTrackingScreen.route)
-                    }
+                    onClick = { navController.navigateSingleTopTo(HealthTrackingScreen.route) }
                 )
                 BottomNavItem(
-                    icon = {
-                        Image(
-                            painter = painterResource(id = R.drawable.baseline_settings_24),
-                            contentDescription = null,
-                            modifier = Modifier.size(30.dp),
-                            colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSecondaryContainer)
-                        )
-                    },
+                    icon = { Image(painter = painterResource(id = R.drawable.baseline_settings_24), contentDescription = null, modifier = Modifier.size(iconSize), colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSecondaryContainer)) },
                     label = "Settings",
                     isSelected = currentRoute == SettingsScreen.route,
-                    onClick = {
-                        navController.navigateSingleTopTo(SettingsScreen.route)
-                    }
+                    onClick = { navController.navigateSingleTopTo(SettingsScreen.route) }
                 )
             }
 
@@ -569,16 +570,11 @@ fun HaloCareBottomBarCurved(
                 shape = CircleShape,
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .size(60.dp)
-                    .offset(y = (30).dp) // Lifts the FAB above the cutout
+                    .size(fabSize)
+                    .offset(y = fabOffset)
                     .shadow(elevation = 2.dp, shape = CircleShape, clip = false)
-
             ) {
-                Icon(
-                    Icons.Default.Add,
-                    contentDescription = "Add",
-                    tint = MaterialTheme.colorScheme.onError
-                )
+                Icon(Icons.Default.Add, contentDescription = "Add", tint = MaterialTheme.colorScheme.onError)
             }
         }
     }
@@ -599,10 +595,31 @@ fun BottomNavItem(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
+    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+    val itemWidth = screenHeight * (65f / 780f)
+    val itemHeight = screenHeight * (90f / 780f)
+    val iconPadding = screenHeight * (8f / 780f)
+
+    // Animate colors for selection
+    val backgroundColor by animateColorAsState(
+        targetValue = if (isSelected) MaterialTheme.colorScheme.tertiary.copy(alpha = 0.3f)
+        else Color.Transparent
+    )
+    val labelColor by animateColorAsState(
+        targetValue = if (isSelected) MaterialTheme.colorScheme.primary
+        else Color.Gray
+    )
+
+    // Animate icon scale
+    val scale by animateFloatAsState(
+        targetValue = if (isSelected) 1.1f else 1f,
+        animationSpec = tween(durationMillis = 250)
+    )
+
     Box(
         modifier = Modifier
-            .width(65.dp)
-            .height(90.dp),
+            .width(itemWidth.responsiveWidth())
+            .height(itemHeight.responsiveHeight()),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -611,30 +628,31 @@ fun BottomNavItem(
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(12.dp))
-                    .background(
-                        if (isSelected) MaterialTheme.colorScheme.tertiary.copy(alpha = 0.3f)
-                        else Color.Transparent
-                    )
+                    .background(backgroundColor)
                     .clickable(
                         onClick = onClick,
                         indication = rememberRipple(bounded = true),
                         interactionSource = remember { MutableInteractionSource() }
                     )
-                    .padding(8.dp)
+                    .padding(iconPadding)
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                    }
             ) {
                 icon()
             }
 
-            // Label
             Text(
                 text = label,
-                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.bodySmall.responsive().copy(fontWeight = FontWeight.Bold),
                 textAlign = TextAlign.Center,
-                color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Gray
+                color = labelColor
             )
         }
     }
 }
+
 
 @Preview
 @Composable
@@ -865,7 +883,7 @@ fun DashboardWeatherCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .height(280.dp)
+            .height(280.dp.responsiveHeight())
             .addForShimmer(weatherData)
             .clickable(enabled = weatherData != null) {
                 weatherData?.let { onClick(it.current.isDay) }
@@ -924,11 +942,11 @@ private fun WeatherContent(weatherData: WeatherResponse) {
                 ),
                 contentDescription = null,
                 tint = if (isDaytime) Color.Yellow else Color.Cyan,
-                modifier = Modifier.size(28.dp)
+                modifier = Modifier.size(28.dp.responsiveWidth())
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(12.dp.responsiveHeight()))
 
         // Temperature (centered)
         Row(
@@ -945,7 +963,7 @@ private fun WeatherContent(weatherData: WeatherResponse) {
             AsyncImage(
                 model = current.condition.icon,
                 contentDescription = current.condition.text,
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(32.dp.responsiveWidth())
             )
         }
 
@@ -956,7 +974,7 @@ private fun WeatherContent(weatherData: WeatherResponse) {
             modifier = Modifier.align(Alignment.CenterHorizontally)
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(12.dp.responsiveHeight()))
 
         // Bottom Weather Metrics
         Row(
@@ -998,8 +1016,8 @@ private fun WeatherLoadingContent() {
             Column {
                 Box(
                     modifier = Modifier
-                        .width(120.dp)
-                        .height(24.dp)
+                        .width(120.dp.responsiveWidth())
+                        .height(24.dp.responsiveHeight())
                         .background(
                             MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
                             RoundedCornerShape(4.dp)
@@ -1008,8 +1026,8 @@ private fun WeatherLoadingContent() {
                 Spacer(modifier = Modifier.height(4.dp))
                 Box(
                     modifier = Modifier
-                        .width(80.dp)
-                        .height(16.dp)
+                        .width(80.dp.responsiveWidth())
+                        .height(16.dp.responsiveHeight())
                         .background(
                             MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
                             RoundedCornerShape(4.dp)
@@ -1027,7 +1045,7 @@ private fun WeatherLoadingContent() {
             )
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(24.dp.responsiveHeight()))
 
         // Temperature Skeleton
         Row(
@@ -1037,8 +1055,8 @@ private fun WeatherLoadingContent() {
         ) {
             Box(
                 modifier = Modifier
-                    .width(100.dp)
-                    .height(48.dp)
+                    .width(100.dp.responsiveWidth())
+                    .height(48.dp.responsiveHeight())
                     .background(
                         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
                         RoundedCornerShape(8.dp)
@@ -1069,7 +1087,7 @@ private fun WeatherLoadingContent() {
                 .align(Alignment.CenterHorizontally)
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(24.dp.responsiveHeight()))
 
         // Bottom metrics skeleton
         Row(
@@ -1082,7 +1100,7 @@ private fun WeatherLoadingContent() {
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(24.dp)
+                            .size(24.dp.responsiveWidth())
                             .background(
                                 MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
                                 CircleShape
@@ -1091,8 +1109,8 @@ private fun WeatherLoadingContent() {
                     Spacer(modifier = Modifier.height(4.dp))
                     Box(
                         modifier = Modifier
-                            .width(40.dp)
-                            .height(12.dp)
+                            .width(40.dp.responsiveWidth())
+                            .height(12.dp.responsiveHeight())
                             .background(
                                 MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
                                 RoundedCornerShape(4.dp)
@@ -1101,8 +1119,8 @@ private fun WeatherLoadingContent() {
                     Spacer(modifier = Modifier.height(2.dp))
                     Box(
                         modifier = Modifier
-                            .width(30.dp)
-                            .height(10.dp)
+                            .width(30.dp.responsiveWidth())
+                            .height(10.dp.responsiveHeight())
                             .background(
                                 MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
                                 RoundedCornerShape(4.dp)
@@ -1167,7 +1185,7 @@ fun HourlyWeatherBottomSheet(
         ) {
             Text(
                 text = "Hourly Forecast",
-                fontSize = 20.sp,
+                fontSize = 20.sp.responsiveSp(),
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
@@ -1224,12 +1242,12 @@ fun VerticalWeatherCard(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = hourlyData.time.substring(11, 16),
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleMedium.responsive(),
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp.responsiveHeight()))
 
                 // Weather Details Row
                 Row(
@@ -1240,21 +1258,21 @@ fun VerticalWeatherCard(
                     AsyncImage(
                         model = hourlyData.condition.iconUrl,
                         contentDescription = hourlyData.condition.text,
-                        modifier = Modifier.size(48.dp)
+                        modifier = Modifier.size(48.dp.responsiveWidth())
                     )
 
-                    Spacer(modifier = Modifier.width(16.dp))
+                    Spacer(modifier = Modifier.width(16.dp.responsiveWidth()))
 
                     // Temperature Column
                     Column {
                         Text(
                             text = "${hourlyData.tempCelsius}°C",
-                            style = MaterialTheme.typography.displaySmall,
+                            style = MaterialTheme.typography.displaySmall.responsive(),
                             fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = "${hourlyData.tempFahrenheit}°F",
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.bodyMedium.responsive(),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -1270,7 +1288,7 @@ fun VerticalWeatherCard(
                             value = "${hourlyData.windSpeed} kph",
                             label = hourlyData.windDirection
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(4.dp.responsiveHeight()))
                         WeatherStatItem(
                             icon = painterResource(id = R.drawable.baseline_water_drop_24),
                             value = "${hourlyData.chanceOfRain}%",
@@ -1298,18 +1316,18 @@ private fun WeatherStatItem(
             painter = icon,
             contentDescription = null,
             tint = tint,
-            modifier = Modifier.size(16.dp)
+            modifier = Modifier.size(16.dp.responsiveWidth())
         )
-        Spacer(modifier = Modifier.width(4.dp))
+        Spacer(modifier = Modifier.width(4.dp.responsiveWidth()))
         Column(horizontalAlignment = Alignment.Start) {
             Text(
                 text = value,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelLarge.responsive(),
                 fontWeight = FontWeight.Medium
             )
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.labelSmall.responsive(),
                 color = tint.copy(alpha = 0.7f)
             )
         }
@@ -1346,18 +1364,21 @@ private fun VerticalShimmerWeatherCard(
     )
 
     Card(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(16.dp.responsiveWidth()),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(
+                horizontal = 16.dp.responsiveWidth(),
+                vertical = 8.dp.responsiveHeight()
+            ),
         colors = CardDefaults.cardColors(
-            containerColor = if (isDaytime)MaterialTheme.colorScheme.primaryContainer
-                            else MaterialTheme.colorScheme.inversePrimary
+            containerColor = if (isDaytime) MaterialTheme.colorScheme.primaryContainer
+            else MaterialTheme.colorScheme.inversePrimary
         )
     ) {
         Column(
             modifier = Modifier
-                .padding(16.dp)
+                .padding(16.dp.responsiveWidth())
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -1365,21 +1386,21 @@ private fun VerticalShimmerWeatherCard(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(24.dp)
+                        .size(24.dp.responsiveWidth())
                         .clip(CircleShape)
                         .background(brush)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(8.dp.responsiveWidth()))
                 Box(
                     modifier = Modifier
-                        .width(80.dp)
-                        .height(24.dp)
-                        .clip(RoundedCornerShape(4.dp))
+                        .width(80.dp.responsiveWidth())
+                        .height(24.dp.responsiveHeight())
+                        .clip(RoundedCornerShape(4.dp.responsiveWidth()))
                         .background(brush)
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp.responsiveHeight()))
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -1387,27 +1408,27 @@ private fun VerticalShimmerWeatherCard(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(48.dp.responsiveWidth())
                         .clip(CircleShape)
                         .background(brush)
                 )
 
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.width(16.dp.responsiveWidth()))
 
                 Column {
                     Box(
                         modifier = Modifier
-                            .width(80.dp)
-                            .height(32.dp)
-                            .clip(RoundedCornerShape(4.dp))
+                            .width(80.dp.responsiveWidth())
+                            .height(32.dp.responsiveHeight())
+                            .clip(RoundedCornerShape(4.dp.responsiveWidth()))
                             .background(brush)
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(4.dp.responsiveHeight()))
                     Box(
                         modifier = Modifier
-                            .width(60.dp)
-                            .height(16.dp)
-                            .clip(RoundedCornerShape(4.dp))
+                            .width(60.dp.responsiveWidth())
+                            .height(16.dp.responsiveHeight())
+                            .clip(RoundedCornerShape(4.dp.responsiveWidth()))
                             .background(brush)
                     )
                 }
@@ -1418,34 +1439,34 @@ private fun VerticalShimmerWeatherCard(
                     repeat(2) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(bottom = 4.dp)
+                            modifier = Modifier.padding(bottom = 4.dp.responsiveHeight())
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(16.dp)
+                                    .size(16.dp.responsiveWidth())
                                     .clip(CircleShape)
                                     .background(brush)
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.width(4.dp.responsiveWidth()))
                             Column {
                                 Box(
                                     modifier = Modifier
-                                        .width(40.dp)
-                                        .height(12.dp)
-                                        .clip(RoundedCornerShape(4.dp))
+                                        .width(40.dp.responsiveWidth())
+                                        .height(12.dp.responsiveHeight())
+                                        .clip(RoundedCornerShape(4.dp.responsiveWidth()))
                                         .background(brush)
                                 )
-                                Spacer(modifier = Modifier.height(2.dp))
+                                Spacer(modifier = Modifier.height(2.dp.responsiveHeight()))
                                 Box(
                                     modifier = Modifier
-                                        .width(30.dp)
-                                        .height(10.dp)
-                                        .clip(RoundedCornerShape(4.dp))
+                                        .width(30.dp.responsiveWidth())
+                                        .height(10.dp.responsiveHeight())
+                                        .clip(RoundedCornerShape(4.dp.responsiveWidth()))
                                         .background(brush)
                                 )
                             }
                         }
-                        if (it == 0) Spacer(modifier = Modifier.height(4.dp))
+                        if (it == 0) Spacer(modifier = Modifier.height(4.dp.responsiveHeight()))
                     }
                 }
             }
@@ -1487,14 +1508,14 @@ fun FeatureGridPopup(
                 ) {
                     Text(
                         text = "Quick Actions",
-                        style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.padding(bottom = 12.dp)
+                        style = MaterialTheme.typography.titleLarge.responsive(),
+                        modifier = Modifier.padding(bottom = 12.dp.responsiveHeight())
                     )
 
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(3),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(1.dp.responsiveWidth()),
+                        verticalArrangement = Arrangement.spacedBy(12.dp.responsiveHeight()),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         items(features) { feature ->
@@ -1523,7 +1544,7 @@ fun FeatureGridItem(
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
-                .size(56.dp)
+                .size(56.dp.responsiveHeight())
                 .shadow(
                     elevation = 3.dp,
                     shape = CircleShape,
@@ -1538,13 +1559,13 @@ fun FeatureGridItem(
                 painter = painterResource(feature.icon.drawableRes),
                 contentDescription = feature.name,
                 tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(24.dp.responsiveHeight())
             )
         }
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(8.dp.responsiveHeight()))
         Text(
             text = feature.name,
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.labelMedium.responsive(),
             textAlign = TextAlign.Center,
             maxLines = 1,
             fontWeight = FontWeight.Bold
@@ -1554,8 +1575,8 @@ fun FeatureGridItem(
 
 @Composable
 fun PointerTriangle(modifier: Modifier = Modifier) {
-    val triangleColor = MaterialTheme.colorScheme.surface
-    Canvas(modifier = modifier.size(32.dp)) {
+    val triangleColor = MaterialTheme.colorScheme.inversePrimary
+    Canvas(modifier = modifier.size(32.dp.responsiveHeight())) {
         val path = Path().apply {
             moveTo(size.width / 2, 0f)
             lineTo(size.width, size.height)

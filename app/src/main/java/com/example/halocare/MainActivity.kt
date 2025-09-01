@@ -42,6 +42,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -74,6 +75,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -99,6 +101,7 @@ import com.example.halocare.ui.presentation.SettingsScreen
 import com.example.halocare.ui.presentation.StatusBarProvider
 import com.example.halocare.ui.presentation.TelehealthScreen
 import com.example.halocare.ui.presentation.rememberStatusBarController
+import com.example.halocare.ui.presentation.responsiveHeight
 import com.example.halocare.viewmodel.AuthViewModel
 import com.example.halocare.viewmodel.MainViewModel
 import com.example.halocare.viewmodel.SettingsViewModel
@@ -196,7 +199,8 @@ fun HaloCareNavHost(
                     onSuccessfulLogin = {
                         navHostController.navigateSingleTopTo(HomeScreen.route, true)
                     },
-                    viewModel = authViewModel
+                    viewModel = authViewModel,
+                    isDarkMode = isDarkMode
                 )
             }
             composable(route = RegisterScreen.route) {
@@ -208,14 +212,16 @@ fun HaloCareNavHost(
                         )
                     },
                     authViewModel = authViewModel,
-                    onLoginClick = { navHostController.navigateSingleTopTo(LoginScreen.route) }
+                    onLoginClick = { navHostController.navigateSingleTopTo(LoginScreen.route) },
+                    isDarkMode = isDarkMode
                 )
             }
             composable(route = ProfileScreen.route) {
                 ProfileScreen(
                     onSkip = { navHostController.navigateSingleTopTo(HomeScreen.route, true) },
                     onContinue = { navHostController.navigateSingleTopTo(HomeScreen.route) },
-                    authViewModel = authViewModel
+                    authViewModel = authViewModel,
+                    isDarkMode = isDarkMode
                 )
             }
             composable(route = HomeScreen.route) {
@@ -223,12 +229,13 @@ fun HaloCareNavHost(
                     onProfileClick = { navHostController.navigateSingleTopTo(ProfileScreen.route) },
                     onCategoryClick = {
                         navHostController.navigateSingleTopTo(
-                            PediatricDevelopmentScreen.route
+                            TelehealthScreen.route
                         )
                     },
                     authViewModel = authViewModel,
                     scrollState = scrollState,
-                    mainViewModel = mainViewModel
+                    mainViewModel = mainViewModel,
+                    isDarkMode = isDarkMode
                 )
             }
             composable(route = ConsultsScreen.route) {
@@ -240,7 +247,8 @@ fun HaloCareNavHost(
                             AppointmentsScreen.route
                         )
                     },
-                    mainViewModel = mainViewModel
+                    mainViewModel = mainViewModel,
+                    isDarkMode = isDarkMode
                 )
             }
             composable(route = AppointmentsScreen.route) {
@@ -252,7 +260,8 @@ fun HaloCareNavHost(
                                 inclusive = true
                             }
                         }
-                    }
+                    },
+                    isDarkMode = isDarkMode
                 )
             }
             composable(route = HealthTrackingScreen.route) {
@@ -266,7 +275,8 @@ fun HaloCareNavHost(
             composable(route = DailyHabitsScreen.route) {
                 DailyHabitsScreen(
                     mainViewModel = mainViewModel,
-                    onBackIconClick = { navHostController.navigateUp() }
+                    onBackIconClick = { navHostController.navigateUp() },
+                    isDarkMode = isDarkMode
                 )
             }
             composable(route = MoodScreen.route) {
@@ -340,7 +350,7 @@ fun FeatureGridOverlay(
             exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 150.dp)
+                .padding(bottom = 145.dp.responsiveHeight())
         ) {
             FeatureGridPopup(
                 onFeatureClick = onFeatureClick
@@ -520,7 +530,7 @@ fun MainAppContent(
             if (showBottomBar) {
                 // Bottom bar with navigation bar insets
                 Box(
-                    modifier = Modifier
+                    modifier = Modifier.wrapContentHeight()
                 ) {
                     HaloCareBottomBarCurved(
                         navHostController,
@@ -587,15 +597,29 @@ fun SetNavigationBarColor(color: Color) {
 }
 
 
-fun NavHostController.navigateSingleTopTo(route: String, popBackStack : Boolean = false) =
+fun NavHostController.navigateSingleTopTo(
+    route: String,
+    clearBackStack: Boolean = false
+) {
     this.navigate(route) {
         launchSingleTop = true
-        if (popBackStack){popBackStack()}
+        restoreState = !clearBackStack
+
+        if (clearBackStack) {
+            popUpTo(graph.id) { inclusive = true }
+        } else {
+            // Normal bottom bar behavior
+            popUpTo(graph.findStartDestination().id) {
+                saveState = true
+            }
+        }
     }
+}
+
 
 fun NavHostController.navigateToHomeScreen(userName:String) =
     this.navigateSingleTopTo(
         route = "${HomeScreen.route}/${userName}",
-        popBackStack = true
+      //  popBackStack = true
     )
 

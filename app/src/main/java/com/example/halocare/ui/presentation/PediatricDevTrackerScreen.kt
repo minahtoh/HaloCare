@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -108,6 +109,7 @@ import org.checkerframework.checker.units.qual.Speed
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.sp
 import java.time.LocalDate
 import java.util.concurrent.TimeUnit
 import kotlin.math.PI
@@ -198,7 +200,8 @@ fun PediatricTrackerScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .fillMaxHeight()
-                        .padding(16.dp).padding(bottom = 25.dp),
+                        .padding(16.dp)
+                        .padding(bottom = 25.dp),
                     contentAlignment = Alignment.BottomCenter
                 ) {
                     Text(
@@ -226,16 +229,14 @@ fun TrackerTopBar(
 ) {
     Box(
         modifier = Modifier
-            .shadow(
-                elevation = 17.dp,
-            )
+            .shadow(elevation = 17.dp)
             .background(MaterialTheme.colorScheme.tertiaryContainer)
+            .fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 20.dp, bottom = 20.dp, start = 20.dp, end = 20.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Back Button
@@ -262,13 +263,29 @@ fun TrackerTopBar(
                 )
             }
 
-            // Title
-            Text(
-                text = "Pediatric Development Tracker",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.secondary,
-                fontWeight = FontWeight.Bold
-            )
+            // Auto-resizing Title
+            BoxWithConstraints(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                val maxWidth = maxWidth
+                val fontSize = when {
+                    maxWidth < 280.dp -> 16.sp
+                    maxWidth < 340.dp -> 18.sp
+                    else -> 20.sp
+                }
+
+                Text(
+                    text = "Pediatric Development Tracker",
+                    style = MaterialTheme.typography.titleLarge.copy(fontSize = fontSize),
+                    color = MaterialTheme.colorScheme.secondary,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    textAlign = TextAlign.Center
+                )
+            }
 
             // Right-side Icon
             Surface(
@@ -277,22 +294,23 @@ fun TrackerTopBar(
                 shadowElevation = 2.dp,
                 modifier = Modifier.size(40.dp)
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.ped_dev_tracker_ic),
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier
+                            .size(24.dp)
                     )
                 }
             }
         }
     }
 }
-
 
 @Composable
 fun AgeGroupSelector(
@@ -391,7 +409,9 @@ fun NewAgeGroupSelector(
 
             // Label
             Column(
-                modifier = Modifier.fillMaxWidth().padding(7.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(7.dp)
             ) {
                 Text(
                     text = "How old is your child?",
@@ -838,7 +858,8 @@ fun PalmCheckbox(
             .clickable(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
-            ) { onCheckedChange(!checked) }
+            ) { onCheckedChange(!checked) },
+        contentAlignment = Alignment.Center // Center the Canvas
     ) {
 
         val palmColor = if (checked) MaterialTheme.colorScheme.tertiary else Color.Gray
@@ -846,28 +867,38 @@ fun PalmCheckbox(
         Canvas(
             modifier = Modifier.fillMaxSize()
         ) {
-            val palmSize = size.minDimension / 6
-            val palmCenter = Offset(size.width / 2, size.height * 0.7f)
-            val adjust = 6.dp.toPx()
-            // Draw fingers with proper spread angles for open palm
+            val w = size.width
+            val h = size.height
+
+            val palmSize = size.minDimension / 5
+            val palmCenter = Offset(w / 2, (h*9)/20 ) // move slightly up for fingers to fit
+
             val fingers = listOf(
-                // Thumb - angled left and shorter
-                Triple(-145f, palmSize * 1.8f, palmCenter.copy(x = palmCenter.x - palmSize * 0.7f)),
-                // Index finger - angled slightly left
-                Triple(-110f, palmSize * 2.6f, palmCenter.copy(x = palmCenter.x - palmSize * 0.4f)),
+                // pinky - angled right and shorter
+                Triple(-45f, palmSize * 1.6f, palmCenter.copy(x = palmCenter.x + palmSize * 0.7f)),
+                // index finger - angled slightly left
+                Triple(-110f, palmSize * 2.3f, palmCenter.copy(x = palmCenter.x - palmSize * 0.4f)),
                 // Middle finger - straight up (longest)
-                Triple(-90f, palmSize * 2.8f, palmCenter),
+                Triple(-90f, palmSize * 2.7f, palmCenter),
                 // Ring finger - angled slightly right
-                Triple(-70f, palmSize * 2.5f, palmCenter.copy(x = palmCenter.x + palmSize * 0.4f)),
-                // Pinky - angled more right and shortest
-                Triple(-35f, palmSize * 1.9f, palmCenter.copy(x = palmCenter.x + palmSize * 0.7f, ))
+                Triple(-70f, palmSize * 2.3f, palmCenter.copy(x = palmCenter.x + palmSize * 0.4f)),
+                // thumb - angled more left and shortest
+                Triple(-150f, palmSize * 1.6f, palmCenter.copy(x = palmCenter.x - palmSize * 0.7f))
             )
 
             fingers.forEach { (angle, length, startPos) ->
                 val angleRad = angle * (PI / 180f).toFloat()
-                val endX = startPos.x + cos(angleRad) * length * animatedProgress
-                val endY = (startPos.y - 15f) + sin(angleRad) * length * animatedProgress
 
+                // Always draw finger lines, but with minimum length when not animated
+                val minLength = palmSize * 0.2f // minimum finger stub length
+                val actualLength = if (animatedProgress > 0.1f) {
+                    length * animatedProgress
+                } else {
+                    minLength
+                }
+
+                val endX = startPos.x + cos(angleRad) * actualLength
+                val endY = startPos.y + sin(angleRad) * actualLength
                 drawLine(
                     color = palmColor,
                     start = startPos,
@@ -877,10 +908,11 @@ fun PalmCheckbox(
                 )
             }
 
-            // Draw squircle palm
+            // Squircle palm centered relative to Box
             val squircleSize = palmSize * 1.5f
+            val squircleCenter = Offset(w / 2, h/2 ) // bottom-ish
             val squircleRect = Rect(
-                offset = Offset(20f,39f - adjust),
+                offset = Offset(squircleCenter.x - squircleSize, squircleCenter.y - squircleSize),
                 size = Size(squircleSize * 2, squircleSize * 2)
             )
 
@@ -891,9 +923,6 @@ fun PalmCheckbox(
                 cornerRadius = CornerRadius(squircleSize * 0.4f),
                 alpha = 0.3f + (animatedProgress * 0.7f)
             )
-
-            // Optional: Add inner squircle when checked
-
         }
     }
 }

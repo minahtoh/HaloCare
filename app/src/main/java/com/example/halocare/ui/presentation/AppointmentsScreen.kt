@@ -28,6 +28,7 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -103,6 +104,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -120,6 +122,7 @@ import com.example.halocare.viewmodel.LoadingState
 import com.example.halocare.viewmodel.MainViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import responsiveSp
 import java.time.LocalDate
 import java.util.Calendar
 
@@ -128,7 +131,8 @@ import java.util.Calendar
 @Composable
 fun AppointmentsScreen(
     mainViewModel: MainViewModel,
-    navigateToConsultsScreen : () -> Unit
+    navigateToConsultsScreen : () -> Unit,
+    isDarkMode : Boolean
     //onConfirmAppointment: (Professional, LocalDate) -> Unit = {}
 ) {
     val statusBarController = rememberStatusBarController()
@@ -159,7 +163,7 @@ fun AppointmentsScreen(
     LaunchedEffect(true) {
         statusBarController.updateStatusBar(
             color = statusBarColor,
-            darkIcons = true
+            darkIcons = isDarkMode
         )
         mainViewModel.toastMessage.collect { message ->
             toastState.show(message)
@@ -449,25 +453,25 @@ fun AppointmentConfirmationDialog(
                         model  = professional.picture,
                         contentDescription = null,
                         modifier = Modifier
-                            .size(48.dp)
+                            .size(48.dp.responsiveHeight())
                             .clip(CircleShape)
                     )
-                    Spacer(modifier = Modifier.width(16.dp))
+                    Spacer(modifier = Modifier.width(16.dp.responsiveWidth()))
                     Column {
                         Text(professional.name, fontWeight = FontWeight.Bold)
-                        Text(professional.specialty, style = MaterialTheme.typography.bodyMedium)
+                        Text(professional.specialty, style = MaterialTheme.typography.bodyMedium.responsive())
                         Text(
                             text = "₦--${professional.consultationPrice}",
-                            style = MaterialTheme.typography.bodyMedium
+                            style = MaterialTheme.typography.bodyMedium.responsive()
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp.responsiveHeight()))
                 Text("Select a time:")
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp.responsiveWidth()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp.responsiveHeight()),
                     modifier = Modifier.fillMaxWidth()
                 ){
                     items(timeOptions){
@@ -509,9 +513,9 @@ fun AppointmentConfirmationDialog(
                     label = { Text("Add Notes (Symptoms, Concerns)") },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(150.dp)
+                        .height(150.dp.responsiveHeight())
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp.responsiveHeight()))
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -566,12 +570,29 @@ fun AppointmentsTopBar(){
                     )
                 )
             }
-            Text(
-                text = "Book an Appointment",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.surfaceTint,
-                fontWeight = FontWeight.Bold
-            )
+            // Auto-resizing Title
+            BoxWithConstraints(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                val maxWidth = maxWidth
+                val fontSize = when {
+                    maxWidth < 280.dp -> 16.sp
+                    maxWidth < 340.dp -> 18.sp
+                    else -> 20.sp
+                }
+
+                Text(
+                    text = "Book an Appointment",
+                    style = MaterialTheme.typography.titleLarge.copy(fontSize = fontSize),
+                    color = MaterialTheme.colorScheme.secondary,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    textAlign = TextAlign.Center
+                )
+            }
             Surface(
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 shape = CircleShape,
@@ -625,7 +646,7 @@ fun ProfessionalListCard(
                 model = professional.picture,
                 contentDescription = null,
                 modifier = Modifier
-                    .size(64.dp)
+                    .size(64.dp.responsiveWidth())
                     .clip(CircleShape),
                 contentScale = ContentScale.Crop
             )
@@ -660,16 +681,16 @@ fun ProfessionalDetailSheet(
             model = professional.picture,
             contentDescription = null,
             modifier = Modifier
-                .size(100.dp)
+                .size(100.dp.responsiveHeight())
                 .clip(CircleShape)
                 .align(Alignment.CenterHorizontally),
             contentScale = ContentScale.Crop
         )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(text = professional.name, style = MaterialTheme.typography.titleMedium)
+        Spacer(modifier = Modifier.height(16.dp.responsiveHeight()))
+        Text(text = professional.name, style = MaterialTheme.typography.titleMedium.responsive())
         Text(text = professional.specialty, color = Color.Gray)
         Text(text = professional.location, fontSize = 12.sp)
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(8.dp.responsiveHeight()))
 
         Text(text = "Bio", fontWeight = FontWeight.SemiBold)
         Text(text = professional.bio, fontSize = 14.sp)
@@ -679,7 +700,7 @@ fun ProfessionalDetailSheet(
         Text(text = "Rating: ${professional.rating}")
         Text(text = "Consultation Fee: ₦${professional.consultationPrice}")
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(20.dp.responsiveHeight()))
         if (true) {
             val infiniteTransition = rememberInfiniteTransition()
 
@@ -736,7 +757,7 @@ fun AppointmentBookingDialog(
                 Box(
                     modifier = Modifier
                         .padding(24.dp)
-                        .size(200.dp),
+                        .size(200.dp.responsiveHeight()),
                     contentAlignment = Alignment.Center
                 ) {
                     AnimatedContent(
@@ -752,13 +773,13 @@ fun AppointmentBookingDialog(
                                 imageVector = Icons.Default.CheckCircle,
                                 contentDescription = "Success",
                                 tint = Color(0xFF4CAF50),
-                                modifier = Modifier.size(64.dp)
+                                modifier = Modifier.size(64.dp.responsiveHeight())
                             )
                             LoadingState.ERROR -> Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Error",
                                 tint = Color.Red,
-                                modifier = Modifier.size(64.dp)
+                                modifier = Modifier.size(64.dp.responsiveHeight())
                             )
                             else -> {}
                         }
@@ -782,7 +803,7 @@ fun LoadingDots() {
 
     Text(
         text = "Booking" + ".".repeat(dotCount),
-        fontSize = 18.sp,
+        fontSize = 18.sp.responsiveSp(),
         fontWeight = FontWeight.Medium
     )
 }
@@ -849,7 +870,7 @@ private fun ProfessionalBottomSheetContent(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .height(targetHeight) // Animated height that smoothly transitions
+            .height(targetHeight.responsiveHeight()) // Animated height that smoothly transitions
             .padding(16.dp)
     ) {
         // Professional header
@@ -910,7 +931,7 @@ private fun ProfessionalBottomSheetContent(
                         }
                 ) {
                     Column(modifier = Modifier
-                        .height(300.dp)
+                        .height(300.dp.responsiveHeight())
                         .fillMaxWidth()) {
                         ProfessionalDetailSheet(professional = professional)
                     }
@@ -968,7 +989,7 @@ private fun ProfessionalBottomSheetContent(
                             verticalAlignment = Alignment.Bottom
                         ) {
                             Column {
-                                Spacer(modifier = Modifier.height(16.dp))
+                                Spacer(modifier = Modifier.height(16.dp.responsiveHeight()))
 
                                 // Name with qualification badge
                                 Row(
@@ -977,13 +998,13 @@ private fun ProfessionalBottomSheetContent(
                                 ) {
                                     Text(
                                         text = professional.name,
-                                        style = MaterialTheme.typography.titleMedium
+                                        style = MaterialTheme.typography.titleMedium.responsive()
                                     )
 
                                     // Qualification Badge
                                     Box(
                                         modifier = Modifier
-                                            .size(32.dp)
+                                            .size(32.dp.responsiveHeight())
                                             .background(
                                                 color = MaterialTheme.colorScheme.primary,
                                                 shape = CircleShape
@@ -993,36 +1014,36 @@ private fun ProfessionalBottomSheetContent(
                                         Text(
                                             text = getQualificationText(professional.specialty),
                                             color = MaterialTheme.colorScheme.onPrimary,
-                                            style = MaterialTheme.typography.labelSmall,
+                                            style = MaterialTheme.typography.labelSmall.responsive(),
                                             fontWeight = FontWeight.Bold
                                         )
                                     }
                                 }
 
                                 Text(text = professional.specialty, color = Color.Gray)
-                                Text(text = professional.location, fontSize = 12.sp)
-                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(text = professional.location, fontSize = 12.sp.responsiveSp())
+                                Spacer(modifier = Modifier.height(8.dp.responsiveHeight()))
                             }
                             AsyncImage(
                                 model = professional.picture,
                                 contentDescription = null,
                                 modifier = Modifier
-                                    .size(200.dp)
+                                    .size(200.dp.responsiveHeight())
                                     .clip(RoundedCornerShape(15)),
                                 contentScale = ContentScale.Crop
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(8.dp.responsiveHeight()))
                         Text(text = "Bio", fontWeight = FontWeight.SemiBold)
-                        Text(text = professional.bio, fontSize = 14.sp)
+                        Text(text = professional.bio, fontSize = 14.sp.responsiveSp())
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(12.dp.responsiveHeight()))
                         Text(text = "Languages: ${professional.language.joinToString(", ")}")
                         Text(text = "Rating: ${professional.rating}")
                         Text(text = "Consultation Fee: ₦${professional.consultationPrice}")
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(10.dp.responsiveHeight()))
                     }
 
                     // Additional info
@@ -1035,19 +1056,19 @@ private fun ProfessionalBottomSheetContent(
                         Column(modifier = Modifier.padding(14.dp)) {
                             Text(
                                 text = "About",
-                                style = MaterialTheme.typography.titleMedium,
+                                style = MaterialTheme.typography.titleMedium.responsive(),
                                 fontWeight = FontWeight.Bold
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(8.dp.responsiveHeight()))
                             Text(
                                 text = "Experienced ${professional.specialty.lowercase()} with ${professional.rating} of practice. Specializes in comprehensive care and patient-centered treatment approaches.",
-                                style = MaterialTheme.typography.bodyMedium,
+                                style = MaterialTheme.typography.bodyMedium.responsive(),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(6.dp.responsiveHeight()))
                     // Available Dates Section
                     Column(
                         modifier = Modifier
@@ -1056,14 +1077,14 @@ private fun ProfessionalBottomSheetContent(
                     ) {
                         Text(
                             text = "Available Dates",
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.titleMedium.responsive(),
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(bottom = 12.dp)
                         )
 
                         // Date Pills
                         LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp.responsiveWidth()),
                             contentPadding = PaddingValues(horizontal = 4.dp)
                         ) {
                             items(professional.availableDates) { date ->
@@ -1075,7 +1096,7 @@ private fun ProfessionalBottomSheetContent(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(36.dp))
+                    Spacer(modifier = Modifier.height(36.dp.responsiveHeight()))
                 }
             }
         }
@@ -1097,13 +1118,13 @@ private fun ProfessionalBottomSheetContent(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(55.dp)
+                    .height(55.dp.responsiveHeight())
                     .padding(horizontal = 6.dp, vertical = 2.dp)
             ) {
                 Text("Book Appointment")
             }
         }
-        Spacer(modifier = Modifier.height(5.dp))
+        Spacer(modifier = Modifier.height(5.dp.responsiveHeight()))
     }
 }
 
@@ -1118,7 +1139,7 @@ private fun DatePill(
         label = {
             Text(
                 text = date,
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelMedium.responsive(),
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
             )

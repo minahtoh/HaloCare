@@ -13,6 +13,7 @@ import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +25,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -87,7 +89,8 @@ fun LoginScreen(
     modifier: Modifier = Modifier,
     onSuccessfulLogin : ()-> Unit = {},
     onSignupClick : ()-> Unit = {},
-    viewModel: AuthViewModel
+    viewModel: AuthViewModel,
+    isDarkMode : Boolean
 ){
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -98,7 +101,7 @@ fun LoginScreen(
     LaunchedEffect(key1 = true){
         statusBarController.updateStatusBar(
             color = statusBarColor,
-            darkIcons = true
+            darkIcons = isDarkMode
         )
     }
 
@@ -148,7 +151,11 @@ fun LoginScreen(
                     ).show()
                 }
             }
-            Column {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+            ) {
                 IntroCard(
                     modifier = Modifier.fillMaxWidth(),
                     elevation = 0.dp
@@ -156,7 +163,7 @@ fun LoginScreen(
                 Column(
                     modifier = Modifier.padding(10.dp)
                 ) {
-                    Spacer(modifier = Modifier.height(70.dp))
+                    Spacer(modifier = Modifier.height(20.dp.responsiveHeight()))
                     Surface(
                         color = MaterialTheme.colorScheme.tertiaryContainer,
                         shape = RoundedCornerShape(15.dp),
@@ -164,25 +171,25 @@ fun LoginScreen(
                     ) {
                         Column(
                             modifier = Modifier
-                                .height(360.dp)
+                                .height(360.dp.responsiveHeight())
                                 .padding(16.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
                                 text = "Welcome Back!",
-                                style = MaterialTheme.typography.bodyMedium,
+                                style = MaterialTheme.typography.bodyMedium.responsive(),
                                 fontWeight = FontWeight.Bold
                             )
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(16.dp.responsiveHeight()))
                             OutlinedTextField(
                                 value = email,
                                 onValueChange = { email = it },
                                 label = { Text("Email") },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
-                                shape = RoundedCornerShape(25.dp)
+                                shape = RoundedCornerShape(25.dp.responsiveHeight())
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(8.dp.responsiveHeight()))
 
                             var passwordVisible by remember { mutableStateOf(false) }
 
@@ -192,7 +199,7 @@ fun LoginScreen(
                                 label = { Text("Password") },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
-                                shape = RoundedCornerShape(25.dp),
+                                shape = RoundedCornerShape(25.dp.responsiveHeight()),
                                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                                 trailingIcon = {
                                     val image = if (passwordVisible)
@@ -207,10 +214,10 @@ fun LoginScreen(
                                     }
                                 }
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(8.dp.responsiveHeight()))
                             Row(
                                 modifier = Modifier
-                                    .height(40.dp)
+                                    .height(40.dp.responsiveHeight())
                                     .fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(3.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -223,8 +230,9 @@ fun LoginScreen(
                                     viewModel.loginUser(email, password)
                                 },
                                 modifier = Modifier
+                                    //.height(18.dp.responsiveHeight())
                                     .fillMaxWidth()
-                                    .padding(25.dp),
+                                    .padding(8.dp),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -233,7 +241,7 @@ fun LoginScreen(
                             ) {
                                 Text(
                                     text = "Login",
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                                    style = MaterialTheme.typography.bodyMedium.responsive().copy(fontWeight = FontWeight.Bold)
                                 )
                             }
                         }
@@ -250,7 +258,7 @@ fun LoginScreen(
                             Text("Forgot Password?", color = MaterialTheme.colorScheme.error)
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(6.dp.responsiveHeight()))
 
                         GoogleSignInSectionWithCustomIcon(
                             onGoogleSignInClick = {
@@ -259,7 +267,7 @@ fun LoginScreen(
                             }
                         )
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(6.dp.responsiveHeight()))
 
                         Row(
                             verticalAlignment = Alignment.CenterVertically
@@ -316,14 +324,14 @@ fun GoogleSignInSectionWithCustomIcon(
             )
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(24.dp.responsiveHeight()))
 
         // Google Sign In Button with custom icon
         OutlinedButton(
             onClick = onGoogleSignInClick,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp),
+                .height(56.dp.responsiveHeight()),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
             colors = ButtonDefaults.outlinedButtonColors(
                 containerColor = Color.Transparent,
@@ -367,10 +375,10 @@ fun GoogleSignInSectionWithCustomIcon(
                     )
                 }
 
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(12.dp.responsiveWidth()))
                 Text(
                     text = "Continue with Google",
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.bodyLarge.responsive(),
                     fontWeight = FontWeight.Medium
                 )
             }

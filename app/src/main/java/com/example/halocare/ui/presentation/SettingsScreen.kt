@@ -96,7 +96,9 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = {
+                    Text("Settings",
+                        style = MaterialTheme.typography.titleLarge.responsive()) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.inversePrimary
                 )
@@ -278,15 +280,14 @@ fun SettingItem(title: String, subtitle: String, icon: ImageVector, onClick: () 
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(imageVector = icon, contentDescription = title, modifier = Modifier.size(24.dp))
-        Spacer(modifier = Modifier.width(12.dp))
+        Icon(imageVector = icon, contentDescription = title, modifier = Modifier.size(24.dp.responsiveWidth()))
+        Spacer(modifier = Modifier.width(12.dp.responsiveWidth()))
         Column {
-            Text(title, fontWeight = FontWeight.Bold)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall)
+            Text(title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium.responsive(),)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall.responsive())
         }
     }
 }
-
 @Composable
 fun ThemeToggleSwitch(
     isDark: Boolean,
@@ -294,44 +295,45 @@ fun ThemeToggleSwitch(
 ) {
     val transition = updateTransition(targetState = isDark, label = "ToggleTransition")
 
+    // Animate the thumb's horizontal offset
     val thumbOffset by transition.animateDp(label = "ThumbOffset") {
         if (it) 28.dp else 0.dp
     }
 
+    // Animate the track color
     val trackColor by transition.animateColor(label = "TrackColor") {
         if (it) Color(0xFF333333) else Color(0xFFE0E0E0)
     }
 
-    val icon = if (isDark) R.drawable.baseline_nights_stay_24
-                    else R.drawable.baseline_wb_sunny_24
-    val iconTint = if (isDark) Color.Yellow else Color(0xFF1E1E1E)
+    // Determine the icon and its tint based on the state
+    val icon = if (isDark) R.drawable.baseline_nights_stay_24 else R.drawable.baseline_wb_sunny_24
+    val iconTint = if (isDark) Color.White else Color(0xFF1E1E1E)
 
+    // The main container for the switch
     Box(
         modifier = Modifier
-            .width(60.dp)
-            .height(32.dp)
+            .width(60.dp.responsiveWidth())
+            .height(32.dp.responsiveHeight())
             .clip(RoundedCornerShape(16.dp))
             .background(trackColor)
             .clickable { onToggle(!isDark) }
-            .padding(horizontal = 4.dp),
-        contentAlignment = Alignment.CenterStart
+            .padding(4.dp)
     ) {
-        Icon(
-            painter = painterResource(id = icon),
-            contentDescription = "ModeIcon",
-            tint = iconTint,
-            modifier = Modifier
-                .size(16.dp)
-                .align(Alignment.CenterStart)
-                .padding(start = 8.dp)
-        )
-
+        // The animated thumb, which now contains the icon
         Box(
             modifier = Modifier
                 .size(24.dp)
                 .offset(x = thumbOffset)
                 .background(Color.White, shape = CircleShape)
-                .border(1.dp, Color.Gray.copy(alpha = 0.3f), CircleShape)
-        )
+                .border(1.dp, Color.Gray.copy(alpha = 0.3f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                painter = painterResource(id = icon),
+                contentDescription = "ModeIcon",
+                tint = iconTint,
+                modifier = Modifier.size(16.dp)
+            )
+        }
     }
 }

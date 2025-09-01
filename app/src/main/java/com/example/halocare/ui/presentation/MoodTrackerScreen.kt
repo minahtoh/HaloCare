@@ -36,11 +36,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.*
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -49,6 +54,9 @@ import com.example.halocare.R
 import com.example.halocare.ui.models.HaloMoodEntry
 import com.example.halocare.ui.presentation.charts.MoodChart
 import com.example.halocare.ui.presentation.rememberStatusBarController
+import com.example.halocare.ui.presentation.responsive
+import com.example.halocare.ui.presentation.responsiveHeight
+import com.example.halocare.ui.presentation.responsiveWidth
 import com.example.halocare.viewmodel.MainViewModel
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -106,7 +114,7 @@ fun MoodTrackerScreen(
                 onClick = { showMoodDialog = true },
                 shape = CircleShape,
                 containerColor = MaterialTheme.colorScheme.inversePrimary,
-                modifier = Modifier.padding(end = 20.dp, bottom = 50.dp)
+                modifier = Modifier.padding(end = 20.dp, bottom = 40.dp.responsiveHeight())
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.baseline_draw_24),
@@ -164,13 +172,13 @@ fun MoodTrackerScreen(
                          mainViewModel.getTodaysMood(startOfDay,endOfDay)
                      }
                 )
-                Spacer(modifier = Modifier.height(5.dp))
+                Spacer(modifier = Modifier.height(5.dp.responsiveHeight()))
 
                 // Mood Chart
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(450.dp)
+                        .height(450.dp.responsiveHeight())
                         .shadow(elevation = 1.dp)
                         .background(
                             color = MaterialTheme.colorScheme.secondary,
@@ -210,20 +218,20 @@ fun MoodTrackerScreen(
                     ) {
                         Text(
                             "Mood Insights",
-                            fontSize = 18.sp,
+                            fontSize = 18.sp.responsiveSp(),
                             fontWeight = FontWeight.Bold,
                         )
                         Icon(
                             painter = painterResource(id = R.drawable.wazirr_mirr),
                             contentDescription = null,
                             modifier = Modifier
-                                .size(30.dp),
+                                .size(30.dp.responsiveHeight()),
                             tint = Color.Unspecified
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("You've logged 'Happy' 5 times this week! Keep it up!", fontSize = 14.sp)
+                    Spacer(modifier = Modifier.height(8.dp.responsiveHeight()))
+                    Text("You've logged 'Happy' 5 times this week! Keep it up!", fontSize = 14.sp.responsiveSp())
                 }
             }
 
@@ -264,7 +272,7 @@ fun MoodTrackerScreen(
                 ) {
                     Text(
                         "Nimbus the Wise",
-                        fontSize = 18.sp,
+                        fontSize = 18.sp.responsiveSp(),
                         fontWeight = FontWeight.Bold
                     )
 
@@ -279,19 +287,23 @@ fun MoodTrackerScreen(
                             painter = painterResource(id = R.drawable.wzzrd),
                             contentDescription = "Nimbus the Wise",
                             modifier = Modifier
-                                .size(30.dp)
+                                .size(30.dp.responsiveHeight())
                                 ,
                             tint = Color.Unspecified
                         )
                     }
                 }
                 Column(modifier = Modifier.padding(
-                    bottom = 16.dp, start = 16.dp, end = 16.dp)) {
+                    bottom = 6.dp, start = 16.dp, end = 16.dp)) {
                     Text(
                         text = dailyAdvice ?: " ",
-                        fontSize = 14.sp,
+                        fontSize = 14.sp.responsiveSp(),
                         fontStyle = FontStyle.Italic)
                 }
+            }
+            Column {
+                Spacer(modifier = Modifier.height(80.dp.responsiveHeight()
+                ))
             }
 
             if (showMoodDialog) {
@@ -372,11 +384,11 @@ fun WeekDateSelector(
                     .padding(vertical = 2.dp, horizontal = 13.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Spacer(modifier = Modifier.height(5.dp))
+                Spacer(modifier = Modifier.height(5.dp.responsiveHeight()))
                 Column(
                     modifier = Modifier
-                        .height(25.dp)
-                        .width(52.dp)
+                        .height(25.dp.responsiveHeight())
+                        .width(45.dp.responsiveWidth())
                         .background(
                             color = MaterialTheme.colorScheme.surfaceTint,
                             shape = RoundedCornerShape(20.dp)
@@ -388,14 +400,14 @@ fun WeekDateSelector(
                     Text(
                         text = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault()),
                         color = dayOfWeekColor,
-                        fontSize = 14.sp,
+                        fontSize = 13.sp.responsiveSp(),
                         fontWeight = FontWeight.Bold
                     )
                 }
-                Spacer(modifier = Modifier.height(25.dp))
+                Spacer(modifier = Modifier.height(25.dp.responsiveHeight()))
                 Column(
                     modifier = Modifier
-                        .size(30.dp)
+                        .size(30.dp.responsiveHeight())
                         .background(
                             color = MaterialTheme.colorScheme.inversePrimary,
                             shape = RoundedCornerShape(7.dp)
@@ -406,11 +418,11 @@ fun WeekDateSelector(
                     Text(
                         text = date.dayOfMonth.toString(),
                         color = dayOfMonthColor,
-                        fontSize = 16.sp,
+                        fontSize = 15.sp.responsiveSp(),
                         fontWeight = FontWeight.Bold
                     )
                 }
-                Spacer(modifier = Modifier.height(7.dp))
+                Spacer(modifier = Modifier.height(3.dp.responsiveHeight()))
             }
         }
 
@@ -456,16 +468,16 @@ fun MoodEntryLogger(
          MoodIconData(R.drawable.insp_cookie, "inspectorCookie"),
          MoodIconData(R.drawable.zoomzoomzoom, "lockin"),
          MoodIconData(R.drawable.general_ra, "general"),
-        // MoodIconData(R.drawable.sleep_wud, "denger"),
-        // MoodIconData(R.drawable.noodle_goat, "noodleGoat"),
-        // MoodIconData(R.drawable.first_tuch, "lessgo"),
-        // MoodIconData(R.drawable.mr_him, "sipper"),
-       //  MoodIconData(R.drawable.present_father, "presentFather"),
-      //   MoodIconData(R.drawable.explora, "explora"),
-        // MoodIconData(R.drawable.lover_man, "loverMan"),
-        // MoodIconData(R.drawable.yeatt, "AH"),
-    //     MoodIconData(R.drawable.darwin, "letsSee"),
-        // MoodIconData(R.drawable.spit_it, "spitIt"),
+        /* MoodIconData(R.drawable.sleep_wud, "denger"),
+         MoodIconData(R.drawable.noodle_goat, "noodleGoat"),
+         MoodIconData(R.drawable.first_tuch, "lessgo"),
+         MoodIconData(R.drawable.mr_him, "sipper"),
+         MoodIconData(R.drawable.present_father, "presentFather"),
+         MoodIconData(R.drawable.explora, "explora"),
+         MoodIconData(R.drawable.lover_man, "loverMan"),
+         MoodIconData(R.drawable.yeatt, "AH"),
+         MoodIconData(R.drawable.darwin, "letsSee"),
+         MoodIconData(R.drawable.spit_it, "spitIt"),*/
      )
 
 
@@ -491,7 +503,7 @@ fun MoodEntryLogger(
                 Spacer(modifier = Modifier.weight(1f))
                 Text(
                     text = "How are you feeling?",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleMedium.responsive(),
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.weight(1f))
@@ -499,17 +511,19 @@ fun MoodEntryLogger(
                     imageVector = Icons.Default.Close,
                     contentDescription = "cancel",
                     modifier = Modifier
-                        .size(20.dp)
+                        .size(20.dp.responsiveHeight())
                         .clickable {
                             onClose()
                         }
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp.responsiveHeight()))
 
             // Emoji selector using ExposedDropdownMenuBox
             var expanded by remember { mutableStateOf(false) }
+            var textFieldWidth by remember { mutableStateOf(0.dp) }
+            val density = LocalDensity.current
 
             ExposedDropdownMenuBox(
                 expanded = expanded,
@@ -521,7 +535,10 @@ fun MoodEntryLogger(
                     readOnly = true,
                     modifier = Modifier
                         .menuAnchor()
-                        .fillMaxWidth(),
+                        .fillMaxWidth()
+                        .onGloballyPositioned { coordinates ->
+                            textFieldWidth = with(density) { coordinates.size.width.toDp() }
+                        },
                     label = {
                        if (selectedIcon == null) Text("Select Mood") else Text(selectedIcon!!.iconName)
                             },
@@ -529,7 +546,7 @@ fun MoodEntryLogger(
                         Image(
                             painter = painterResource(id = selectedIcon?.icon ?:R.drawable.duhh_icon),
                             contentDescription = "Selected mood",
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(24.dp.responsiveWidth())
                         )
                     },
                     trailingIcon = {
@@ -539,45 +556,41 @@ fun MoodEntryLogger(
                         )
                     }
                 )
-
-                ExposedDropdownMenu(
+                DropdownMenu(
                     expanded = expanded,
                     onDismissRequest = { expanded = false },
                     modifier = Modifier
-                        .height(250.dp)
-                        .width(375.dp)
+                        .width(textFieldWidth)
+                        .wrapContentHeight()
                 ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize()
+                    Column(
+                        modifier = Modifier
+                            .heightIn(max = 300.dp)
+                            .verticalScroll(rememberScrollState())
+                            .padding(8.dp)
                     ) {
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(4),
-                            modifier = Modifier
-                                .height(250.dp)
-                                .width(375.dp)
-                                .padding(8.dp),
-                            userScrollEnabled = true
-                        ) {
-                            items(moodIcons) { moodIcon ->
-                                Box(
-                                    modifier = Modifier
-                                        .padding(8.dp)
-                                        .size(60.dp)
-                                        .clip(RoundedCornerShape(15.dp))
-                                        .clickable {
-                                            selectedIcon = moodIcon
-                                            expanded = false
-                                        }
-                                        .background(MaterialTheme.colorScheme.inversePrimary),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
+                        moodIcons.chunked(4).forEach { rowIcons ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceEvenly
+                            ) {
+                                rowIcons.forEach { moodIcon ->
+                                    Box(
+                                        modifier = Modifier
+                                            .padding(9.dp)
+                                            .size(50.dp.responsiveWidth())
+                                            .clip(RoundedCornerShape(15.dp))
+                                            .clickable {
+                                                selectedIcon = moodIcon
+                                                expanded = false
+                                            }
+                                            .background(MaterialTheme.colorScheme.inversePrimary),
+                                        contentAlignment = Alignment.Center
                                     ) {
                                         Image(
                                             painter = painterResource(id = moodIcon.icon),
                                             contentDescription = "Mood Icon",
-                                            modifier = Modifier.size(40.dp)
+                                            modifier = Modifier.size(30.dp.responsiveHeight())
                                         )
                                     }
                                 }
@@ -585,10 +598,9 @@ fun MoodEntryLogger(
                         }
                     }
                 }
-
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp.responsiveHeight()))
 
             // Text input for mood description with character limit
             OutlinedTextField(
@@ -608,13 +620,13 @@ fun MoodEntryLogger(
                     ) {
                         Text(
                             text = "${entryText.length}/$maxCharacters",
-                            style = MaterialTheme.typography.bodySmall
+                            style = MaterialTheme.typography.bodySmall.responsive()
                         )
                     }
                 }
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp.responsiveHeight()))
 
             // Submit button
             Button(
@@ -634,7 +646,7 @@ fun MoodEntryLogger(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp),
+                    .height(48.dp.responsiveHeight()),
                 shape = RoundedCornerShape(24.dp),
                 enabled = entryText.isNotBlank()
             ) {
@@ -657,7 +669,7 @@ fun MoodTrackerTopBar(
 ) {
     Box(
         modifier = Modifier
-            .height(75.dp)
+            .height(75.dp.responsiveHeight())
             .shadow(
                 elevation = 13.dp,
             )
@@ -666,7 +678,7 @@ fun MoodTrackerTopBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 20.dp, bottom = 20.dp, start = 20.dp, end = 20.dp),
+                .padding(top = 20.dp, bottom = 10.dp, start = 20.dp, end = 20.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -675,7 +687,7 @@ fun MoodTrackerTopBar(
                 shape = CircleShape,
                 shadowElevation = 2.dp,
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(40.dp.responsiveHeight())
                     .clip(CircleShape)
                     .clickable(
                         onClick = { onBackIconClick() },
@@ -696,7 +708,7 @@ fun MoodTrackerTopBar(
             // Title
             Text(
                 text = "Mood Tracker",
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleLarge.responsive(),
                 color = MaterialTheme.colorScheme.secondary,
                 fontWeight = FontWeight.Bold
             )
@@ -723,3 +735,21 @@ fun MoodTrackerTopBar(
     }
 }
 
+@Composable
+fun TextUnit.responsiveSp(): TextUnit {
+    val screenWidth = LocalConfiguration.current.screenWidthDp
+    val density = LocalDensity.current.density
+    val fontScale = LocalConfiguration.current.fontScale
+
+    val targetDensity = 3.0f
+    val targetFontScale = 0.857f
+
+    val densityFactor = density / targetDensity
+    val fontFactor = fontScale / targetFontScale
+    val scaleFactor = (screenWidth.toFloat() / 411f) * densityFactor * fontFactor
+
+    return if (this.type == TextUnitType.Sp) {
+        val newValue = (this.value * scaleFactor).coerceIn(0.8f * this.value, 1.2f * this.value)
+        newValue.sp
+    } else this
+}

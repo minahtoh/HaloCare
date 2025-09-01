@@ -19,6 +19,7 @@ import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateDpAsState
@@ -39,6 +40,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -55,6 +58,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.*
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -74,6 +78,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
@@ -84,6 +89,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -103,6 +109,10 @@ import com.example.halocare.ui.models.SleepData
 import com.example.halocare.ui.presentation.charts.AnimatedText
 import com.example.halocare.ui.presentation.charts.HaloCharts
 import com.example.halocare.ui.presentation.charts.JournalHeatmap
+import com.example.halocare.ui.presentation.charts.NewNotebookJournalView
+import com.example.halocare.ui.presentation.charts.NewOpenBookJournalView
+import com.example.halocare.ui.presentation.charts.NewScrollJournalView
+import com.example.halocare.ui.presentation.charts.NewStickyNoteJournalView
 import com.example.halocare.ui.presentation.charts.NotebookBackground
 import com.example.halocare.ui.presentation.charts.NotebookJournalView
 import com.example.halocare.ui.presentation.charts.OpenBookBackground
@@ -118,6 +128,7 @@ import com.example.halocare.ui.presentation.charts.toJournalType
 import com.example.halocare.ui.utils.ConfirmActionDialog
 import com.example.halocare.viewmodel.MainViewModel
 import kotlinx.coroutines.delay
+import responsiveSp
 import java.text.SimpleDateFormat
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -132,7 +143,8 @@ import kotlin.math.roundToInt
 @Composable
 fun DailyHabitsScreen(
     mainViewModel: MainViewModel,
-    onBackIconClick : () -> Unit
+    onBackIconClick : () -> Unit,
+    isDarkMode : Boolean
 ) {
     val statusBarController = rememberStatusBarController()
     val statusBarColor = MaterialTheme.colorScheme.inversePrimary
@@ -146,12 +158,20 @@ fun DailyHabitsScreen(
     val selectedJournalEntries = remember { mutableStateOf<List<JournalEntry>>(emptyList()) }
     val screenTimeSummary = remember { mutableStateListOf<ScreenTimeEntry>() }
     val focusManager = LocalFocusManager.current
+
     // Pager state for swipe gestures
     val pagerState = rememberPagerState(pageCount = { tabTitles.size })
-    val scrollState = rememberScrollState()
-    val topAppBarHeight = 75.dp
 
-    val isTopBarVisible by remember { derivedStateOf { scrollState.value < 100 } }
+    // Replace ScrollState with LazyListState
+    val lazyListState = rememberLazyListState()
+    val topAppBarHeight = 75.dp.responsiveHeight()
+
+    // Update to use LazyListState instead of ScrollState
+    val isTopBarVisible by remember {
+        derivedStateOf {
+            lazyListState.firstVisibleItemScrollOffset < 100
+        }
+    }
 
     val offsetY by animateDpAsState(
         targetValue = if (isTopBarVisible) 0.dp else -topAppBarHeight,
@@ -164,10 +184,25 @@ fun DailyHabitsScreen(
     )
 
     val containerHeight by animateDpAsState(
-        targetValue = if (isTopBarVisible) 75.dp  else 50.dp,
+        targetValue = if (isTopBarVisible) 75.dp.responsiveHeight() else 50.dp.responsiveHeight(),
         animationSpec = tween(durationMillis = 300)
     )
+    // Animate status bar color
+    val animatedStatusBarColor by animateColorAsState(
+        targetValue = if (isTopBarVisible) MaterialTheme.colorScheme.inversePrimary else
+                    MaterialTheme.colorScheme.primaryContainer,
+        animationSpec = tween(durationMillis = 300),
+        label = "StatusBarColor"
+    )
 
+    // Create proper nested scroll connection
+    val nestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                return Offset.Zero
+            }
+        }
+    }
 
     LaunchedEffect(pagerState.currentPage) {
         selectedTabIndex = pagerState.currentPage
@@ -175,13 +210,14 @@ fun DailyHabitsScreen(
     LaunchedEffect(selectedTabIndex) {
         pagerState.animateScrollToPage(selectedTabIndex)
     }
-
+    LaunchedEffect(animatedStatusBarColor) {
+        statusBarController.updateStatusBar(
+            color = animatedStatusBarColor,
+            darkIcons = isDarkMode
+        )
+    }
 
     LaunchedEffect(Unit){
-        statusBarController.updateStatusBar(
-            color = statusBarColor,
-            darkIcons = true
-        )
         mainViewModel.getExerciseDataList()
     }
 
@@ -205,11 +241,10 @@ fun DailyHabitsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            val maxContainerHeight = topAppBarHeight + 50.dp
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(containerHeight), // containerHeight = topBar + tab height when visible
+                    .height(containerHeight),
                 contentAlignment = Alignment.TopCenter
             ) {
                 DailyHabitsTopBar(
@@ -217,7 +252,7 @@ fun DailyHabitsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(topAppBarHeight)
-                        .offset { IntOffset(x = 0, y = offsetY.roundToPx()) } // replaces graphicsLayer
+                        .offset { IntOffset(x = 0, y = offsetY.roundToPx()) }
                 )
 
                 TabRow(
@@ -225,8 +260,14 @@ fun DailyHabitsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp)
-                        .offset { IntOffset(x = 0, y = (offsetY + topAppBarHeight).roundToPx()) }, // properly placed below top bar
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                        .offset { IntOffset(x = 0, y = (offsetY + topAppBarHeight).roundToPx()) },
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    indicator = { tabPositions ->
+                        TabRowDefaults.Indicator(
+                            modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
+                            color = MaterialTheme.colorScheme.primary // Indicator line color
+                        )
+                    }
                 ) {
                     tabTitles.forEachIndexed { index, title ->
                         Tab(
@@ -251,14 +292,13 @@ fun DailyHabitsScreen(
             ) {
                 HorizontalPager(
                     state = pagerState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .nestedScroll(rememberNestedScrollConnection())
+                    modifier = Modifier.fillMaxSize()
                 ) { page ->
-                    Column(
+                    LazyColumn(
+                        state = lazyListState, // Add the state here
                         modifier = Modifier
-                            .verticalScroll(scrollState)
                             .fillMaxSize()
+                            .nestedScroll(nestedScrollConnection)
                             .padding(0.dp)
                             .pointerInput(Unit) {
                                 detectTapGestures {
@@ -266,48 +306,57 @@ fun DailyHabitsScreen(
                                 }
                             }
                     ) {
-                        when (page) {
-                            0 -> ExerciseTabContent(
-                                mainViewModel = mainViewModel,
-                                exerciseDataList = exerciseDataList
-                            )
-
-                            1 -> SleepTabContent(
-                                sleepDataList = sleepDataList,
-                                mainViewModel = mainViewModel
-                            )
-
-                            2 -> JournalTabContent(
-                                mainViewModel = mainViewModel,
-                                journalDataList = journalDataList,
-                                onDatePressed = {
-                                    selectedJournalEntries.value = it
-                                    showJournalDialog.value = true
-                                }
-                            )
-
-                            3 -> ScreenTimeTabContent(screenTimeSummary = screenTimeSummary)
+                        item {
+                            when (page) {
+                                0 -> ExerciseTabContent(
+                                    mainViewModel = mainViewModel,
+                                    exerciseDataList = exerciseDataList
+                                )
+                                1 -> SleepTabContent(
+                                    sleepDataList = sleepDataList,
+                                    mainViewModel = mainViewModel
+                                )
+                                2 -> JournalTabContent(
+                                    mainViewModel = mainViewModel,
+                                    journalDataList = journalDataList,
+                                    onDatePressed = {
+                                        selectedJournalEntries.value = it
+                                        showJournalDialog.value = true
+                                    }
+                                )
+                                3 -> ScreenTimeTabContent(screenTimeSummary = screenTimeSummary)
+                            }
                         }
-                        Spacer(modifier = Modifier.height(7.dp))
+                        item {
+                            Spacer(modifier = Modifier.height(7.dp))
+                        }
                     }
                 }
             }
         }
     }
 }
-
 private fun rememberNestedScrollConnection() = object : NestedScrollConnection {
     override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
         // Handle nested scrolling if needed
         return Offset.Zero
     }
 }
+@Composable
+fun responsiveFontSize(baseSp: Float): TextUnit {
+    val config = LocalConfiguration.current
+    val screenWidth = config.screenWidthDp
+    val scale = screenWidth / 411f // 411dp is Pixel 6a width
+    return (baseSp * scale).sp
+}
+
 
 @Composable
 private fun ExerciseTabContent(
     exerciseDataList: List<ExerciseData>?,
     mainViewModel: MainViewModel
 ){
+    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
     var elapsedTime by remember{ mutableStateOf(0f) }
     val time by mainViewModel.currentTime.collectAsState()
     val exerciseName by mainViewModel.exerciseName.collectAsStateWithLifecycle()
@@ -317,7 +366,7 @@ private fun ExerciseTabContent(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(305.dp) // slightly more than chart height
+            .height(screenHeight * 0.333f)
             .padding(horizontal = 1.dp)
     ) {
         // Folder background layer (static shape)
@@ -325,7 +374,7 @@ private fun ExerciseTabContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.TopStart)
-                .height(300.dp)
+                .height(screenHeight * 0.327f)
                 .padding(horizontal = 10.dp)
                 .shadow(3.dp, RoundedCornerShape(14.dp), clip = false)
                 .clip(RoundedCornerShape(20.dp))
@@ -336,15 +385,12 @@ private fun ExerciseTabContent(
         ExerciseTrackerChart(exerciseDataList ?: emptyList())
     }
 
-
-
     // Progress Bar Placeholder
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(385.dp)
+            .height(screenHeight * 0.46f)
             .background(MaterialTheme.colorScheme.secondaryContainer),
-        //contentAlignment = Alignment.Center
     ){
         ExerciseProgressSection(
             currentProgress = getTodayExerciseTotal(exerciseDataList ?: emptyList()),
@@ -370,10 +416,10 @@ private fun ExerciseTabContent(
             ) {
                 Text(
                     "Start Today's Exercise",
-                    fontSize = 18.sp,
+                    fontSize = responsiveFontSize(baseSp = 18f),
                     fontWeight = FontWeight.Bold
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp.responsiveHeight()))
                 ExerciseTimer(
                     onTimerStopped = {
                         mainViewModel.saveExerciseData(it)
@@ -389,7 +435,7 @@ private fun ExerciseTabContent(
             }
         }
     }
-    Spacer(modifier = Modifier.height(300.dp))
+    Spacer(modifier = Modifier.height(300.dp.responsiveHeight())) // was 300.dp
 }
 
 @Composable
@@ -397,6 +443,7 @@ private fun SleepTabContent(
     sleepDataList: List<SleepData>,
     mainViewModel: MainViewModel
 ){
+    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
     val today = remember { LocalDate.now().format(DateTimeFormatter.ISO_DATE) }
     val hasLoggedToday = sleepDataList.any { it.dayLogged == today }
 
@@ -404,7 +451,7 @@ private fun SleepTabContent(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(305.dp) // slightly more than chart height
+            .height(screenHeight * 0.333f) // was 305.dp
             .padding(horizontal = 6.dp)
     ) {
         // Folder background layer (static shape)
@@ -412,7 +459,7 @@ private fun SleepTabContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.TopStart)
-                .height(300.dp)
+                .height(screenHeight * 0.327f) // was 300.dp
                 .padding(horizontal = 10.dp)
                 .shadow(3.dp, RoundedCornerShape(14.dp), clip = false)
                 .clip(RoundedCornerShape(20.dp))
@@ -423,7 +470,7 @@ private fun SleepTabContent(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(300.dp)
+                .height(screenHeight * 0.327f) // was 300.dp
                 .align(Alignment.BottomCenter)
                 .shadow(7.dp, RoundedCornerShape(15.dp), clip = false)
                 .clip(RoundedCornerShape(15.dp))
@@ -443,29 +490,43 @@ private fun SleepTabContent(
             }
         }
     }
-    Spacer(modifier = Modifier.height(7.dp))
+    Spacer(modifier = Modifier.height(7.dp.responsiveHeight()))
+
     // Progress Bar Placeholder
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(350.dp)
             .background(MaterialTheme.colorScheme.secondaryContainer),
-        //contentAlignment = Alignment.Center
-    ){
+    ) {
         val lastSleepData = sleepDataList.getOrNull(0)
-        if (!hasLoggedToday){
-            SleepAnalysisPlaceHolder(sleepDataList = sleepDataList)
-        } else{
-            SleepProgressIndicator(
-                sleepHours = lastSleepData?.sleepLength ?: 0f,
-                sleepQuality = lastSleepData?.sleepQuality ?: 1
-            )
+
+        if (!hasLoggedToday) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(350.dp.responsiveHeight())
+            ) {
+                SleepAnalysisPlaceHolder(sleepDataList = sleepDataList)
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(450.dp.responsiveHeight())
+            ) {
+                SleepProgressIndicator(
+                    sleepHours = lastSleepData?.sleepLength ?: 0f,
+                    sleepQuality = lastSleepData?.sleepQuality ?: 1
+                )
+            }
         }
     }
+
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(700.dp)
+            .height(600.dp.responsiveHeight()) // was 600.dp
             .background(
                 color = MaterialTheme.colorScheme.secondaryContainer,
             )
@@ -482,10 +543,10 @@ private fun SleepTabContent(
                 Text(
                     modifier = Modifier.padding(start = 4.dp),
                     text ="Log Today Sleep",
-                    fontSize = 20.sp,
+                    fontSize = 20.sp.responsiveSp(),
                     fontWeight = FontWeight.Bold
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp.responsiveHeight()))
 
                 if(!hasLoggedToday){
                     SleepTracker(
@@ -493,7 +554,7 @@ private fun SleepTabContent(
                             mainViewModel.logSleepData(it)
                         }
                     )
-                    Spacer(modifier = Modifier.height(290.dp))
+
                 }else{
                     Box(
                         modifier = Modifier.fillMaxWidth(),
@@ -505,19 +566,20 @@ private fun SleepTabContent(
                             Image(
                                 painter = painterResource(id = R.drawable.sleeping_icon_for_dissclaimer),
                                 contentDescription = "sleeping",
-                                modifier = Modifier.size(200.dp),
-                                //colorFilter = ColorFilter.tint(color = Color.Unspecified)
+                                modifier = Modifier.size(200.dp.responsiveHeight()), // was 200.dp
                             )
                             Text(
                                 text = "You’ve already logged your sleep for today.",
                                 color = Color.Gray,
-                                fontSize = 16.sp,
+                                fontSize = 16.sp.responsiveSp(),
                                 textAlign = TextAlign.Center
                             )
-                            Spacer(modifier = Modifier.height(290.dp))
+                            Spacer(modifier = Modifier.height(290.dp.responsiveHeight())) // was 290.dp
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(290.dp.responsiveHeight())) // was 290.dp
             }
         }
     }
@@ -529,97 +591,104 @@ private fun JournalTabContent(
     mainViewModel: MainViewModel,
     onDatePressed: (List<JournalEntry>) -> Unit
 ) {
-
-    // Chart Placeholder
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(370.dp) // slightly more than chart height
-            .padding(3.dp)
-    ) {
-        // Folder background layer (static shape)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.TopStart)
-                .height(300.dp)
-                .padding(horizontal = 10.dp)
-                .shadow(3.dp, RoundedCornerShape(14.dp), clip = false)
-                .clip(RoundedCornerShape(20.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f))
-        )
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(360.dp)
-                .align(Alignment.BottomCenter)
-                .shadow(7.dp, RoundedCornerShape(15.dp), clip = false)
-                .clip(RoundedCornerShape(15.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-                .padding(bottom = 2.dp)
-        ){
-            // Main card/chart
-            JournalHeatmap(
-                entries = journalDataList,
-                onDateClicked = { entries ->
-                    onDatePressed(entries)
-                }
-            )
-        }
-
-    }
-
-    // Progress Bar Placeholder
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(270.dp)
-            .background(MaterialTheme.colorScheme.secondaryContainer),
-        //contentAlignment = Alignment.Center
-    ) {
-        JournalStreakProgress(journalDataList)
-    }
-
-    // Affirmation Card
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(7.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        ),
-        shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.elevatedCardElevation(1.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(6.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "Today's Affirmation",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = getDailyAffirmation(), // Replace with your affirmation logic
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center
-            )
-        }
-    }
+    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .shadow(elevation = 1.dp, shape = RoundedCornerShape(9.dp))
-            .background(MaterialTheme.colorScheme.secondaryContainer)
+           // .verticalScroll(rememberScrollState())
     ) {
-        JournalingTracker(
-            saveJournal = {
-                mainViewModel.saveJournalEntry(it)
+        // Chart Placeholder
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(screenHeight * 0.404f)
+                .padding(3.dp)
+        ) {
+            // Folder background layer
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.TopStart)
+                    .height(screenHeight * 0.327f)
+                    .padding(horizontal = 10.dp)
+                    .shadow(3.dp, RoundedCornerShape(14.dp), clip = false)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f))
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(screenHeight * 0.393f)
+                    .align(Alignment.BottomCenter)
+                    .shadow(7.dp, RoundedCornerShape(15.dp), clip = false)
+                    .clip(RoundedCornerShape(15.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .padding(bottom = 2.dp)
+            ){
+                JournalHeatmap(
+                    entries = journalDataList,
+                    onDateClicked = { entries -> onDatePressed(entries) }
+                )
             }
-        )
+        }
+
+        // Progress Bar Placeholder
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(screenHeight * 0.295f) // was 270.dp
+                .background(MaterialTheme.colorScheme.secondaryContainer)
+        ) {
+            JournalStreakProgress(journalDataList)
+        }
+
+        // Affirmation Card
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(7.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            ),
+            shape = RoundedCornerShape(20.dp),
+            elevation = CardDefaults.elevatedCardElevation(1.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(6.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Today's Affirmation",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.height(8.dp.responsiveHeight()))
+                Text(
+                    text = getDailyAffirmation(),
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+
+        // Journaling Tracker
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.secondaryContainer)
+             //   .shadow(elevation = 1.dp, shape = RoundedCornerShape(9.dp))
+        ) {
+            JournalingTracker(
+                saveJournal = {
+                    mainViewModel.saveJournalEntry(it)
+                }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
@@ -627,64 +696,74 @@ private fun JournalTabContent(
 private fun ScreenTimeTabContent(
     screenTimeSummary: MutableList<ScreenTimeEntry>
 ){
-    // Chart Placeholder
-    Box(
+    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(305.dp) // slightly more than chart height
-            .padding(horizontal = 6.dp)
+           // .verticalScroll(rememberScrollState()) // if content can exceed screen height
     ) {
-        // Folder background layer (static shape)
+        // Chart Placeholder
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .align(Alignment.TopStart)
-                .height(300.dp)
-                .padding(horizontal = 10.dp)
-                .shadow(3.dp, RoundedCornerShape(14.dp), clip = false)
-                .clip(RoundedCornerShape(20.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f))
-        )
-
-        // Main card/chart
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(300.dp)
-                .align(Alignment.BottomCenter)
-                .shadow(7.dp, RoundedCornerShape(15.dp), clip = false)
-                .clip(RoundedCornerShape(15.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .height(310.dp.responsiveHeight()) // ~305dp ratio
+                .padding(horizontal = 6.dp)
         ) {
-            Column(
+            // Folder background layer (static shape)
+            Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(12.dp)
+                    .fillMaxWidth()
+                    .align(Alignment.TopStart)
+                    .height(300.dp.responsiveHeight()) // ~300dp ratio
+                    .padding(horizontal = 10.dp)
+                    .shadow(3.dp, RoundedCornerShape(14.dp), clip = false)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f))
+            )
+
+            // Main card/chart
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(300.dp.responsiveHeight())
+                    .align(Alignment.BottomCenter)
+                    .shadow(7.dp, RoundedCornerShape(15.dp), clip = false)
+                    .clip(RoundedCornerShape(15.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
-                Text(
-                    text = "Screen Time Usage",
-                    color = Color.Black,
-                    modifier = Modifier.padding(bottom = 10.dp)
-                )
-                ScreenTimePieChart(
-                    screenTimeSummary.toList()
-                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(12.dp)
+                ) {
+                    Text(
+                        text = "Screen Time Usage",
+                        color = Color.Black,
+                        modifier = Modifier.padding(bottom = 10.dp)
+                    )
+                    ScreenTimePieChart(
+                        screenTimeSummary.toList()
+                    )
+                }
             }
         }
+
+        Spacer(modifier = Modifier.height(10.dp.responsiveHeight())) // small separation
+
+        // Tracker below chart
+        ScreenTimeTracker(
+            screenTimeSummary = screenTimeSummary,
+            onAppSelected = { entry ->
+                screenTimeSummary.removeAll { it.appName == entry.appName }
+                if (entry.minutes > 0) {
+                    screenTimeSummary.add(entry)
+                }
+            }
+        )
     }
-
-
-    ScreenTimeTracker(
-        screenTimeSummary = screenTimeSummary,
-        onAppSelected = { entry ->
-            // Update the summary list when an app is selected
-            screenTimeSummary.removeAll { it.appName == entry.appName }
-            if (entry.minutes > 0) {
-                screenTimeSummary.add(entry)
-            }
-        }
-    )
 }
+
 @Composable
 fun ScreenTimeTracker(
     screenTimeSummary: MutableList<ScreenTimeEntry>,
@@ -744,16 +823,18 @@ fun ScreenTimeTracker(
 
     Column(modifier = Modifier
         .fillMaxSize()
-        .padding(16.dp)) {
+        .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         if (!hasPermission) {
             Text("To track screen time, please enable usage access permission.", fontSize = 16.sp)
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp.responsiveHeight()))
             Button(onClick = { openUsageAccessSettings(context) }) {
                 Text("Grant Permission")
             }
         } else {
-            Text("Select Apps to Track:", fontSize = 18.sp, color = Color.Black)
-            Spacer(modifier = Modifier.height(8.dp))
+            Text("Select Apps to Track:", fontSize = 18.sp.responsiveSp(), color = Color.Black)
+            Spacer(modifier = Modifier.height(8.dp.responsiveHeight()))
             allApps.forEach { app ->
                 val isSelected = app in selectedApps
                 Row(
@@ -774,14 +855,14 @@ fun ScreenTimeTracker(
                         .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(app, fontSize = 16.sp, color = Color.Black)
+                    Text(app, fontSize = 16.sp.responsiveSp(), color = Color.Black)
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-            Text("Screen Time Data:", fontSize = 18.sp, color = Color.Black)
+            Spacer(modifier = Modifier.height(16.dp.responsiveHeight()))
+            Text("Screen Time Data:", fontSize = 18.sp.responsiveSp(), color = Color.Black)
             screenTimeData.forEach { (app, time) ->
-                Text("$app: ${time / 1000 / 60} min", fontSize = 16.sp)
+                Text("$app: ${time / 1000 / 60} min", fontSize = 16.sp.responsiveSp())
             }
 
         }
@@ -914,7 +995,7 @@ fun ExerciseProgressSection(
             .fillMaxWidth()
             .background(color = MaterialTheme.colorScheme.secondaryContainer)
             .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp.responsiveHeight())
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -923,11 +1004,11 @@ fun ExerciseProgressSection(
         ) {
             Text(
                 text = "Daily Exercise Progress",
-                style = MaterialTheme.typography.headlineSmall.copy(fontSize = 18.sp),
+                style = MaterialTheme.typography.headlineSmall.copy(fontSize = 18.sp.responsiveSp()),
             )
             Box(
                 modifier = Modifier
-                    .size(50.dp)
+                    .size(50.dp.responsiveHeight())
                     .shadow(elevation = 1.dp, shape = RoundedCornerShape(9.dp), clip = true)
                     .background(color = MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
@@ -935,7 +1016,7 @@ fun ExerciseProgressSection(
                 Icon(
                     painter = painterResource(id = R.drawable.dumbell_icon),
                     contentDescription = null,
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(40.dp.responsiveWidth())
                 )
             }
         }
@@ -943,7 +1024,7 @@ fun ExerciseProgressSection(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(50.dp)
+                .height(50.dp.responsiveHeight())
                 .shadow(elevation = 2.dp, shape = RoundedCornerShape(13.dp))
                 .background(
                     shape = RoundedCornerShape(13.dp),
@@ -980,11 +1061,11 @@ fun ExerciseProgressSection(
         ) {
             Text(
                 text = "Weekly Streak",
-                style = MaterialTheme.typography.headlineSmall.copy(fontSize = 18.sp),
+                style = MaterialTheme.typography.headlineSmall.copy(fontSize = 18.sp.responsiveSp()),
             )
             Box(
                 modifier = Modifier
-                    .size(50.dp)
+                    .size(50.dp.responsiveHeight())
                     .shadow(elevation = 1.dp, shape = RoundedCornerShape(9.dp))
                     .background(color = MaterialTheme.colorScheme.secondaryContainer),
                 contentAlignment = Alignment.Center
@@ -992,11 +1073,11 @@ fun ExerciseProgressSection(
                 Icon(
                     painter = painterResource(id = R.drawable.baseline_local_fire_department_24),
                     contentDescription = null,
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(40.dp.responsiveWidth())
                 )
             }
         }
-        Spacer(modifier = Modifier.height(5.dp))
+        Spacer(modifier = Modifier.height(5.dp.responsiveHeight()))
         Row(
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -1007,7 +1088,7 @@ fun ExerciseProgressSection(
         ) {
             Text(
                 text = "🔥 Longest streak: ${getLongestStreak(getCompletedExerciseDates(exerciseList, 50))} days",
-                style = MaterialTheme.typography.headlineSmall.copy(fontSize = 16.sp),
+                style = MaterialTheme.typography.headlineSmall.copy(fontSize = 16.sp.responsiveSp()),
                 modifier = Modifier.padding(top = 8.dp)
             )
         }
@@ -1048,8 +1129,8 @@ fun WeeklyStreakRow(
                 // Pill indicator
                 Box(
                     modifier = Modifier
-                        .width(36.dp)
-                        .height(18.dp)
+                        .width(36.dp.responsiveWidth())
+                        .height(18.dp.responsiveHeight())
                         .shadow(
                             elevation = if (isCompleted) 2.dp else 1.dp,
                             shape = RoundedCornerShape(50)
@@ -1109,13 +1190,63 @@ fun getCompletedExerciseDates(
 fun SleepAnalysisPlaceHolder(
     sleepDataList : List<SleepData>
 ){
-    Column(
+    if (sleepDataList.isEmpty()) {
+        // 🔹 Empty State - styled with cards
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                ),
+                elevation = CardDefaults.elevatedCardElevation(3.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.sleep_tracker),
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp.responsiveHeight()),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.height(16.dp.responsiveHeight()))
+                    Text(
+                        text = "No Sleep Data Yet",
+                        style = MaterialTheme.typography.titleMedium.responsive(),
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(Modifier.height(8.dp.responsiveHeight()))
+                    Text(
+                        text = "Log your first night’s sleep to unlock insights, track quality, and get personalized tips.",
+                        style = MaterialTheme.typography.bodyMedium.responsive(),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(Modifier.height(16.dp.responsiveHeight()))
+                }
+            }
+        }
+    } else {
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // 1. Sleep Duration Summary Card
+        ) {
+            // 1. Sleep Duration Summary Card
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1132,26 +1263,26 @@ fun SleepAnalysisPlaceHolder(
                     Icon(
                         painter = painterResource(id = R.drawable.baseline_calendar_month_24),
                         contentDescription = null,
-                        modifier = Modifier.size(40.dp),
+                        modifier = Modifier.size(40.dp.responsiveHeight()),
                         tint = MaterialTheme.colorScheme.primary
                     )
                     Spacer(Modifier.width(16.dp))
                     Column {
                         Text(
                             text = "Previous Night's Sleep",
-                            style = MaterialTheme.typography.labelMedium,
+                            style = MaterialTheme.typography.labelMedium.responsive(),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
                             text = "%.1f hours".format(sleepDataList.last().sleepLength),
-                            style = MaterialTheme.typography.headlineSmall,
+                            style = MaterialTheme.typography.headlineSmall.responsive(),
                             fontWeight = FontWeight.Bold
                         )
                     }
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(16.dp.responsiveHeight()))
 
             // 2. Quality Visualization
             Row(
@@ -1161,8 +1292,8 @@ fun SleepAnalysisPlaceHolder(
                 // Quality Rating
                 Card(
                     modifier = Modifier
-                        .width(175.dp)
-                        .height(125.dp)
+                        .width(175.dp.responsiveWidth())
+                        .height(125.dp.responsiveHeight())
                         .padding(16.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant
@@ -1177,12 +1308,12 @@ fun SleepAnalysisPlaceHolder(
                     ) {
                         Text(
                             text = "QUALITY",
-                            style = MaterialTheme.typography.labelSmall,
+                            style = MaterialTheme.typography.labelSmall.responsive(),
                             color = MaterialTheme.colorScheme.outline
                         )
                         Text(
                             text = "${sleepDataList.last().sleepQuality}/5",
-                            style = MaterialTheme.typography.titleLarge,
+                            style = MaterialTheme.typography.titleLarge.responsive(),
                             fontWeight = FontWeight.Bold
                         )
                         LinearProgressIndicator(
@@ -1204,7 +1335,7 @@ fun SleepAnalysisPlaceHolder(
                 Divider(
                     modifier = Modifier
                         .padding(top = 10.dp)
-                        .height(100.dp)
+                        .height(100.dp.responsiveHeight())
                         .width(1.dp),
                     color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
                 )
@@ -1212,8 +1343,8 @@ fun SleepAnalysisPlaceHolder(
                 // Comparison to Average
                 Card(
                     modifier = Modifier
-                        .width(175.dp)
-                        .height(125.dp)
+                        .width(175.dp.responsiveWidth())
+                        .height(125.dp.responsiveHeight())
                         .padding(16.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant
@@ -1228,14 +1359,14 @@ fun SleepAnalysisPlaceHolder(
                     ) {
                         Text(
                             text = "VS YOUR AVERAGE",
-                            style = MaterialTheme.typography.labelSmall,
+                            style = MaterialTheme.typography.labelSmall.responsive(),
                             color = MaterialTheme.colorScheme.outline
                         )
                         val avgSleep = sleepDataList.map { it.sleepLength }.average().toFloat()
                         val diff = sleepDataList.last().sleepLength - avgSleep
                         Text(
                             text = "${if (diff >= 0) "+" else ""}${"%.1f".format(diff)}h",
-                            style = MaterialTheme.typography.titleLarge,
+                            style = MaterialTheme.typography.titleLarge.responsive(),
                             color = when {
                                 diff > 0.5 -> Color(0xFF4CAF50)
                                 diff < -0.5 -> Color(0xFFF44336)
@@ -1247,7 +1378,7 @@ fun SleepAnalysisPlaceHolder(
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(24.dp.responsiveHeight()))
 
             // 3. Actionable Tip
             Text(
@@ -1257,12 +1388,13 @@ fun SleepAnalysisPlaceHolder(
                     3 -> "🌙 Average night. Limit caffeine after 2PM tomorrow."
                     else -> "💤 Rough night. Consider a wind-down routine before bed."
                 },
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodyMedium.responsive(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 24.dp)
             )
         }
+    }
 }
 
 
@@ -1324,7 +1456,7 @@ fun SleepTracker(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text("How long did you sleep?", style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(12.dp.responsiveHeight()))
 
         FlowRow(
             modifier = Modifier
@@ -1350,7 +1482,7 @@ fun SleepTracker(
                         elevation = FilterChipDefaults.elevatedFilterChipElevation(
                             pressedElevation = 2.dp
                         ),
-                        modifier = Modifier.height(30.dp)
+                        modifier = Modifier.height(40.dp.responsiveHeight())
                     )
                 }
             }
@@ -1358,10 +1490,10 @@ fun SleepTracker(
 
 
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(20.dp.responsiveHeight()))
 
-        Text("Or use slider for precise input:", style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(8.dp))
+        Text("Or use slider for precise input:", style = MaterialTheme.typography.titleMedium.responsive())
+        Spacer(Modifier.height(8.dp.responsiveHeight()))
 
         Card(
             onClick = {
@@ -1374,7 +1506,7 @@ fun SleepTracker(
             Column(Modifier.padding(16.dp)) {
                 Text(
                     text = "Selected: ${manualSleepSliderValue.roundToInt()} hours",
-                    style = MaterialTheme.typography.bodyLarge
+                    style = MaterialTheme.typography.bodyLarge.responsive()
                 )
                 if (showSlider) {
                     Slider(
@@ -1387,10 +1519,10 @@ fun SleepTracker(
             }
         }
 
-        Spacer(Modifier.height(9.dp))
+        Spacer(Modifier.height(9.dp.responsiveHeight()))
 
-        Text("Rate Sleep Quality", style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(9.dp))
+        Text("Rate Sleep Quality", style = MaterialTheme.typography.titleMedium.responsive())
+        Spacer(Modifier.height(9.dp.responsiveHeight()))
 
         Row(
             horizontalArrangement = Arrangement.SpaceEvenly,
@@ -1399,7 +1531,7 @@ fun SleepTracker(
             sleepQualityIcons.forEachIndexed { index, icon ->
                 Box(
                     modifier = Modifier
-                        .size(50.dp)
+                        .size(50.dp.responsiveHeight())
                         .clip(CircleShape)
                         .background(
                             if (sleepQuality == index) MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
@@ -1408,12 +1540,12 @@ fun SleepTracker(
                         .clickable { sleepQuality = index },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(icon, fontSize = 24.sp)
+                    Text(icon, fontSize = 24.sp.responsiveSp())
                 }
             }
         }
 
-        Spacer(Modifier.height(27.dp))
+        Spacer(Modifier.height(27.dp.responsiveHeight()))
 
         Button(
             onClick = {
@@ -1422,7 +1554,7 @@ fun SleepTracker(
             enabled = !loggedToday,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(70.dp)
+                .height(70.dp.responsiveHeight())
                 .padding(horizontal = 75.dp, vertical = 10.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = if (loggedToday) Color.Gray else MaterialTheme.colorScheme.primary
@@ -1468,7 +1600,7 @@ fun SleepProgressIndicator(sleepHours: Float, sleepQuality: Int) {
     Column(
         modifier = Modifier.padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp.responsiveHeight())
     ) {
         // Header with icon
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1477,49 +1609,55 @@ fun SleepProgressIndicator(sleepHours: Float, sleepQuality: Int) {
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary
             )
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(8.dp.responsiveWidth()))
             Text(
                 text = "SLEEP ANALYSIS",
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelLarge.responsive(),
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
         }
 
-        // Main progress circle with detailed metrics
-        Box(contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(
-                progress = 1f,
-                modifier = Modifier.size(150.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                strokeWidth = 8.dp
-            )
-            CircularProgressIndicator(
-                progress = progress,
-                modifier = Modifier.size(150.dp),
-                color = progressColor,
-                strokeWidth = 8.dp,
-                strokeCap = StrokeCap.Round
-            )
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = "%.1f".format(sleepHours),
-                    style = MaterialTheme.typography.displayMedium,
-                    fontWeight = FontWeight.Bold
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            // Circle with hours
+            Box(contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(
+                    progress = 1f,
+                    modifier = Modifier.size(150.dp.responsiveHeight()),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    strokeWidth = 8.dp
                 )
-                Text(
-                    text = "hours",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = sleepFeedback.uppercase(),
+                CircularProgressIndicator(
+                    progress = progress,
+                    modifier = Modifier.size(150.dp.responsiveHeight()),
                     color = progressColor,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold
+                    strokeWidth = 8.dp,
+                    strokeCap = StrokeCap.Round
                 )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "%.1f".format(sleepHours),
+                        style = MaterialTheme.typography.displayMedium.responsive(),
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "hours",
+                        style = MaterialTheme.typography.bodyMedium.responsive(),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
             }
+
+            Spacer(Modifier.height(8.dp.responsiveHeight()))
+
+            // Feedback text outside circle
+            Text(
+                text = sleepFeedback.uppercase(),
+                color = progressColor,
+                style = MaterialTheme.typography.labelSmall.responsive(),
+                fontWeight = FontWeight.Bold
+            )
         }
+
 
         // Sleep quality section
         Column(
@@ -1528,10 +1666,10 @@ fun SleepProgressIndicator(sleepHours: Float, sleepQuality: Int) {
         ) {
             Text(
                 text = "QUALITY",
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelMedium.responsive(),
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(4.dp.responsiveHeight()))
 
             // Star rating with emoji
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1540,10 +1678,10 @@ fun SleepProgressIndicator(sleepHours: Float, sleepQuality: Int) {
                         imageVector = if (index < sleepQuality) Icons.Filled.Star else Icons.Outlined.Star,
                         contentDescription = null,
                         tint = if (index < sleepQuality) Color(0xFFFFC107) else Color.LightGray,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(24.dp.responsiveHeight())
                     )
                 }
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(8.dp.responsiveWidth()))
                 Text(
                     text = when (sleepQuality) {
                         5 -> "😴 Deep sleep"
@@ -1553,7 +1691,7 @@ fun SleepProgressIndicator(sleepHours: Float, sleepQuality: Int) {
                         1 -> "😵 Tossing/turning"
                         else -> "No data"
                     },
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium.responsive()
                 )
             }
         }
@@ -1574,11 +1712,11 @@ fun SleepProgressIndicator(sleepHours: Float, sleepQuality: Int) {
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )
-                Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.width(12.dp.responsiveWidth()))
                 Column {
                     Text(
                         text = "Recommendation",
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.labelMedium.responsive(),
                         fontWeight = FontWeight.Bold
                     )
                     Text(
@@ -1586,13 +1724,14 @@ fun SleepProgressIndicator(sleepHours: Float, sleepQuality: Int) {
                             sleepHours < 6 -> "Aim for 7-9 hours. Try going to bed 30 mins earlier tonight."
                             else -> "Maintain your routine. Consistency improves sleep quality."
                         },
-                        style = MaterialTheme.typography.bodySmall
+                        style = MaterialTheme.typography.bodySmall.responsive()
                     )
                 }
             }
         }
     }
 }
+
 @Composable
 fun JournalStreakProgress(
     entries: List<JournalEntry>,
@@ -1620,15 +1759,15 @@ fun JournalStreakProgress(
         // Header with dynamic title
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(bottom = 12.dp)
+            modifier = Modifier.padding(bottom = 12.dp.responsiveHeight())
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.baseline_menu_book_24),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(20.dp.responsiveHeight())
             )
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(8.dp.responsiveWidth()))
             Text(
                 text = when {
                     weeklyEntries == 0 -> "JUMPSTART YOUR WEEK"
@@ -1636,15 +1775,15 @@ fun JournalStreakProgress(
                     weeklyEntries < 5 -> "GAINING TRACTION"
                     else -> "WEEKLY PROGRESS"
                 },
-                style = MaterialTheme.typography.titleSmall,
+                style = MaterialTheme.typography.titleSmall.responsive(),
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
             )
         }
-        Spacer(modifier = Modifier.height(9.dp))
+        Spacer(modifier = Modifier.height(9.dp.responsiveHeight()))
         // Progress bars section
         Column(
-            verticalArrangement = Arrangement.spacedBy(26.dp)
+            verticalArrangement = Arrangement.spacedBy(26.dp.responsiveHeight())
         ) {
             // Current week completion
             ProgressStat(
@@ -1683,9 +1822,9 @@ fun JournalStreakProgress(
                 weeklyEntries >= 1 -> "Consistency beats intensity. Write a few lines every day."
                 else -> "Start small: Write one sentence about today's highlight."
             },
-            style = MaterialTheme.typography.bodySmall,
+            style = MaterialTheme.typography.bodySmall.responsive(),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 16.dp)
+            modifier = Modifier.padding(top = 16.dp.responsiveHeight())
         )
     }
 }
@@ -1708,7 +1847,7 @@ private fun ProgressStat(
             Icon(
                 painter = icon,
                 contentDescription = null,
-                modifier = Modifier.size(16.dp),
+                modifier = Modifier.size(16.dp.responsiveHeight()),
                 tint = color
             )
             Spacer(Modifier.width(8.dp))
@@ -1729,7 +1868,7 @@ private fun ProgressStat(
             progress = progress,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(6.dp)
+                .height(6.dp.responsiveHeight())
                 .clip(RoundedCornerShape(3.dp)),
             color = color,
             trackColor = color.copy(alpha = 0.12f)
@@ -1848,7 +1987,7 @@ fun JournalingTracker(
         // Journal Type Selector
         Text(
             text = "Select Journal Style",
-            style = MaterialTheme.typography.labelLarge,
+            style = MaterialTheme.typography.labelLarge.responsive(),
             modifier = Modifier
                 .align(Alignment.Start)
                 .padding(start = 7.dp),
@@ -1870,7 +2009,7 @@ fun JournalingTracker(
                 .background(color = MaterialTheme.colorScheme.surfaceVariant)
                 .padding(5.dp),
             horizontalArrangement = Arrangement.Center,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp.responsiveHeight()),
             maxItemsInEachRow = 2,
         ) {
             journalTypes.forEach { (type, pair) ->
@@ -1884,19 +2023,20 @@ fun JournalingTracker(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.Center,
                                 modifier = Modifier
-                                    .height(50.dp)
-                                    .width(100.dp)
+                                    .height(60.dp.responsiveHeight())
+                                    .width(100.dp.responsiveWidth())
                             ) {
                                 Icon(
                                     icon,
-                                    modifier = Modifier.size(25.dp),
+                                    modifier = Modifier.size(25.dp.responsiveWidth()),
                                     contentDescription = null,
                                     tint = Color.Unspecified
                                 )
                                 Spacer(Modifier.width(4.dp))
                                 Text(
                                     type.replace("_", " ").capitalize(),
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier.fillMaxWidth(),
+                                    style = MaterialTheme.typography.bodySmall.responsive()
                                 )
                             }
                         },
@@ -1916,7 +2056,7 @@ fun JournalingTracker(
 
         Text(
             text = "What are you grateful for today?",
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.titleMedium.responsive(),
             modifier = Modifier
                 .align(Alignment.Start)
                 .padding(start = 3.dp),
@@ -1947,7 +2087,7 @@ fun JournalingTracker(
             ) {
                 Box(
                     modifier = Modifier
-                        .height(270.dp)
+                        .height(270.dp.responsiveHeight())
                         .background(
                             MaterialTheme.colorScheme.secondaryContainer,
                         )
@@ -1994,13 +2134,13 @@ fun JournalingTracker(
                     ) {
                         Text(
                             text = "${maxCharacters.second - journalEntry.length}",
-                            style = MaterialTheme.typography.labelSmall,
+                            style = MaterialTheme.typography.labelSmall.responsive(),
                             color = charCountColor,
                             modifier = Modifier.padding(start = 4.dp)
                         )
                         Text(
                             text = "${journalEntry.length}/${maxCharacters.second}",
-                            style = MaterialTheme.typography.labelSmall,
+                            style = MaterialTheme.typography.labelSmall.responsive(),
                             color = charCountColor
                         )
                     }
@@ -2015,7 +2155,7 @@ fun JournalingTracker(
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 100.dp),
+                .padding(horizontal = 70.dp.responsiveWidth()),
             enabled = journalEntry.isNotBlank() && !isOverLimit,
             shape = MaterialTheme.shapes.large,
             colors = ButtonDefaults.buttonColors(
@@ -2027,7 +2167,7 @@ fun JournalingTracker(
             Spacer(Modifier.width(8.dp))
             Text("Save Journal Entry")
         }
-        Spacer(modifier = Modifier.height(275.dp))
+        Spacer(modifier = Modifier.height(275.dp.responsiveHeight()))
     }
 }
 
@@ -2042,24 +2182,6 @@ private fun getDailyAffirmation(): String {
     return affirmations.random()
 }
 
-@Composable
-fun JournalTypeIcon(
-    @DrawableRes icon: Int,
-    type: String,
-    selectedType: String,
-    onTypeSelected: (String) -> Unit
-) {
-    IconButton(
-        onClick = { onTypeSelected(type) }
-    ) {
-        Icon(
-            painter = painterResource(id = icon),
-            contentDescription = type,
-            tint = if (selectedType == type) MaterialTheme.colorScheme.inversePrimary.copy(alpha = 0.9f) else Color.Unspecified,
-            modifier = Modifier.size(40.dp)
-        )
-    }
-}
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
@@ -2076,9 +2198,9 @@ fun JournalViewDialog(
     Dialog(onDismissRequest = { onDismiss() }) {
         Box(
             modifier = Modifier
-                .fillMaxWidth(0.95f)
-                .heightIn(min = 600.dp)
-                .padding(16.dp)
+                // .fillMaxWidth(0.95f)
+                .heightIn(min = 600.dp.responsiveHeight())
+                .padding(16.dp),
         ) {
 
             var previousIndex by remember { mutableStateOf(0) }
@@ -2103,25 +2225,25 @@ fun JournalViewDialog(
                 val journalType = currentJournal.journalType.toJournalType()
 
                 when (journalType) {
-                    is ScrollBackground -> ScrollJournalView(
+                    is ScrollBackground -> NewScrollJournalView(
                         entryText = currentJournal.entryText,
                         date = currentJournal.date.toString(),
                         modifier = Modifier.fillMaxSize()
                     )
 
-                    is NotebookBackground -> NotebookJournalView(
+                    is NotebookBackground -> NewNotebookJournalView(
                         entryText = currentJournal.entryText,
                         date = currentJournal.date.toString(),
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier
                     )
 
-                    is StickyNoteBackground -> StickyNoteJournalView(
+                    is StickyNoteBackground -> NewStickyNoteJournalView(
                         entryText = currentJournal.entryText,
                         date = currentJournal.date.toString(),
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier,
                     )
 
-                    is OpenBookBackground -> OpenBookJournalView(
+                    is OpenBookBackground -> NewOpenBookJournalView(
                         entryText = currentJournal.entryText,
                         date = currentJournal.date.toString(),
                         modifier = Modifier.fillMaxSize()
@@ -2239,8 +2361,8 @@ fun TwoColumnNotebookText(
             text =  formatTextWithLineBreaks("$date\n$firstHalf",55),
             style = TextStyle(
                 fontFamily = font,
-                fontSize = 11.sp,
-                lineHeight = 16.sp,
+                fontSize = 11.sp.responsiveSp(),
+                lineHeight = 16.sp.responsiveSp(),
                 fontWeight = FontWeight.Bold,
                 color = Color.Blue.copy(alpha = 0.5f)
             ),
@@ -2254,8 +2376,8 @@ fun TwoColumnNotebookText(
             text =  formatTextWithLineBreaks(secondHalf,55),
             style = TextStyle(
                 fontFamily = font,
-                fontSize = 11.sp,
-                lineHeight = 16.sp,
+                fontSize = 11.sp.responsiveSp(),
+                lineHeight = 16.sp.responsiveSp(),
                 fontWeight = FontWeight.Bold,
                 color = Color.Blue.copy(alpha = 0.5f)
             ),
@@ -2441,7 +2563,7 @@ fun ExerciseTimer(
                         )
                         .background(
                             color = MaterialTheme.colorScheme.tertiaryContainer,
-                            shape = RoundedCornerShape(13.dp)
+                            shape = RoundedCornerShape(8.dp)
                         )
                         .padding(13.dp)
                 ) {
@@ -2453,7 +2575,7 @@ fun ExerciseTimer(
                         readOnly = isRunning,
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Spacer(modifier = Modifier.height(27.dp))
+                    Spacer(modifier = Modifier.height(27.dp.responsiveHeight()))
                 }
                 Spacer(modifier = Modifier.height(46.dp))
                 val displayTime = if (time < 60) "$time s" else "${time / 60}m ${time % 60}s"
@@ -2564,7 +2686,7 @@ fun TimerContainer(
     content: @Composable () -> Unit = {
         Text(
             text = time,
-            fontSize = 28.sp,
+            fontSize = 28.sp.responsiveSp(),
             fontWeight = FontWeight.SemiBold,
             color = Color(0xFF1A1A1A),
             style = MaterialTheme.typography.bodyLarge
@@ -2585,7 +2707,7 @@ fun TimerContainer(
 
     Surface(
         modifier = modifier
-            .size(160.dp),
+            .size(160.dp.responsiveHeight()),
         shape = CircleShape,
         color = Color.White,
         shadowElevation = 6.dp
@@ -2626,7 +2748,7 @@ fun TimerContainer(
             // Timer content + icon
             Box(
                 modifier = Modifier
-                    .size(140.dp),
+                    .size(140.dp.responsiveHeight()),
                 contentAlignment = Alignment.Center
             ) {
                 content()
@@ -2644,7 +2766,7 @@ fun TimerContainer(
                         contentDescription = null,
                         imageLoader = imageLoader,
                         modifier = Modifier
-                            .size(24.dp)
+                            .size(24.dp.responsiveHeight())
                             .align(Alignment.BottomCenter)
                             .offset(y = (-10).dp)
                     )
@@ -2654,7 +2776,7 @@ fun TimerContainer(
                         contentDescription = "Running Icon",
                         tint = Color.DarkGray.copy(alpha = 0.75f),
                         modifier = Modifier
-                            .size(24.dp)
+                            .size(24.dp.responsiveHeight())
                             .align(Alignment.BottomCenter)
                             .offset(y = (-10).dp)
                     )
@@ -2686,8 +2808,8 @@ fun AnimatedSaveDialog(
     Dialog(onDismissRequest = {}) {
         Box(
             modifier = Modifier
-                .width(280.dp)
-                .height(200.dp)
+                .width(280.dp.responsiveWidth())
+                .height(200.dp.responsiveHeight())
                 .background(
                     MaterialTheme.colorScheme.secondaryContainer,
                     shape = RoundedCornerShape(16.dp)
@@ -2700,18 +2822,18 @@ fun AnimatedSaveDialog(
             ) {
                 if (isSaving) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(48.dp),
+                        modifier = Modifier.size(48.dp.responsiveHeight()),
                         color = MaterialTheme.colorScheme.tertiaryContainer
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(16.dp.responsiveHeight()))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = loadingText,
-                            style = MaterialTheme.typography.bodyLarge
+                            style = MaterialTheme.typography.bodyLarge.responsive()
                         )
                         Text(
                             text = animatedEllipsis,
-                            style = MaterialTheme.typography.bodyLarge
+                            style = MaterialTheme.typography.bodyLarge.responsive()
                         )
                     }
                 } else {
@@ -2719,12 +2841,12 @@ fun AnimatedSaveDialog(
                         imageVector = successIcon,
                         contentDescription = "Success",
                         tint = Color(0xFF4CAF50),
-                        modifier = Modifier.size(64.dp)
+                        modifier = Modifier.size(64.dp.responsiveHeight())
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(16.dp.responsiveHeight()))
                     Text(
                         text = successText,
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium.responsive()
                     )
                 }
             }
@@ -2778,7 +2900,7 @@ fun DailyHabitsTopBar(
             // Title
             Text(
                 text = "Daily Habits",
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleMedium.responsive(),
                 color = MaterialTheme.colorScheme.secondary,
                 fontWeight = FontWeight.Bold
             )

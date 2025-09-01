@@ -70,7 +70,8 @@ import java.io.IOException
 fun ProfileScreen(
     onContinue: () -> Unit = {},
     onSkip: () -> Unit = {},
-    authViewModel: AuthViewModel
+    authViewModel: AuthViewModel,
+    isDarkMode: Boolean
 ) {
     val context = LocalContext.current
     val loggedUser by authViewModel.haloCareUser.collectAsState()
@@ -88,18 +89,18 @@ fun ProfileScreen(
     val isConnected = connectivityManager.activeNetworkInfo?.isConnectedOrConnecting == true
 
     val statusBarController = rememberStatusBarController()
-    val statusBarColor = MaterialTheme.colorScheme.surfaceTint
+    val statusBarColor = MaterialTheme.colorScheme.inversePrimary
 
 
     // Fetch image from backend when online
     LaunchedEffect(Unit) {
         statusBarController.updateStatusBar(
             color = statusBarColor,
-            darkIcons = true
+            darkIcons = isDarkMode
         )
         if (isConnected) {
             try {
-              //  val backendImageUrl = fetchImageFromBackend(userId) // Replace with actual API call
+              //  val backendImageUrl = fetchImageFromBackend(userId) // actual API call
 //                imageUri = Uri.parse(backendImageUrl)
 //                dataStore.saveString("profile_image_uri", backendImageUrl) // Save for offline use
             } catch (e: Exception) {
@@ -149,11 +150,11 @@ fun ProfileScreen(
                         .padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Spacer(modifier = Modifier.height(5.dp))
+                    Spacer(modifier = Modifier.height(3.dp))
 
                     Box(
                         modifier = Modifier
-                            .size(100.dp)
+                            .size(100.dp.responsiveHeight())
                             .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.primaryContainer)
                             .clickable { launcher.launch("image/*") },
@@ -178,55 +179,54 @@ fun ProfileScreen(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(16.dp.responsiveHeight()))
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it },
                         label = { Text("Display Name") },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(25.dp),
+                        shape = RoundedCornerShape(25.dp.responsiveHeight()),
                         enabled = isFieldEditable(loggedUser.name)
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(8.dp.responsiveHeight()))
                     OutlinedTextField(
                         value = nickname,
                         onValueChange = { nickname = it },
                         label = { Text("Nickname") },
                         keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Phone),
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(25.dp),
+                        shape = RoundedCornerShape(25.dp.responsiveHeight()),
                         enabled = isFieldEditable(loggedUser.nickname)
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(8.dp.responsiveHeight()))
                     OutlinedTextField(
                         value = profession,
                         onValueChange = { profession = it },
                         label = { Text("Profession") },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(25.dp),
+                        shape = RoundedCornerShape(25.dp.responsiveHeight()),
                         enabled = isFieldEditable(loggedUser.profession)
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(8.dp.responsiveHeight()))
                     OutlinedTextField(
                         value = loggedUser.email,
                         onValueChange = { phoneNumber = it },
                         label = { Text("Email") },
-                        keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Phone),
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(25.dp),
+                        shape = RoundedCornerShape(25.dp.responsiveHeight()),
                         enabled = false
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(8.dp.responsiveHeight()))
                     OutlinedTextField(
                         value = phoneNumber,
                         onValueChange = { phoneNumber = it },
                         label = { Text("Phone Number") },
                         keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Phone),
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(25.dp)
+                        shape = RoundedCornerShape(25.dp.responsiveHeight())
                     )
 
-                    Spacer(modifier = Modifier.height(26.dp))
+                    Spacer(modifier = Modifier.height(26.dp.responsiveHeight()))
                     Button(
                         onClick = {
                             val updatedUser = User(
@@ -241,7 +241,10 @@ fun ProfileScreen(
                             )
                             authViewModel.updateUser(updatedUser)
                         },
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 55.dp).padding(7.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 55.dp)
+                            .padding(7.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.inversePrimary,
                             contentColor = MaterialTheme.colorScheme.onTertiaryContainer
@@ -249,11 +252,11 @@ fun ProfileScreen(
                     ) {
                         Text(text = "Save", modifier = Modifier.padding(7.dp))
                     }
-                    Spacer(modifier = Modifier.height(5.dp))
+                    Spacer(modifier = Modifier.height(5.dp.responsiveHeight()))
                     TextButton(onClick = onSkip) {
                         Text(
                             text = "Do Later",
-                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                            style = MaterialTheme.typography.bodyLarge.responsive().copy(fontWeight = FontWeight.Bold),
                             color = MaterialTheme.colorScheme.error
                         )
                     }
@@ -286,20 +289,21 @@ fun saveImageToInternalStorage(context: Context, uri: Uri): String? {
 @Composable
 fun ProfileTopBar(){
     Surface(
-        color = MaterialTheme.colorScheme.surfaceTint,
+        color = MaterialTheme.colorScheme.inversePrimary,
       //  shape = RoundedCornerShape(bottomEnd = 5.dp, bottomStart = 5.dp),
         shadowElevation = 20.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(10.dp).padding(start = 15.dp),
+                .padding(10.dp)
+                .padding(start = 15.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
                 text = "Set Up Your Profile",
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.bodyLarge.responsive().copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onError
             )
             IconButton(onClick = { /*TODO*/ }) {
