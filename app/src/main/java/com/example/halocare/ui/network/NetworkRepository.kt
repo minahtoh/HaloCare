@@ -1,8 +1,8 @@
-package com.example.halocare.network
+package com.example.halocare.ui.network
 
-import com.example.halocare.network.models.AdviceResponse
-import com.example.halocare.network.models.WeatherResponse
-import com.example.halocare.network.models.WeatherResponseHourly
+import com.example.halocare.ui.network.models.AdviceResponse
+import com.example.halocare.ui.network.models.WeatherResponse
+import com.example.halocare.ui.network.models.WeatherResponseHourly
 import retrofit2.Retrofit
 import retrofit2.create
 import javax.inject.Inject

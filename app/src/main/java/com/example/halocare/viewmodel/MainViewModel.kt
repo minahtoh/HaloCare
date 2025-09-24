@@ -20,9 +20,9 @@ import com.example.halocare.database.JournalDao
 import com.example.halocare.database.MedicationsDao
 import com.example.halocare.database.MoodEntryDao
 import com.example.halocare.database.SleepDao
-import com.example.halocare.network.NetworkRepository
-import com.example.halocare.network.models.WeatherResponse
-import com.example.halocare.network.models.WeatherResponseHourly
+import com.example.halocare.ui.network.NetworkRepository
+import com.example.halocare.ui.network.models.WeatherResponse
+import com.example.halocare.ui.network.models.WeatherResponseHourly
 import com.example.halocare.services.ExerciseTimerService
 import com.example.halocare.services.TimerRepository
 import com.example.halocare.ui.models.Appointment

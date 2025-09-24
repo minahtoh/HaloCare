@@ -282,13 +282,15 @@ fun HaloCareNavHost(
             composable(route = MoodScreen.route) {
                 MoodTrackerScreen(
                     mainViewModel = mainViewModel,
-                    onBackIconClick = { navHostController.popBackStack() }
+                    onBackIconClick = { navHostController.popBackStack() },
+                    isDarkMode = isDarkMode
                 )
             }
             composable(route = MedicationScreen.route) {
                 MedicationReminderScreen(
                     mainViewModel = mainViewModel,
-                    onBackIconClick = { navHostController.navigateUp() }
+                    onBackIconClick = { navHostController.navigateUp() },
+                    isDarkMode = isDarkMode
                 )
             }
             composable(route = PediatricDevelopmentScreen.route) {
@@ -350,7 +352,7 @@ fun FeatureGridOverlay(
             exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 145.dp.responsiveHeight())
+                .padding(bottom = 165.dp.responsiveHeight())
         ) {
             FeatureGridPopup(
                 onFeatureClick = onFeatureClick

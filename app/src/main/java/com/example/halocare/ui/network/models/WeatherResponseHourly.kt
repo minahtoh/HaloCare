@@ -1,4 +1,4 @@
-package com.example.halocare.network.models
+package com.example.halocare.ui.network.models
 
 import com.google.gson.annotations.SerializedName
 

@@ -136,8 +136,8 @@ import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import coil.compose.rememberAsyncImagePainter
 import com.example.halocare.R
-import com.example.halocare.network.models.WeatherResponse
-import com.example.halocare.network.models.WeatherResponseHourly
+import com.example.halocare.ui.network.models.WeatherResponse
+import com.example.halocare.ui.network.models.WeatherResponseHourly
 import com.example.halocare.ui.utils.FabCutoutShape
 import com.example.halocare.viewmodel.AuthViewModel
 import com.example.halocare.viewmodel.LoadingState
@@ -533,7 +533,7 @@ fun HaloCareBottomBarCurved(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(boxHeight)
-                    .padding(horizontal = 10.dp.responsiveWidth()),
+                    .padding(horizontal = 8.dp.responsiveWidth()),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {

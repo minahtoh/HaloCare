@@ -1,4 +1,4 @@
-package com.example.halocare.network
+package com.example.halocare.ui.network
 
 object NetworkConstants {
     const val WEATHER_BASE_URL = "https://api.weatherapi.com/v1/"

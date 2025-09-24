@@ -62,7 +62,8 @@ import java.time.LocalDate
 fun JournalHeatmap(
     entries: List<JournalEntry> = emptyList(),
     modifier: Modifier = Modifier,
-    onDateClicked : (List<JournalEntry>) -> Unit = {}
+    onDateClicked : (List<JournalEntry>) -> Unit = {},
+    isDarkMode : Boolean
 ) {
 
     val today = LocalDate.now()
@@ -87,7 +88,7 @@ fun JournalHeatmap(
     ) {
         Text(
             text = "Journal History",
-            style = MaterialTheme.typography.titleSmall.responsive(),
+            style = MaterialTheme.typography.headlineSmall.copy(fontSize = 18.sp.responsiveSp()),
             modifier = Modifier.padding(bottom = 8.dp, start = 13.dp)
         )
 
@@ -95,7 +96,8 @@ fun JournalHeatmap(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(
-                    color = MaterialTheme.colorScheme.surfaceTint,
+                    color = if(isDarkMode) MaterialTheme.colorScheme.primaryContainer else
+                        MaterialTheme.colorScheme.surfaceTint,
                     shape = RoundedCornerShape(7.dp)
                 )
                 .padding(2.dp)
@@ -140,7 +142,8 @@ fun JournalHeatmap(
                                         .border(
                                             BorderStroke(
                                                 itemSize * 0.065f,
-                                                MaterialTheme.colorScheme.tertiaryContainer
+                                               color = if(!isDarkMode) MaterialTheme.colorScheme.tertiaryContainer
+                                                        else MaterialTheme.colorScheme.secondary
                                             ),
                                             shape = RoundedCornerShape(itemSize * 0.087f)
                                         )

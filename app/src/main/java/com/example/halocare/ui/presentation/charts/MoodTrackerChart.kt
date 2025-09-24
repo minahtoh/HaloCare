@@ -70,6 +70,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.halocare.BuildConfig
 import com.example.halocare.ui.models.HaloMoodEntry
 import com.example.halocare.ui.presentation.responsiveHeight
 import com.example.halocare.ui.presentation.responsiveWidth
@@ -748,6 +749,7 @@ val defaultLandscapePoints = listOf(0f, 5f, 10f, 7f, 15f, 10f, 5f, 0f)
 
 @Composable
 fun Float.responsiveWidth(): Float {
+    if (!BuildConfig.IS_USER_BUILD) return this
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp
     val scaleFactor = (screenWidth.toFloat() / 411f).coerceIn(0.8f, 1.2f)
@@ -756,6 +758,7 @@ fun Float.responsiveWidth(): Float {
 
 @Composable
 fun Float.responsiveHeight(): Float {
+    if (!BuildConfig.IS_USER_BUILD) return this
     val configuration = LocalConfiguration.current
     val screenHeight = configuration.screenHeightDp
     val scaleFactor = (screenHeight.toFloat() / 891f).coerceIn(0.8f, 1.2f)

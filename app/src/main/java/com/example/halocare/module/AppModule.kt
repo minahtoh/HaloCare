@@ -13,7 +13,7 @@ import com.example.halocare.database.MedicationsDao
 import com.example.halocare.database.MoodEntryDao
 import com.example.halocare.database.SleepDao
 import com.example.halocare.database.UserDao
-import com.example.halocare.network.NetworkConstants
+import com.example.halocare.ui.network.NetworkConstants
 import com.example.halocare.services.TimerRepository
 import com.example.halocare.services.TimerRepositoryImpl
 import com.example.halocare.viewmodel.AuthRepository

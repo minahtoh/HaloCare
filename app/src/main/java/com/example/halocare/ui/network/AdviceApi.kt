@@ -1,6 +1,6 @@
-package com.example.halocare.network
+package com.example.halocare.ui.network
 
-import com.example.halocare.network.models.AdviceResponse
+import com.example.halocare.ui.network.models.AdviceResponse
 import retrofit2.Response
 import retrofit2.http.GET
 

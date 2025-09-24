@@ -124,6 +124,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.times
 import androidx.compose.ui.window.Dialog
 import androidx.core.graphics.toColor
+import com.example.halocare.BuildConfig
 import com.example.halocare.R
 import com.example.halocare.receivers.MedicationReminderReceiver
 import com.example.halocare.ui.models.Medication
@@ -141,10 +142,12 @@ import java.util.Locale
 @Composable
 fun MedicationReminderScreen(
     mainViewModel: MainViewModel,
-    onBackIconClick : () -> Unit
+    onBackIconClick : () -> Unit,
+    isDarkMode: Boolean
 ) {
     val statusBarController = rememberStatusBarController()
-    val statusBarColor = MaterialTheme.colorScheme.tertiaryContainer
+    val statusBarColor = if(!isDarkMode) MaterialTheme.colorScheme.tertiaryContainer
+                            else MaterialTheme.colorScheme.secondaryContainer
 
     var showAddDialog by remember { mutableStateOf(false) }
     val today = remember { LocalDate.now() }
@@ -181,7 +184,10 @@ fun MedicationReminderScreen(
 
     Scaffold(
         topBar = {
-            MedicationReminderTopBar(onBackIconClick = { onBackIconClick() })
+            MedicationReminderTopBar(
+                onBackIconClick = { onBackIconClick() },
+                isDarkMode = isDarkMode
+            )
                  },
         floatingActionButton = {
             FloatingActionButton(
@@ -194,7 +200,7 @@ fun MedicationReminderScreen(
                 painter = painterResource(id = R.drawable.baseline_medication_24),
                 contentDescription = "Add Medication")
         } },
-        containerColor = MaterialTheme.colorScheme.secondaryContainer
+        containerColor = MaterialTheme.colorScheme.primaryContainer
     ) { paddingValues ->
 
         LazyColumn(
@@ -210,14 +216,19 @@ fun MedicationReminderScreen(
                         onDayClick = { date ->
                             selectedDayForSheet = date
                             showMedicationBottomSheet = true
-                        }
+                        },
+                        isDarkMode = isDarkMode
                     )
                 }
-                Spacer(modifier = Modifier.height(5.dp.responsiveHeight()))
+              //  Spacer(modifier = Modifier.height(5.dp.responsiveHeight()))
             }
 
             stickyHeader {
-                Column(modifier = Modifier.background(MaterialTheme.colorScheme.secondaryContainer)) {
+                Column(
+                    modifier = Modifier.background(MaterialTheme.colorScheme.primaryContainer)
+                        .shadow(elevation = 7.dp)
+                ) {
+                    Spacer(modifier = Modifier.height(7.dp.responsiveHeight()))
                     TabRow(
                         selectedTabIndex = selectedTab,
                         containerColor = MaterialTheme.colorScheme.secondaryContainer
@@ -233,7 +244,7 @@ fun MedicationReminderScreen(
                             text = { Text("All Medications") }
                         )
                     }
-                    Spacer(modifier = Modifier.height(8.dp.responsiveHeight()))
+                    Spacer(modifier = Modifier.height(6.dp.responsiveHeight()))
                 }
             }
 
@@ -246,12 +257,12 @@ fun MedicationReminderScreen(
 
             if (medicationsToShow.isNotEmpty()) {
                 items(medicationsToShow) { medication ->
-                    Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    Box(modifier = Modifier.padding(horizontal = 5.dp)) {
                         SwipeToConfirmDeleteContainer(
                             medication = medication,
                             onDelete = { mainViewModel.deleteMedication(it) }
                         ) {
-                            MedicationCard(medication = medication) {
+                            MedicationCard(medication = medication, isDarkMode = isDarkMode) {
                                 selectedMedication = medication
                             }
                         }
@@ -322,7 +333,8 @@ fun MedicationReminderScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MedicationReminderTopBar(
-    onBackIconClick: () -> Unit
+    onBackIconClick: () -> Unit,
+    isDarkMode: Boolean
 ) {
     Box(
         modifier = Modifier
@@ -330,7 +342,10 @@ fun MedicationReminderTopBar(
             .shadow(
                 elevation = 2.dp,
             )
-            .background(MaterialTheme.colorScheme.tertiaryContainer)
+            .background(
+               if(!isDarkMode) MaterialTheme.colorScheme.tertiaryContainer
+                    else MaterialTheme.colorScheme.secondaryContainer
+            )
     ) {
         Row(
             modifier = Modifier
@@ -515,15 +530,17 @@ fun LogMedicationDialog(
 @Composable
 fun MedicationCard(
     medication: Medication,
+    isDarkMode: Boolean,
     isForToday: Boolean = false,
-    onClick: () -> Unit = {}
+    onClick: () -> Unit = {},
+
 ) {
     val isSystemInDarkTheme = isSystemInDarkTheme()
     val cardColor = Color(medication.color)
-    val surfaceColor = if (isSystemInDarkTheme) {
+    val surfaceColor = if (!isDarkMode) {
         cardColor
     } else {
-        cardColor.copy(alpha = 0.8f)
+        cardColor.copy(alpha = 0.45f)
     }
 
     var showInfoDialog by remember { mutableStateOf(false) }
@@ -563,7 +580,7 @@ fun MedicationCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp),
+                    .padding(13.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -1226,7 +1243,8 @@ val dummyMedicationSchedule: Map<LocalDate, List<Medication>> =
 @Composable
 fun MedicationCalendar(
     medicationSchedule: Map<LocalDate, List<Medication>>,
-    onDayClick: (LocalDate) -> Unit
+    onDayClick: (LocalDate) -> Unit,
+    isDarkMode: Boolean
 ) {
     val today = LocalDate.now()
     val daysInMonth = YearMonth.of(today.year, today.month).lengthOfMonth()
@@ -1273,7 +1291,8 @@ fun MedicationCalendar(
                         modifier = Modifier
                             .fillMaxSize()
                             .background(
-                                color = MaterialTheme.colorScheme.inversePrimary,
+                                color = if(!isDarkMode) MaterialTheme.colorScheme.inversePrimary
+                                        else MaterialTheme.colorScheme.surfaceVariant,
                                 shape = RoundedCornerShape(8.dp)
                             )
                             .padding(start = 3.dp, end = 3.dp)
@@ -1483,7 +1502,7 @@ fun deleteBackground(
     swipeDismissState: DismissState
 ) {
     val color = if (swipeDismissState.dismissDirection == DismissDirection.EndToStart) {
-        MaterialTheme.colorScheme.error
+        MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.9f)
     } else {
         Color.Transparent
     }
@@ -1496,7 +1515,7 @@ fun deleteBackground(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(color)
+            .background(color, shape = RoundedCornerShape(7.dp))
             .padding(16.dp),
         contentAlignment = Alignment.CenterEnd
     ) {
@@ -1523,7 +1542,7 @@ fun MedicationInfoDialog(
                 .padding(16.dp),
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
+                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
             ),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
@@ -1690,7 +1709,7 @@ fun MedicationInfoDialog(
                         .fillMaxWidth()
                         .height(48.dp.responsiveHeight()),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = cardColor,
+                        containerColor = cardColor.copy(alpha = 0.8f),
                         contentColor = Color.White
                     ),
                     shape = RoundedCornerShape(12.dp)
@@ -1753,6 +1772,7 @@ private fun InfoRow(
 }
 @Composable
 fun TextStyle.responsive(): TextStyle {
+    if (!BuildConfig.IS_USER_BUILD) return this
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current.density
     val fontScale = configuration.fontScale
@@ -1781,6 +1801,7 @@ fun TextStyle.responsive(): TextStyle {
 }
 @Composable
 fun Dp.responsiveWidth(): Dp {
+    if (!BuildConfig.IS_USER_BUILD) return this
     val screenWidth = LocalConfiguration.current.screenWidthDp
     val density = LocalDensity.current.density
     val fontScale = LocalConfiguration.current.fontScale
@@ -1797,6 +1818,7 @@ fun Dp.responsiveWidth(): Dp {
 
 @Composable
 fun Dp.responsiveHeight(): Dp {
+    if (!BuildConfig.IS_USER_BUILD) return this
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current.density
     val fontScale = configuration.fontScale

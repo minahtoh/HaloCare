@@ -71,7 +71,7 @@ fun TelehealthScreen() {
             TopAppBar(
                 title = { Text("Telehealth & Community Support") },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
                 )
             )
         }

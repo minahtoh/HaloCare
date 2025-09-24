@@ -100,6 +100,7 @@ import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.decode.ImageDecoderDecoder
 import coil.request.ImageRequest
+import com.example.halocare.BuildConfig
 import com.example.halocare.R
 import com.example.halocare.services.ExerciseTimerService
 import com.example.halocare.ui.models.ExerciseData
@@ -310,11 +311,13 @@ fun DailyHabitsScreen(
                             when (page) {
                                 0 -> ExerciseTabContent(
                                     mainViewModel = mainViewModel,
-                                    exerciseDataList = exerciseDataList
+                                    exerciseDataList = exerciseDataList,
+                                    isDarkMode = isDarkMode
                                 )
                                 1 -> SleepTabContent(
                                     sleepDataList = sleepDataList,
-                                    mainViewModel = mainViewModel
+                                    mainViewModel = mainViewModel,
+                                    isDarkMode = isDarkMode
                                 )
                                 2 -> JournalTabContent(
                                     mainViewModel = mainViewModel,
@@ -322,9 +325,13 @@ fun DailyHabitsScreen(
                                     onDatePressed = {
                                         selectedJournalEntries.value = it
                                         showJournalDialog.value = true
-                                    }
+                                    },
+                                    isDarkMode = isDarkMode
                                 )
-                                3 -> ScreenTimeTabContent(screenTimeSummary = screenTimeSummary)
+                                3 -> ScreenTimeTabContent(
+                                    screenTimeSummary = screenTimeSummary,
+                                    isDarkMode = isDarkMode
+                                )
                             }
                         }
                         item {
@@ -344,6 +351,7 @@ private fun rememberNestedScrollConnection() = object : NestedScrollConnection {
 }
 @Composable
 fun responsiveFontSize(baseSp: Float): TextUnit {
+    if (!BuildConfig.IS_USER_BUILD) return baseSp.sp
     val config = LocalConfiguration.current
     val screenWidth = config.screenWidthDp
     val scale = screenWidth / 411f // 411dp is Pixel 6a width
@@ -354,19 +362,23 @@ fun responsiveFontSize(baseSp: Float): TextUnit {
 @Composable
 private fun ExerciseTabContent(
     exerciseDataList: List<ExerciseData>?,
-    mainViewModel: MainViewModel
+    mainViewModel: MainViewModel,
+    isDarkMode: Boolean
 ){
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
     var elapsedTime by remember{ mutableStateOf(0f) }
     val time by mainViewModel.currentTime.collectAsState()
     val exerciseName by mainViewModel.exerciseName.collectAsStateWithLifecycle()
     val timerStatus by mainViewModel.isRunning.collectAsStateWithLifecycle()
+    val boxAHeight = if(BuildConfig.IS_USER_BUILD) screenHeight * 0.333f else 305.dp
+    val boxBHeight = if(BuildConfig.IS_USER_BUILD) screenHeight * 0.327f else 300.dp
+    val progressHeight = if(BuildConfig.IS_USER_BUILD) screenHeight * 0.46f else 380.dp
 
     // Chart Placeholder
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(screenHeight * 0.333f)
+            .height(boxAHeight)
             .padding(horizontal = 1.dp)
     ) {
         // Folder background layer (static shape)
@@ -374,7 +386,7 @@ private fun ExerciseTabContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.TopStart)
-                .height(screenHeight * 0.327f)
+                .height(boxBHeight)
                 .padding(horizontal = 10.dp)
                 .shadow(3.dp, RoundedCornerShape(14.dp), clip = false)
                 .clip(RoundedCornerShape(20.dp))
@@ -382,14 +394,14 @@ private fun ExerciseTabContent(
         )
 
         // Main card/chart
-        ExerciseTrackerChart(exerciseDataList ?: emptyList())
+        ExerciseTrackerChart(exerciseDataList ?: emptyList(), isDarkMode)
     }
 
     // Progress Bar Placeholder
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(screenHeight * 0.46f)
+            .height(progressHeight)
             .background(MaterialTheme.colorScheme.secondaryContainer),
     ){
         ExerciseProgressSection(
@@ -441,17 +453,22 @@ private fun ExerciseTabContent(
 @Composable
 private fun SleepTabContent(
     sleepDataList: List<SleepData>,
-    mainViewModel: MainViewModel
+    mainViewModel: MainViewModel,
+    isDarkMode: Boolean
 ){
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
     val today = remember { LocalDate.now().format(DateTimeFormatter.ISO_DATE) }
     val hasLoggedToday = sleepDataList.any { it.dayLogged == today }
 
+    val boxAHeight = if(BuildConfig.IS_USER_BUILD) screenHeight * 0.333f else 305.dp
+    val boxBHeight = if(BuildConfig.IS_USER_BUILD) screenHeight * 0.327f else 300.dp
+
+
     // Chart Placeholder
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(screenHeight * 0.333f) // was 305.dp
+            .height(boxAHeight) // was 305.dp
             .padding(horizontal = 6.dp)
     ) {
         // Folder background layer (static shape)
@@ -459,7 +476,7 @@ private fun SleepTabContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.TopStart)
-                .height(screenHeight * 0.327f) // was 300.dp
+                .height(boxBHeight) // was 300.dp
                 .padding(horizontal = 10.dp)
                 .shadow(3.dp, RoundedCornerShape(14.dp), clip = false)
                 .clip(RoundedCornerShape(20.dp))
@@ -483,10 +500,10 @@ private fun SleepTabContent(
             ) {
                 Text(
                     text = "Sleep Pattern",
-                    color = Color.Black,
+                    style = MaterialTheme.typography.headlineSmall.copy(fontSize = 18.sp.responsiveSp()),
                     modifier = Modifier.padding(bottom = 10.dp)
                 )
-                SleepTrackerChart(sleepDataList)
+                SleepTrackerChart(sleepDataList, Modifier, isDarkMode)
             }
         }
     }
@@ -578,10 +595,9 @@ private fun SleepTabContent(
                         }
                     }
                 }
-
-                Spacer(modifier = Modifier.height(290.dp.responsiveHeight())) // was 290.dp
             }
         }
+        Spacer(modifier = Modifier.height(290.dp.responsiveHeight())) // was 290.dp
     }
 }
 
@@ -589,7 +605,8 @@ private fun SleepTabContent(
 private fun JournalTabContent(
     journalDataList: List<JournalEntry>,
     mainViewModel: MainViewModel,
-    onDatePressed: (List<JournalEntry>) -> Unit
+    onDatePressed: (List<JournalEntry>) -> Unit,
+    isDarkMode: Boolean
 ) {
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
 
@@ -628,7 +645,8 @@ private fun JournalTabContent(
             ){
                 JournalHeatmap(
                     entries = journalDataList,
-                    onDateClicked = { entries -> onDatePressed(entries) }
+                    onDateClicked = { entries -> onDatePressed(entries) },
+                    isDarkMode = isDarkMode
                 )
             }
         }
@@ -694,14 +712,14 @@ private fun JournalTabContent(
 
 @Composable
 private fun ScreenTimeTabContent(
-    screenTimeSummary: MutableList<ScreenTimeEntry>
+    screenTimeSummary: MutableList<ScreenTimeEntry>,
+    isDarkMode: Boolean
 ){
-    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-           // .verticalScroll(rememberScrollState()) // if content can exceed screen height
+           // .verticalScroll(rememberScrollState())
     ) {
         // Chart Placeholder
         Box(
@@ -739,11 +757,12 @@ private fun ScreenTimeTabContent(
                 ) {
                     Text(
                         text = "Screen Time Usage",
-                        color = Color.Black,
+                        style = MaterialTheme.typography.headlineSmall.copy(fontSize = 18.sp.responsiveSp()),
                         modifier = Modifier.padding(bottom = 10.dp)
                     )
                     ScreenTimePieChart(
-                        screenTimeSummary.toList()
+                        screenTimeSummary.toList(),
+                        isDarkMode = isDarkMode
                     )
                 }
             }
@@ -943,7 +962,8 @@ fun getScreenTimeForApps(context: Context, selectedApps: Set<String>): Map<Strin
 
 @Composable
 fun ExerciseTrackerChart(
-    exerciseDataList: List<ExerciseData>
+    exerciseDataList: List<ExerciseData>,
+    isDarkMode: Boolean
 ) {
     Box(
         modifier = Modifier
@@ -964,13 +984,14 @@ fun ExerciseTrackerChart(
         ) {
             Text(
                 text = "Exercise Progress",
-                color = Color.Black,
+                style = MaterialTheme.typography.headlineSmall.copy(fontSize = 18.sp.responsiveSp()),
                 modifier = Modifier.padding(bottom = 10.dp)
             )
 
             HaloCharts(
                 exerciseDataList = exerciseDataList.takeLast(20),
-                featureName = "Exercise Tracker"
+                featureName = "Exercise Tracker",
+                isDarkMode = isDarkMode
             )
         }
     }
@@ -2194,11 +2215,13 @@ fun JournalViewDialog(
     // Check if there are multiple entries
     val hasMultipleEntries = journalEntries.size > 1
 
+    val dialogBox = if (BuildConfig.IS_USER_BUILD) 1f else 0.95f
+
 
     Dialog(onDismissRequest = { onDismiss() }) {
         Box(
             modifier = Modifier
-                // .fillMaxWidth(0.95f)
+                 .fillMaxWidth(dialogBox)
                 .heightIn(min = 600.dp.responsiveHeight())
                 .padding(16.dp),
         ) {
@@ -2224,31 +2247,60 @@ fun JournalViewDialog(
                 val currentJournal = journalEntries[index]
                 val journalType = currentJournal.journalType.toJournalType()
 
-                when (journalType) {
-                    is ScrollBackground -> NewScrollJournalView(
-                        entryText = currentJournal.entryText,
-                        date = currentJournal.date.toString(),
-                        modifier = Modifier.fillMaxSize()
-                    )
+                if (BuildConfig.IS_USER_BUILD){
+                    when (journalType) {
+                        is ScrollBackground -> NewScrollJournalView(
+                            entryText = currentJournal.entryText,
+                            date = currentJournal.date.toString(),
+                            modifier = Modifier.fillMaxSize()
+                        )
 
-                    is NotebookBackground -> NewNotebookJournalView(
-                        entryText = currentJournal.entryText,
-                        date = currentJournal.date.toString(),
-                        modifier = Modifier
-                    )
+                        is NotebookBackground -> NewNotebookJournalView(
+                            entryText = currentJournal.entryText,
+                            date = currentJournal.date.toString(),
+                            modifier = Modifier
+                        )
 
-                    is StickyNoteBackground -> NewStickyNoteJournalView(
-                        entryText = currentJournal.entryText,
-                        date = currentJournal.date.toString(),
-                        modifier = Modifier,
-                    )
+                        is StickyNoteBackground -> NewStickyNoteJournalView(
+                            entryText = currentJournal.entryText,
+                            date = currentJournal.date.toString(),
+                            modifier = Modifier,
+                        )
 
-                    is OpenBookBackground -> NewOpenBookJournalView(
-                        entryText = currentJournal.entryText,
-                        date = currentJournal.date.toString(),
-                        modifier = Modifier.fillMaxSize()
-                    )
+                        is OpenBookBackground -> NewOpenBookJournalView(
+                            entryText = currentJournal.entryText,
+                            date = currentJournal.date.toString(),
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                } else {
+                    when (journalType) {
+                        is ScrollBackground -> ScrollJournalView(
+                                entryText = currentJournal.entryText,
+                                date = currentJournal.date.toString(),
+                                modifier = Modifier.fillMaxSize()
+                            )
+
+                        is NotebookBackground -> NotebookJournalView(
+                            entryText = currentJournal.entryText,
+                            date = currentJournal.date.toString(),
+                            modifier = Modifier
+                        )
+
+                        is StickyNoteBackground -> StickyNoteJournalView(
+                            entryText = currentJournal.entryText,
+                            date = currentJournal.date.toString(),
+                            modifier = Modifier,
+                        )
+
+                        is OpenBookBackground -> OpenBookJournalView(
+                            entryText = currentJournal.entryText,
+                            date = currentJournal.date.toString(),
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 }
+
             }
 
 
@@ -2900,7 +2952,7 @@ fun DailyHabitsTopBar(
             // Title
             Text(
                 text = "Daily Habits",
-                style = MaterialTheme.typography.titleMedium.responsive(),
+                style = MaterialTheme.typography.titleLarge.responsive(),
                 color = MaterialTheme.colorScheme.secondary,
                 fontWeight = FontWeight.Bold
             )

@@ -39,6 +39,22 @@ android {
             useSupportLibrary true
         }
     }
+    flavorDimensions "userType"
+    productFlavors {
+        members {
+            dimension "userType"
+           // applicationIdSuffix ".members"
+            versionNameSuffix '-og'
+            buildConfigField "boolean", "IS_USER_BUILD", "false"
+        }
+        users {
+            dimension "userType"
+          //  applicationIdSuffix ".users"
+            versionNameSuffix "-users"
+            buildConfigField "boolean", "IS_USER_BUILD", "true"
+        }
+    }
+
 
     buildTypes {
         release {

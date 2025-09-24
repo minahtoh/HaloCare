@@ -4,6 +4,7 @@ import android.graphics.DashPathEffect
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.sp
@@ -18,7 +19,8 @@ import java.lang.Float.max
 
 class CustomLineTextMarker(
     private val markerList: List<ExerciseData>,
-    private val dotColor: Color = Color.Blue
+    private val dotColor: Color = Color.Blue,
+    private val markerBackground : Color
 ) : Marker {
 
     private val labelPaint = Paint().apply {
@@ -38,7 +40,7 @@ class CustomLineTextMarker(
     }
 
     private val backgroundPaint = Paint().apply {
-        color = Color.White.toArgb()
+        color = markerBackground.toArgb()
         style = Paint.Style.FILL
         setShadowLayer(10f, 0f, 4f, Color.Black.copy(alpha = 80f).toArgb()) // Smooth shadow
     }

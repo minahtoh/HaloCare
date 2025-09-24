@@ -37,14 +37,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.halocare.ui.models.ScreenTimeEntry
-
-
+import com.example.halocare.ui.presentation.responsive
 
 
 @Composable
 fun ScreenTimePieChart(
     screenTimeData: List<ScreenTimeEntry>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isDarkMode : Boolean
 ) {
     val filteredData = screenTimeData.filter { it.minutes > 0 }
     val totalTime = filteredData.sumOf { it.minutes }
@@ -75,10 +75,12 @@ fun ScreenTimePieChart(
     }
     if (filteredData.isEmpty()) {
         Column(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
                 .padding(6.dp)
                 .background(
-                    color = MaterialTheme.colorScheme.surfaceTint,
+                    color = if (isDarkMode) MaterialTheme.colorScheme.primaryContainer else
+                        MaterialTheme.colorScheme.surfaceTint,
                     shape = RoundedCornerShape(7.dp)
                 ),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -100,7 +102,7 @@ fun ScreenTimePieChart(
                 .fillMaxSize()
                 .padding(6.dp)
                 .background(
-                    color = MaterialTheme.colorScheme.surfaceTint,
+                    color =  MaterialTheme.colorScheme.primaryContainer,
                     shape = RoundedCornerShape(7.dp)
                 ),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -108,7 +110,7 @@ fun ScreenTimePieChart(
         ) {
             Text(
                 text = "Total Screen Time: $timeText",
-                style = MaterialTheme.typography.titleMedium
+                style = MaterialTheme.typography.titleMedium.responsive()
             )
 
             Spacer(modifier = Modifier.height(8.dp))

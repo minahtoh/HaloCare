@@ -1,7 +1,7 @@
-package com.example.halocare.network
+package com.example.halocare.ui.network
 
-import com.example.halocare.network.models.WeatherResponse
-import com.example.halocare.network.models.WeatherResponseHourly
+import com.example.halocare.ui.network.models.WeatherResponse
+import com.example.halocare.ui.network.models.WeatherResponseHourly
 import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.Query

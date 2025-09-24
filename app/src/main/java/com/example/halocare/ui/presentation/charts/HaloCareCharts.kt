@@ -55,7 +55,8 @@ import java.util.Locale
 @Composable
 fun HaloCharts(
     exerciseDataList: List<ExerciseData>,
-    featureName:String
+    featureName:String,
+    isDarkMode : Boolean
 ) {
     if (exerciseDataList.isEmpty()) {
         Text(
@@ -137,6 +138,7 @@ fun HaloCharts(
             textSizeSp = 12f
         }
         .build()
+    val markerBackground = MaterialTheme.colorScheme.primary
 
 
 
@@ -144,7 +146,8 @@ fun HaloCharts(
         modifier = Modifier
             .fillMaxWidth().fillMaxHeight()
             .background(
-                color = MaterialTheme.colorScheme.surfaceTint,
+                color = if(isDarkMode) MaterialTheme.colorScheme.primaryContainer else
+                    MaterialTheme.colorScheme.surfaceTint,
                 shape = RoundedCornerShape(7.dp)
             ).padding(end = 25.dp, start = 4.dp)
     ) {
@@ -193,7 +196,8 @@ fun HaloCharts(
             ),
             marker =
                 CustomLineTextMarker(
-                    exerciseDataList
+                    exerciseDataList,
+                    markerBackground = markerBackground
                 )
             ,
             modifier = Modifier

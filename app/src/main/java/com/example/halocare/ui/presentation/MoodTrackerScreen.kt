@@ -7,6 +7,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.clickable
@@ -50,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.zIndex
+import com.example.halocare.BuildConfig
 import com.example.halocare.R
 import com.example.halocare.ui.models.HaloMoodEntry
 import com.example.halocare.ui.presentation.charts.MoodChart
@@ -68,7 +70,8 @@ import java.util.Locale
 @Composable
 fun MoodTrackerScreen(
     mainViewModel: MainViewModel,
-    onBackIconClick: () -> Unit
+    onBackIconClick: () -> Unit,
+    isDarkMode : Boolean
 ){
     val statusBarController = rememberStatusBarController()
     val statusBarColor = MaterialTheme.colorScheme.inversePrimary
@@ -97,7 +100,7 @@ fun MoodTrackerScreen(
     LaunchedEffect(Unit){
         statusBarController.updateStatusBar(
             color = statusBarColor,
-            darkIcons = true
+            darkIcons = isDarkMode
         )
         mainViewModel.apply {
             getTodaysMood(startOfDayMillis,endOfDayMillis)
@@ -147,13 +150,23 @@ fun MoodTrackerScreen(
                         )
                     )
                     .background(
-                        color = MaterialTheme.colorScheme.tertiary,
+                        color = if(isDarkMode) MaterialTheme.colorScheme.primaryContainer else
+                            MaterialTheme.colorScheme.tertiary,
                         shape = RoundedCornerShape(
                             bottomStart = 15.dp, bottomEnd = 15.dp,
                             topStart = 15.dp, topEnd = 15.dp
                         )
                     )
-                    .padding(top = 4.dp, start = 2.dp, end = 2.dp)
+                    .border(
+                        width = 2.dp,
+                        color = if(isDarkMode) MaterialTheme.colorScheme.onErrorContainer
+                                else MaterialTheme.colorScheme.inversePrimary
+                        ,
+                        shape = RoundedCornerShape(
+                                bottomStart = 15.dp, bottomEnd = 15.dp,
+                                topStart = 15.dp, topEnd = 15.dp)
+                    )
+                    .padding(top = 4.dp, start = 3.dp, end = 3.dp)
             ) {
                 WeekDateSelector(
                     selectedDate = selectedDate,
@@ -170,7 +183,8 @@ fun MoodTrackerScreen(
                              .toInstant()
                              .toEpochMilli() - 1
                          mainViewModel.getTodaysMood(startOfDay,endOfDay)
-                     }
+                     },
+                    isDarkMode = isDarkMode
                 )
                 Spacer(modifier = Modifier.height(5.dp.responsiveHeight()))
 
@@ -294,7 +308,7 @@ fun MoodTrackerScreen(
                     }
                 }
                 Column(modifier = Modifier.padding(
-                    bottom = 6.dp, start = 16.dp, end = 16.dp)) {
+                    bottom = 16.dp, start = 16.dp, end = 16.dp)) {
                     Text(
                         text = dailyAdvice ?: " ",
                         fontSize = 14.sp.responsiveSp(),
@@ -315,7 +329,8 @@ fun MoodTrackerScreen(
                         },
                         onClose = {
                             showMoodDialog = false
-                        }
+                        },
+                        isDarkMode = isDarkMode
                     )
                 }
             }
@@ -329,7 +344,8 @@ fun MoodTrackerScreen(
 @Composable
 fun WeekDateSelector(
     selectedDate: LocalDate = LocalDate.now(),
-    onDateSelected: (LocalDate) -> Unit
+    onDateSelected: (LocalDate) -> Unit,
+    isDarkMode: Boolean
 ) {
     val daysOfWeek = remember(selectedDate) {
         val startOfWeek = selectedDate.with(DayOfWeek.MONDAY)
@@ -354,9 +370,11 @@ fun WeekDateSelector(
 
 
             val backgroundColor = if (isSelected && isClickable) {
-                MaterialTheme.colorScheme.errorContainer // Highlight selected & enabled
+                if(isDarkMode) MaterialTheme.colorScheme.onErrorContainer else
+                    MaterialTheme.colorScheme.errorContainer // Highlight selected & enabled
             } else {
-                MaterialTheme.colorScheme.tertiary
+                if (isDarkMode) MaterialTheme.colorScheme.primaryContainer else
+                     MaterialTheme.colorScheme.tertiary
             }
 
             val dayOfWeekColor = when {
@@ -366,10 +384,14 @@ fun WeekDateSelector(
             }
 
             val dayOfMonthColor = when {
-                isSelected && isClickable -> MaterialTheme.colorScheme.onPrimary
+                isSelected && isClickable -> if(!isDarkMode) MaterialTheme.colorScheme.onPrimary
+                            else MaterialTheme.colorScheme.onSurface
                 isFutureDate -> Color.Gray.copy(alpha = 0.4f) // Dim future dates
-                else -> MaterialTheme.colorScheme.onSurface // Default non-selected date color
+                else -> if(!isDarkMode) MaterialTheme.colorScheme.onSurface
+                        else MaterialTheme.colorScheme.primaryContainer
             }
+
+            val selectwidth = if(!BuildConfig.IS_USER_BUILD) 52.dp else 45.dp
 
 
             Column(
@@ -388,7 +410,7 @@ fun WeekDateSelector(
                 Column(
                     modifier = Modifier
                         .height(25.dp.responsiveHeight())
-                        .width(45.dp.responsiveWidth())
+                        .width(selectwidth.responsiveWidth())
                         .background(
                             color = MaterialTheme.colorScheme.surfaceTint,
                             shape = RoundedCornerShape(20.dp)
@@ -435,7 +457,8 @@ fun WeekDateSelector(
 @Composable
 fun MoodEntryLogger(
     onLogUserMood : (HaloMoodEntry) -> Unit = {},
-    onClose : () -> Unit = {}
+    onClose : () -> Unit = {},
+    isDarkMode: Boolean
 ) {
     var selectedIcon by remember {
         mutableStateOf<MoodIconData?>(null)
@@ -468,7 +491,7 @@ fun MoodEntryLogger(
          MoodIconData(R.drawable.insp_cookie, "inspectorCookie"),
          MoodIconData(R.drawable.zoomzoomzoom, "lockin"),
          MoodIconData(R.drawable.general_ra, "general"),
-        /* MoodIconData(R.drawable.sleep_wud, "denger"),
+         MoodIconData(R.drawable.sleep_wud, "denger"),
          MoodIconData(R.drawable.noodle_goat, "noodleGoat"),
          MoodIconData(R.drawable.first_tuch, "lessgo"),
          MoodIconData(R.drawable.mr_him, "sipper"),
@@ -477,7 +500,15 @@ fun MoodEntryLogger(
          MoodIconData(R.drawable.lover_man, "loverMan"),
          MoodIconData(R.drawable.yeatt, "AH"),
          MoodIconData(R.drawable.darwin, "letsSee"),
-         MoodIconData(R.drawable.spit_it, "spitIt"),*/
+         MoodIconData(R.drawable.spit_it, "spitIt"),
+         MoodIconData(R.drawable.scholar, "scholar"),
+         MoodIconData(R.drawable.chosenblood, "chosenBld"),
+         MoodIconData(R.drawable.santeee, "sANTEE"),
+         MoodIconData(R.drawable.undataker, "undataker"),
+         MoodIconData(R.drawable.xplora__, "xplora++"),
+         MoodIconData(R.drawable.proff, "proff"),
+         MoodIconData(R.drawable._uale, "2uale"),
+         MoodIconData(R.drawable.timerr, "timerr"),
      )
 
 
@@ -488,7 +519,8 @@ fun MoodEntryLogger(
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer
+            containerColor = if (isDarkMode) MaterialTheme.colorScheme.primaryContainer
+            else MaterialTheme.colorScheme.errorContainer
         )
     ) {
         Column(
@@ -577,8 +609,8 @@ fun MoodEntryLogger(
                                 rowIcons.forEach { moodIcon ->
                                     Box(
                                         modifier = Modifier
-                                            .padding(9.dp)
-                                            .size(50.dp.responsiveWidth())
+                                            .padding(8.dp)
+                                            .size(60.dp.responsiveWidth())
                                             .clip(RoundedCornerShape(15.dp))
                                             .clickable {
                                                 selectedIcon = moodIcon
@@ -590,7 +622,7 @@ fun MoodEntryLogger(
                                         Image(
                                             painter = painterResource(id = moodIcon.icon),
                                             contentDescription = "Mood Icon",
-                                            modifier = Modifier.size(30.dp.responsiveHeight())
+                                            modifier = Modifier.size(40.dp.responsiveHeight())
                                         )
                                     }
                                 }
@@ -737,6 +769,7 @@ fun MoodTrackerTopBar(
 
 @Composable
 fun TextUnit.responsiveSp(): TextUnit {
+    if (!BuildConfig.IS_USER_BUILD) return this
     val screenWidth = LocalConfiguration.current.screenWidthDp
     val density = LocalDensity.current.density
     val fontScale = LocalConfiguration.current.fontScale

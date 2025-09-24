@@ -73,7 +73,8 @@ import kotlin.math.roundToLong
 @Composable
 fun SleepTrackerChart(
     sleepData: List<SleepData>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isDarkMode: Boolean
 ) {
     val animatables = remember(sleepData) {
         sleepData.map { Animatable(0f) }
@@ -97,7 +98,8 @@ fun SleepTrackerChart(
         modifier = modifier
             .fillMaxWidth()
             .background(
-                color = MaterialTheme.colorScheme.surfaceTint,
+                color = if(isDarkMode) MaterialTheme.colorScheme.primaryContainer else
+                    MaterialTheme.colorScheme.surfaceTint,
                 shape = RoundedCornerShape(7.dp)
             )
             .padding(16.dp),
@@ -208,13 +210,20 @@ fun SleepTrackerChart(
                     startPaddingDp = 0.dp.value,
                     endPaddingDp = 0.dp.value
                 ),
-                marker = CustomSleepMarker(sleepData)
+                marker = CustomSleepMarker(
+                    sleepData,
+                    markerBackground = MaterialTheme.colorScheme.primary
+                )
             )
         }
     }
 }
 
-class CustomSleepMarker(private val sleepData: List<SleepData>) : Marker {
+class CustomSleepMarker(
+    private val sleepData: List<SleepData>,
+    private val markerBackground: Color,
+) : Marker {
+
     private val labelPaint = Paint().apply {
         color = Color.Black.toArgb()
         textSize = 20.sp.value
@@ -223,7 +232,7 @@ class CustomSleepMarker(private val sleepData: List<SleepData>) : Marker {
     }
 
     private val backgroundPaint = Paint().apply {
-        color = Color.White.toArgb()
+        color = markerBackground.toArgb()
         style = Paint.Style.FILL
         setShadowLayer(8f, 0f, 4f, Color.Gray.toArgb())
         isAntiAlias = true
